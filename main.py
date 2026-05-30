@@ -49,10 +49,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.bg_ctk_image = None
         self.pil_bg_image = None
 
-        # Sync interface coordinates instantly
-        self.update()
-        self.setup_background_canvas()
-
         # Typography Layer
         self.text_title_label = ctk.CTkLabel(
             self.main_frame, text="I D L E   S Y S T E M", 
@@ -143,6 +139,9 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
         self.bind("<Configure>", self.on_window_resize)
+        
+        # Schedule background setup after window is fully rendered
+        self.after(100, self.setup_background_canvas)
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
@@ -156,27 +155,30 @@ class SurrealPlayerApp(ctk.CTk):
         
         if os.path.exists(png_path):
             try:
-                # FIXED: Direct programmatic byte injection.
-                # Read the file directly into raw memory bytes, convert color spaces to clean RGBA, 
-                # and bypass any text parsing layers completely.
                 with open(png_path, "rb") as f:
                     image_data = f.read()
                 
                 self.pil_bg_image = Image.open(io.BytesIO(image_data)).convert("RGBA")
                 
+                # Get current window size
                 w = self.winfo_width()
                 h = self.winfo_height()
-                if w <= 10: w = 800
-                if h <= 10: h = 600
                 
-                self.bg_ctk_image = ctk.CTkImage(light_image=self.pil_bg_image, dark_image=self.pil_bg_image, size=(w, h))
+                # If window not ready, use defaults
+                if w <= 1: w = 800
+                if h <= 1: h = 600
+                
+                # Resize image to fit window
+                resized_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
+                
+                self.bg_ctk_image = ctk.CTkImage(light_image=resized_image, dark_image=resized_image, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: Local asset parsed straight into active memory at {w}x{h}.", flush=True)
+                print(f"SUCCESS: Background image loaded at {w}x{h}.", flush=True)
             except Exception as e:
-                print(f"Internal file load failure: {e}", flush=True)
+                print(f"Image load error: {e}", flush=True)
         else:
             self.bg_label.configure(image=None, fg_color="#101012")
-            print(f"CRITICAL: background.png not found at {png_path}", flush=True)
+            print(f"ERROR: background.png not found at {png_path}", flush=True)
 
     def on_window_resize(self, event):
         if event.widget == self:
