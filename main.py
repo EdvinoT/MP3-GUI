@@ -4,7 +4,7 @@ import threading
 import time
 import os
 import warnings
-from PIL import Image
+from PIL import Image, ImageTk
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -20,7 +20,6 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # RESTORED: Original CustomTkinter frame properties and scaling capabilities
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
@@ -42,12 +41,12 @@ class SurrealPlayerApp(ctk.CTk):
         self.main_frame.pack(fill="both", expand=True)
 
         # Explicitly declare memory placeholders to block garbage collection
-        self.bg_image_object = None
+        self.bg_photo = None
         self.bg_label = None
 
         # Transparent Menu Buttons
         button_font = ("Futura", 14)
-        btn_bg = "transparent"
+        btn_bg = "black"  # Pure black background box restored
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
@@ -55,7 +54,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            bg_color="transparent", command=self.access_songs
+            command=self.access_songs
         )
         self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
@@ -63,7 +62,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            bg_color="transparent", command=self.make_playlist
+            command=self.make_playlist
         )
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
@@ -71,7 +70,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            bg_color="transparent", command=self.start_download_thread
+            command=self.start_download_thread
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
@@ -79,7 +78,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
-            bg_color="transparent", command=self.turn_off
+            command=self.turn_off
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
@@ -92,7 +91,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_prev = ctk.CTkButton(
             self.playback_frame, text="◀◀", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="transparent", border_width=0, text_color=btn_text,
+            fg_color="black", border_width=0, text_color=btn_text,
             command=self.prev_track
         )
         self.btn_prev.pack(side="left", padx=15)
@@ -100,7 +99,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_play = ctk.CTkButton(
             self.playback_frame, text="▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="transparent", border_width=0, text_color=btn_text,
+            fg_color="black", border_width=0, text_color=btn_text,
             command=self.toggle_play
         )
         self.btn_play.pack(side="left", padx=15)
@@ -108,7 +107,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_next = ctk.CTkButton(
             self.playback_frame, text="▶▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="transparent", border_width=0, text_color=btn_text,
+            fg_color="black", border_width=0, text_color=btn_text,
             command=self.next_track
         )
         self.btn_next.pack(side="left", padx=15)
@@ -121,10 +120,8 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Initialize background using original setup structure
+        # Draw image background
         self.setup_background_canvas()
-        
-        # Bind the window resize event to keep the background scaled perfectly
         self.bind("<Configure>", self.on_window_resize)
 
     def load_local_tracks(self):
@@ -134,30 +131,34 @@ class SurrealPlayerApp(ctk.CTk):
         self.track_list.sort()
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
-    def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
+    def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
-        
         if os.path.exists(png_path):
             try:
-                # Load the raw PIL image cleanly
+                # Open image file using Pillow
                 pil_img = Image.open(png_path)
+                w = max(self.winfo_width(), 800)
+                h = max(self.winfo_height(), 600)
+                pil_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
                 
-                # RESTORED: Using CustomTkinter's native CTkImage object to handle Mac rendering perfectly
-                self.bg_image_object = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(self.winfo_width(), self.winfo_height()))
+                # Convert explicitly using ImageTk to render correctly on macOS
+                self.bg_photo = ImageTk.PhotoImage(pil_img)
                 
                 if self.bg_label is None:
-                    self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_image_object, text="")
+                    # Use standard ctk.CTkLabel container for smooth layering
+                    self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
                     self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
                     self.bg_label.lower()
+                else:
+                    self.bg_label.configure(image=self.bg_photo)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
             self.main_frame.configure(fg_color="#121214")
 
     def on_window_resize(self, event):
-        """Ensures that the native background scales nicely whenever you resize the window."""
-        if self.bg_image_object and event.widget == self:
-            self.bg_image_object.configure(size=(event.width, event.height))
+        if event.widget == self:
+            self.setup_background_canvas()
 
     def play_current_track(self):
         if not self.track_list: return
@@ -168,8 +169,6 @@ class SurrealPlayerApp(ctk.CTk):
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
-            clean_display_name = track_name.replace(".mp3", "")
-            self.setup_background_canvas(custom_subtext=f"▪ PLAYING: {clean_display_name} ▪")
         except Exception as e:
             print(f"Stream execution error: {e}", flush=True)
 
