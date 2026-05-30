@@ -186,18 +186,20 @@ class TrackScroller:
             return
             
         if self.current_alpha < self.target_alpha:
-            self.current_alpha = min(self.target_alpha, self.current_alpha + 5) # Increased step rate
+            self.current_alpha = min(self.target_alpha, self.current_alpha + 5)
             
-            w = self.app.bg_canvas.winfo_width()
-            h = self.app.bg_canvas.winfo_height()
+            # DIAGNOSTIC PRINT: Open your terminal to see if this is actively counting up!
+            print(f"Animating row. Current Alpha: {self.current_alpha}")
+            
+            # Use the main app window size for 100% accurate bounds
+            w = self.app.winfo_width()
+            h = self.app.winfo_height()
             if w <= 1: w, h = 800, 600
             
             fade_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
             draw = ImageDraw.Draw(fade_layer)
             
             x1, y1, x2, y2 = self.active_row_coords
-            
-            # FIXED: outline changed from "" to None to satisfy Pillow's color processor
             draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline=None)
             
             self.hover_strip_photo = ImageTk.PhotoImage(fade_layer)
@@ -207,8 +209,11 @@ class TrackScroller:
             else:
                 self.hover_strip_id = self.app.bg_canvas.create_image(0, 0, image=self.hover_strip_photo, anchor="nw")
                 
-            # CRITICAL FIX: Explicitly send this image layout tag to the absolute bottom of the stack
-            self.app.bg_canvas.tag_lower(self.hover_strip_id)
+            # Temporarily commented out to verify the box actually renders on top first
+            # self.app.bg_canvas.tag_lower(self.hover_strip_id)
+            
+            # Force Tkinter to refresh the canvas element visually
+            self.app.bg_canvas.update_idletasks()
             
             self.animation_job = self.app.after(10, lambda: self.run_smooth_fade(text_item_id))
 
