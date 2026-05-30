@@ -102,10 +102,11 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
-        """Detects if the cursor is hovering over a track to trigger smooth alpha fading loops."""
+        """Detects if the cursor is hovering over a track row lane to trigger a smooth fade."""
         if not self.is_open:
             return
 
+        # Find what item is directly under the mouse
         current_item = self.app.bg_canvas.find_withtag("current")
         w = self.app.bg_canvas.winfo_width()
         if w <= 1: w = 800
@@ -139,19 +140,46 @@ class TrackScroller:
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
                                 _, y1, _, y2 = bbox
-                                padding = 8  # Expanded to look like full, substantial structural rows
+                                padding = 8  
                                 
-                                # Store the absolute row bounding dimensions for our background layer builder
+                                # Setup target bounds for our background strip
                                 self.active_row_coords = (int(w * 0.10) + 1, y1 - padding, int(w * 0.90) - 1, y2 + padding)
                                 
-                                # Reset true alpha values and trigger the linear interpolation renderer
+                                # Start the animation alpha clock
                                 self.current_alpha = 0
                                 self.run_smooth_fade(item_id)
                         return
-
-        # If the cursor escapes out to blank canvas space, clear everything back out
-        self.clear_hover_strip()
-        self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
+        else:
+            # FIX: If the mouse is between text items but still within the glass panel row space
+            # This keeps the animation from breaking if the mouse slips off a text pixel
+            canvas_y = event.y
+            start_y = 85
+            line_height = 36
+            
+            # Math conversion to see what row index the cursor y position belongs to
+            estimated_row = (canvas_y - start_y + (line_height // 2)) // line_height
+            visible_count = min(self.visible_count, len(self.app.track_list) - self.scroll_offset)
+            
+            if 0 <= estimated_row < visible_count:
+                track_idx = estimated_row + self.scroll_offset
+                if self.currently_hovered_idx != track_idx:
+                    # Find the corresponding text item ID for this row
+                    for item_id in self.canvas_item_ids:
+                        tags = self.app.bg_canvas.gettags(item_id)
+                        if f"track_{track_idx}" in tags:
+                            self.currently_hovered_idx = track_idx
+                            self.clear_hover_strip()
+                            
+                            bbox = self.app.bg_canvas.bbox(item_id)
+                            if bbox:
+                                _, y1, _, y2 = bbox
+                                padding = 8
+                                self.active_row_coords = (int(w * 0.10) + 1, y1 - padding, int(w * 0.90) - 1, y2 + padding)
+                                self.current_alpha = 0
+                                self.run_smooth_fade(item_id)
+                            return
+            else:
+                self.clear_hover_strip()
 
     def run_smooth_fade(self, text_item_id):
         """Gradually increments the layer's raw alpha channel value for a seamless glass fade."""
@@ -159,23 +187,18 @@ class TrackScroller:
             return
             
         if self.current_alpha < self.target_alpha:
-            # Step speed size: increments by 4 alpha levels every 8ms for 60FPS fluid look
-            self.current_alpha = min(self.target_alpha, self.current_alpha + 4)
+            self.current_alpha = min(self.target_alpha, self.current_alpha + 5) # Increased step rate
             
-            # Generate a temporary image clip matching the canvas size to render true alpha translucency
             w = self.app.bg_canvas.winfo_width()
             h = self.app.bg_canvas.winfo_height()
             if w <= 1: w, h = 800, 600
             
-            # Create a completely transparent scratch canvas layer
             fade_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
             draw = ImageDraw.Draw(fade_layer)
             
-            # Draw a full pure white rectangle bar with the progressive alpha channel transparency value
             x1, y1, x2, y2 = self.active_row_coords
             draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline="")
             
-            # Convert to TK format and update the unique background item on the canvas
             self.hover_strip_photo = ImageTk.PhotoImage(fade_layer)
             
             if self.hover_strip_id:
@@ -183,11 +206,11 @@ class TrackScroller:
             else:
                 self.hover_strip_id = self.app.bg_canvas.create_image(0, 0, image=self.hover_strip_photo, anchor="nw")
                 
-            # Keep the background graphics underneath the song title text
-            self.app.bg_canvas.tag_lower(self.hover_strip_id, text_item_id)
+            # CRITICAL FIX: Explicitly send this image layout tag to the absolute bottom of the stack
+            # This makes sure it sits BEHIND text and dividers so it never intercepts mouse events
+            self.app.bg_canvas.tag_lower(self.hover_strip_id)
             
-            # Loop next frame refresh step
-            self.animation_job = self.app.after(8, lambda: self.run_smooth_fade(text_item_id))
+            self.animation_job = self.app.after(10, lambda: self.run_smooth_fade(text_item_id))
 
     def clear_hover_strip(self):
         """Halts the alpha clock loop engine and deletes the custom background highlight image layer."""
@@ -318,3 +341,4 @@ class TrackScroller:
                 self.app.current_track_index = track_index
                 self.app.play_current_track()
                 break
+            
