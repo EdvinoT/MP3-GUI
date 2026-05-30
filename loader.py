@@ -118,14 +118,20 @@ class SongLoader:
         download_thread.start()
 
     def download_web_audio_pipeline(self, url):
+        # Dynamically locate the absolute folder path where ffmpeg lives
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        ffmpeg_bin_path = os.path.join(project_dir, "ffmpeg")
+
         ydl_opts = {
+            # FIXED: Forces YouTube to give us ONLY the raw audio track, preventing duplicate video files
             'format': 'bestaudio/best',
+            'extract_flat': False,
             'nocheckcertificate': True,
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            # FIXED: Tells yt-dlp to look inside your local project directory for ffmpeg
-            'ffmpeg_location': '.', 
+            # FIXED: Direct absolute path to the local ffmpeg tool so your script never loses it
+            'ffmpeg_location': ffmpeg_bin_path, 
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
@@ -138,15 +144,16 @@ class SongLoader:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             
+            # Re-read tracks folder and update player interface
             self.app.load_local_tracks()
             self.app.setup_background_canvas()
             
-            messagebox.showinfo("Success", "Audio asset saved to your playlist bank as an MP3 file!")
+            messagebox.showinfo("Success", "Audio track saved and converted to MP3 successfully!")
         except Exception as e:
             print(f"Download error details: {e}")
             messagebox.showerror(
                 "Conversion Error", 
-                "Web download failed.\n\nPlease double check that the 'ffmpeg' file was downloaded and placed directly inside your project folder."
+                "Web download pipeline failed.\n\nPlease ensure your 'ffmpeg' file is sitting inside your main project directory next to loader.py."
             )
         finally:
             self.app.btn_add.configure(state="normal", text="ADD SONG")
