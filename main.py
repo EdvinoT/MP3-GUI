@@ -1,10 +1,10 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, Label
 import threading
 import time
 import os
 import warnings
-from PIL import Image
+from PIL import Image, ImageTk
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -20,11 +20,10 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Original CustomTkinter Window Properties
+        # Original Window Properties
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
-        self.configure(fg_color="#101012") # Fallback to clean black/dark charcoal if image fails
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
@@ -38,13 +37,16 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Build the background label first (so it sits at the absolute bottom layer)
-        self.bg_label = ctk.CTkLabel(self, text="")
+        # FIXED: Use a raw standard Tkinter Label to bypass CustomTkinter's dark mode overrides
+        self.bg_label = Label(self, borderwidth=0, highlightthickness=0)
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Build the functional content frame directly on top of the background layer
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
+
+        # Persistent variable to hold image object in memory
+        self.bg_tk_image = None  
 
         # Draw the initial image background configuration
         self.setup_background_canvas()
@@ -157,13 +159,17 @@ class SurrealPlayerApp(ctk.CTk):
                 w = max(self.winfo_width(), 800)
                 h = max(self.winfo_height(), 600)
                 
-                # Use CustomTkinter's specialized CTkImage to scale natively on high-res Mac displays
-                self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
-                self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: Background graphic mapped natively over dark workspace.", flush=True)
+                # Dynamic scaling via Pillow
+                resized_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
+                
+                # FIXED: Force native mapping to prevent dark mode transparency bugs
+                self.bg_tk_image = ImageTk.PhotoImage(resized_img)
+                self.bg_label.configure(image=self.bg_tk_image)
+                print(f"SUCCESS: Raw image asset projected onto background.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
+            self.bg_label.configure(bg="#101012", image="")
             print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
 
     def on_window_resize(self, event):
