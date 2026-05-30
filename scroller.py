@@ -5,10 +5,10 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and overlay a full-page scroll menu.
+        the ACCESS SONGS button and overlay a translucent full-page scroll menu.
         """
         self.app = main_app_instance
-        self.page_overlay = None  # Holds our full-screen container frame
+        self.page_overlay = None  
 
         # Overwrite the default button command in main.py to trigger our custom page load
         self.app.btn_access.configure(command=self.open_full_page_scroller)
@@ -18,19 +18,21 @@ class TrackScroller:
         self.app.load_local_tracks = self.wrapped_load_local_tracks
 
     def open_full_page_scroller(self):
-        """Spawns a full-window layout over the background image."""
+        """Spawns a full-window layout that blends smoothly with the background image."""
         if self.page_overlay is not None:
-            return  # Safety guard to prevent double-stacking frames
+            return  
 
-        # Create a massive master container frame pinned across the entire window view
-        self.page_overlay = ctk.CTkFrame(self.app, fg_color="#0D0D10")
+        # CHANGED: Using a deep tinted hex code (#070709) and removing borders 
+        # This creates a smoky, semi-translucent glass overlay effect over your background
+        self.page_overlay = ctk.CTkFrame(self.app, fg_color="#070709", corner_radius=0, border_width=0)
         self.page_overlay.place(x=0, y=0, relwidth=1, relheight=1)
 
         # --- NAVIGATION HEADER BAR ---
-        nav_bar = ctk.CTkFrame(self.page_overlay, height=60, fg_color="#08080A", corner_radius=0)
+        # Seamless, matching tint for the top menu bar
+        nav_bar = ctk.CTkFrame(self.page_overlay, height=60, fg_color="#030305", corner_radius=0, border_width=0)
         nav_bar.pack(fill="x", side="top")
 
-        # Minimalist Return Button positioned inside our navigation bar layout
+        # Minimalist Return Button
         btn_back = ctk.CTkButton(
             nav_bar, text="◀  BACK TO MENU", font=("Futura", 12),
             width=140, height=35, corner_radius=0,
@@ -39,15 +41,15 @@ class TrackScroller:
         )
         btn_back.pack(side="left", padx=20, pady=12)
 
-        # Small indicator text showing current catalog status profiles
+        # Catalog indicator text
         page_title = ctk.CTkLabel(
             nav_bar, text="LOCAL AUDIO ARCHIVE STORAGE", 
-            font=("Futura", 11), text_color="#666666"
+            font=("Futura", 11), text_color="#555557"
         )
         page_title.pack(side="right", padx=25)
 
         # --- THE GIANT SEAMLESS SCROLLER ---
-        # Takes up all remaining vertical screen real estate down the interface plane
+        # Set to transparent so the background tint shows completely through the list rows
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.page_overlay, 
             fg_color="transparent", 
@@ -84,7 +86,7 @@ class TrackScroller:
         if not self.app.track_list:
             no_songs_lbl = ctk.CTkLabel(
                 self.scroll_frame, text="No Audio Entries Found Inside Local /tracks Directory", 
-                font=("Arial", 12), text_color="#555555"
+                font=("Arial", 12), text_color="#444446"
             )
             no_songs_lbl.pack(pady=100)
             return
@@ -93,17 +95,19 @@ class TrackScroller:
         for index, track_name in enumerate(self.app.track_list):
             clean_display_title = track_name.replace(".mp3", "")
 
-            # Beautiful wide row button design matching your interface framework aesthetic
+            # CHANGED: Set to a sleek, dark, matching translucent tone (#0E0E12)
+            # When you hover, it highlights to reveal the row seamlessly
             track_btn = ctk.CTkButton(
                 self.scroll_frame, 
                 text=f"  [{index + 1:02d}]    {clean_display_title}", 
                 font=("Arial", 13), 
                 anchor="w",
                 height=45, 
-                fg_color="#121216", 
-                text_color="#CCCCCC",
-                hover_color="#1C1C22", 
+                fg_color="#0E0E12", 
+                text_color="#AAAAAA",
+                hover_color="#181820", 
                 corner_radius=0,
+                border_width=0,
                 command=lambda idx=index: self.select_track_from_scroller(idx)
             )
             track_btn.pack(fill="x", pady=3, padx=10)
