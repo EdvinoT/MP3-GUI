@@ -48,6 +48,7 @@ class SurrealPlayerApp(ctk.CTk):
 
         self.bg_ctk_image = None
         self.pil_bg_image = None
+        self.resized_bg_image = None
 
         # Typography Layer
         self.text_title_label = ctk.CTkLabel(
@@ -152,30 +153,37 @@ class SurrealPlayerApp(ctk.CTk):
 
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
+        print(f"Loading background from: {png_path}", flush=True)
         
         if os.path.exists(png_path):
             try:
                 with open(png_path, "rb") as f:
                     image_data = f.read()
+                    print(f"Image file size: {len(image_data)} bytes", flush=True)
                 
                 self.pil_bg_image = Image.open(io.BytesIO(image_data)).convert("RGBA")
+                print(f"PIL image loaded: {self.pil_bg_image.size}", flush=True)
                 
                 # Get current window size
                 w = self.winfo_width()
                 h = self.winfo_height()
+                print(f"Window size: {w}x{h}", flush=True)
                 
                 # If window not ready, use defaults
                 if w <= 1: w = 800
                 if h <= 1: h = 600
                 
-                # Resize image to fit window
-                resized_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
+                # Resize image to fit window - STORE REFERENCE TO AVOID GARBAGE COLLECTION
+                self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
+                print(f"Image resized to: {w}x{h}", flush=True)
                 
-                self.bg_ctk_image = ctk.CTkImage(light_image=resized_image, dark_image=resized_image, size=(w, h))
+                self.bg_ctk_image = ctk.CTkImage(light_image=self.resized_bg_image, dark_image=self.resized_bg_image, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: Background image loaded at {w}x{h}.", flush=True)
+                print(f"SUCCESS: Background image displayed at {w}x{h}.", flush=True)
             except Exception as e:
+                import traceback
                 print(f"Image load error: {e}", flush=True)
+                traceback.print_exc()
         else:
             self.bg_label.configure(image=None, fg_color="#101012")
             print(f"ERROR: background.png not found at {png_path}", flush=True)
