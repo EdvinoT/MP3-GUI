@@ -120,7 +120,7 @@ class SongLoader:
 
     def download_web_audio_pipeline(self, url):
         ydl_opts = {
-            'cookiesfrombrowser': ('safari',), # <-- ADD THIS LINE (Can change 'safari' to 'chrome' or 'firefox')
+            # REMOVED the 'cookiesfrombrowser' line completely to stop the macOS error
             'format': 'bestaudio/best',
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
             'postprocessors': [{
@@ -140,6 +140,7 @@ class SongLoader:
             self.app.load_local_tracks()
             messagebox.showinfo("Success", "Audio asset saved to your playlist bank!")
         except Exception as e:
-            messagebox.showerror("Error", f"Web extractor pipeline failure.\nEnsure link integrity.")
+            print(f"Download error details: {e}")
+            messagebox.showerror("Error", f"Web extractor pipeline failure.\nEnsure link integrity or check FFmpeg.")
         finally:
             self.app.btn_add.configure(state="normal", text="ADD SONG")
