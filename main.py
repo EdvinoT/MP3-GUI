@@ -1,10 +1,10 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, Canvas
 import threading
 import time
 import os
 import warnings
-from PIL import Image
+from PIL import Image, ImageTk
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -37,15 +37,18 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Build clean base container frame
-        self.main_frame = ctk.CTkFrame(self, fg_color="#101012", corner_radius=0)
-        self.main_frame.pack(fill="both", expand=True)
+        # CRITICAL FIX: Use a dedicated, raw native Canvas to force macOS to display the pixels
+        self.bg_canvas = Canvas(self, highlightthickness=0, borderwidth=0)
+        self.bg_canvas.pack(fill="both", expand=True)
 
-        # CRITICAL FIX: Persistent variables to prevent Python garbage collection
-        self.bg_image = None  
-        self.bg_label = None  
+        # Build the functional container frame directly on top of the canvas layer
+        self.main_frame = ctk.CTkFrame(self.bg_canvas, fg_color="transparent", corner_radius=0)
+        self.main_frame.place(relwidth=1, relheight=1)
 
-        # Load and set the background image first so text layers sit on top of it
+        # Persistent image state variable to completely stop Python garbage collection
+        self.bg_tk_image = None  
+
+        # Draw the initial image background canvas setup
         self.setup_background_canvas()
 
         # Typography Layer - Clean, light, skinny minimal style headers
@@ -137,7 +140,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Bind window resizing to dynamically update image scale
+        # Bind window resizing to dynamically update image scale cleanly
         self.bind("<Configure>", self.on_window_resize)
 
     def load_local_tracks(self):
@@ -148,7 +151,6 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self):
-        # Look specifically in the absolute project folder path
         png_path = os.path.join(self.dir_path, "background.png")
         
         if os.path.exists(png_path):
@@ -157,23 +159,23 @@ class SurrealPlayerApp(ctk.CTk):
                 w = max(self.winfo_width(), 800)
                 h = max(self.winfo_height(), 600)
                 
-                # FIXED: Use CustomTkinter's specialized CTkImage component to prevent Mac scaling bugs
-                self.bg_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
+                # Resize the image dynamically using high-quality sampling filters
+                resized_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
                 
-                if self.bg_label is None:
-                    self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_image, text="")
-                    self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                    self.bg_label.lower()  # Send it back behind text layers
-                else:
-                    self.bg_label.configure(image=self.bg_image)
-                print(f"SUCCESS: Loaded background image asset safely.", flush=True)
+                # FIXED: Convert using ImageTk directly onto the Canvas object.
+                # This guarantees macOS paints the pixels without losing them to garbage collection.
+                self.bg_tk_image = ImageTk.PhotoImage(resized_img)
+                
+                self.bg_canvas.delete("all")
+                self.bg_canvas.create_image(0, 0, image=self.bg_tk_image, anchor="nw")
+                print(f"SUCCESS: Hardware canvas force-painted background image.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
+            self.bg_canvas.configure(bg="#101012")
             print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
 
     def on_window_resize(self, event):
-        # Only trigger rewrite if the main application window size shifts
         if event.widget == self:
             self.setup_background_canvas()
 
