@@ -46,7 +46,8 @@ class SurrealPlayerApp(ctk.CTk):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
-        self.bg_ctk_image = None  
+        self.bg_ctk_image = None
+        self.pil_bg_image = None
 
         # Sync interface coordinates instantly
         self.update()
@@ -161,14 +162,14 @@ class SurrealPlayerApp(ctk.CTk):
                 with open(png_path, "rb") as f:
                     image_data = f.read()
                 
-                pil_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
+                self.pil_bg_image = Image.open(io.BytesIO(image_data)).convert("RGBA")
                 
                 w = self.winfo_width()
                 h = self.winfo_height()
                 if w <= 10: w = 800
                 if h <= 10: h = 600
                 
-                self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
+                self.bg_ctk_image = ctk.CTkImage(light_image=self.pil_bg_image, dark_image=self.pil_bg_image, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
                 print(f"SUCCESS: Local asset parsed straight into active memory at {w}x{h}.", flush=True)
             except Exception as e:
