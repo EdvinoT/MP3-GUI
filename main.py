@@ -1,3 +1,4 @@
+import loader
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
 from PIL import Image, ImageTk
@@ -6,8 +7,6 @@ import time
 import os
 import warnings
 import io
-import loader
-from loader import SurrealPlayerApp as LoaderApp
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
