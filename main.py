@@ -32,7 +32,7 @@ class SurrealPlayerApp(ctk.CTk):
         elif os.path.exists(png_path):
             final_image_path = png_path
 
-        # Completely clear base frame to prevent purple bleed
+        # Completely clear base frame to prevent bleed
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.pack(fill="both", expand=True)
 
@@ -46,33 +46,34 @@ class SurrealPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Hardware Log: Error loading image framework: {e}", flush=True)
         else:
-            # Simple dark slate gray fallback if no image is present
             self.main_frame.configure(fg_color="#121214")
 
-        # 2. Sleek Minimal Typography Header (Melts into image)
+        # 2. NEW TITLE: "Idle System" with spaced-out minimalist aesthetic effect
+        # We explicitly strip any corner radius or forced padding to ensure zero boxing
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
-            text="M A I N   M E N U", 
-            font=("Futura", 36, "normal"), 
-            text_color="#FFFFFF", # Crisp white to pop off any dark image
-            fg_color="transparent"
+            text="I D L E   S Y S T E M", 
+            font=("Futura", 32, "normal"), 
+            text_color="#FFFFFF", 
+            fg_color="transparent",
+            corner_radius=0
         )
-        self.title_label.place(relx=0.5, rely=0.15, anchor="center")
+        self.title_label.place(relx=0.5, rely=0.16, anchor="center")
 
-        # Minimal Status Bar (Completely transparent background, just clean text tracking)
+        # Minimal Status Sub-tracker
         self.status_bar = ctk.CTkLabel(
             self.main_frame, 
-            text="▪ IDLE SYSTEM ▪", 
-            font=("Futura", 11), 
-            text_color="#AAAAAA", # Subdued light gray
-            fg_color="transparent"
+            text="▪ ONLINE ▪", 
+            font=("Futura", 10), 
+            text_color="#888888", 
+            fg_color="transparent",
+            corner_radius=0
         )
         self.status_bar.place(relx=0.5, rely=0.24, anchor="center")
 
         # 3. Transparent Floating Menu Controls
         button_font = ("Futura", 14)
         
-        # We use a very faint dark tint with NO borders so the background image shows right through the buttons
         btn_bg = "transparent"
         btn_text = "#DDDDDD"
         btn_hover = "#FFFFFF"
@@ -104,12 +105,12 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_off = ctk.CTkButton(
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
-            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", # Soft red hue for the exit trigger
+            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
             command=self.turn_off
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Geometric Audio Deck Controls (Stripped down to minimal transparent icons)
+        # Geometric Audio Deck Controls
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
