@@ -7,10 +7,8 @@ import os
 import warnings
 from PIL import Image
 
-# Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
-# Initialize audio engine
 import pygame
 pygame.mixer.init()
 
@@ -27,27 +25,25 @@ class SurrealPlayerApp(ctk.CTk):
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-        # Core States
         self.track_list = []
         self.current_track_index = 0
         self.is_playing = False
 
-        # Build local paths
+        # Force the absolute directory structure of the file itself
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
+        print(f"Looking for images inside: {self.dir_path}", flush=True)
+        
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Build clean base container frame
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0, width=800, height=600)
         self.main_frame.pack(fill="both", expand=True)
 
-        # Explicitly declare memory placeholders to block garbage collection
         self.bg_photo = None
         self.bg_label = None
         self.text_title_label = None
         self.text_sub_label = None
 
-        # Transparent Menu Buttons
         button_font = ("Futura", 14)
         btn_bg = "transparent"
         btn_text = "#DDDDDD" 
@@ -85,7 +81,6 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Audio Deck Controls
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -123,7 +118,6 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Initialize background elements
         self.setup_background_canvas()
 
     def load_local_tracks(self):
@@ -131,52 +125,59 @@ class SurrealPlayerApp(ctk.CTk):
             os.makedirs(self.tracks_dir)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
         self.track_list.sort()
-        print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
+        print(f"Audio Tracks Loaded: {len(self.track_list)} targets.", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        final_image_path = os.path.join(self.dir_path, "background.png")
+        # Scan for exact casing or alternative matches
+        possible_filenames = ["background.png", "Background.png", "background.jpg", "background.jpeg"]
+        final_image_path = None
+        
+        for name in possible_filenames:
+            p = os.path.join(self.dir_path, name)
+            if os.path.exists(p):
+                final_image_path = p
+                break
 
-        # Clean up old text overlays if updating music track text state
         if self.text_title_label is not None: self.text_title_label.destroy()
         if self.text_sub_label is not None: self.text_sub_label.destroy()
 
         if self.bg_label is None:
-            if os.path.exists(final_image_path):
-                try:
-                    print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
-                    
-                    # 1. Use Pillow to parse whatever weird PNG color formatting version is inside the file
+            try:
+                if final_image_path:
+                    print(f"SUCCESS: Found image asset at {final_image_path}", flush=True)
                     pil_img = Image.open(final_image_path).resize((800, 600)).convert("RGB")
-                    
-                    # 2. Re-encode the image to an uncompressed baseline PPM/PGI string block format
-                    # This format is read directly by your operating system's native C window engine
-                    ppm_data = f"P6\n800 600\n255\n".encode() + pil_img.tobytes()
-                    
-                    # 3. Create native tk.PhotoImage directly using the data string
-                    self.bg_photo = tk.PhotoImage(width=800, height=600, data=ppm_data, format="PPM")
-                    
-                    # Draw background frame layout container context
-                    self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
-                    self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                    self.bg_label.lower()
-                    print("Layout Engine Status: Complete raw binary pixel bridge injected safely.", flush=True)
-                except Exception as e:
-                    print(f"Native graphic encoding engine failure: {e}", flush=True)
-                    self.main_frame.configure(fg_color="#121214")
-            else:
-                print("System Warning: background.png completely missing from project directory.", flush=True)
-                self.main_frame.configure(fg_color="#121214")
+                else:
+                    # EMERGENCY FALLBACK: If your file is missing or unreadable, generate a custom neon diagnostic layout
+                    print("WARNING: File 'background.png' not found or unreadable! Generating test grid background...", flush=True)
+                    pil_img = Image.new("RGB", (800, 600), color=(20, 20, 25))
+                    # Draw a distinctive dark grey tech-grid background
+                    from PIL import ImageDraw
+                    grid_draw = ImageDraw.Draw(pil_img)
+                    for x in range(0, 800, 40):
+                        grid_draw.line([(x, 0), (x, 600)], fill=(40, 40, 45), width=1)
+                    for y in range(0, 600, 40):
+                        grid_draw.line([(0, y), (800, y)], fill=(40, 40, 45), width=1)
+                
+                # Convert the pixel image stream to uncompressed data strings
+                ppm_data = f"P6\n800 600\n255\n".encode() + pil_img.tobytes()
+                self.bg_photo = tk.PhotoImage(width=800, height=600, data=ppm_data, format="PPM")
+                
+                self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
+                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                self.bg_label.lower()
+            except Exception as e:
+                print(f"Critical Native Rendering Error: {e}", flush=True)
 
-        # Layer sharp CTk text labels over our solid raw pixel backdrop
+        # Draw typography overlays
         self.text_title_label = ctk.CTkLabel(
             self.main_frame, text="I D L E   S Y S T E M", 
-            font=("Arial", 32), text_color="#000000", fg_color="transparent"
+            font=("Arial", 32), text_color="#FFFFFF", fg_color="transparent"
         )
         self.text_title_label.place(relx=0.5, y=95, anchor="center")
 
         self.text_sub_label = ctk.CTkLabel(
             self.main_frame, text=custom_subtext.upper(), 
-            font=("Arial", 10), text_color="#444444", fg_color="transparent"
+            font=("Arial", 10), text_color="#00FFCC", fg_color="transparent"
         )
         self.text_sub_label.place(relx=0.5, y=145, anchor="center")
 
