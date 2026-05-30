@@ -1,13 +1,3 @@
-import base64
-
-try:
-    with open("background.png", "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-        print("\n=== COPY ALL THE TEXT BELOW THIS LINE ===\n")
-        print(f'RAW_IMAGE_DATA = "{encoded_string}"')
-        print("\n=== END OF COPIED TEXT ===")
-except Exception as e:
-    print(f"Error reading image file: {e}")
 import customtkinter as ctk
 from tkinter import messagebox
 import threading
@@ -23,12 +13,6 @@ warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 # Initialize audio engine completely hidden in the background
 import pygame
 pygame.mixer.init()
-
-# ==========================================
-# PASTE YOUR GENERATED DATA LINE DIRECTLY HERE:
-# Example: RAW_IMAGE_DATA = "iVBORw0KGgoAAA..."
-RAW_IMAGE_DATA = "" 
-# ==========================================
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
@@ -54,15 +38,17 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Pure transparent layout containers to avoid light grey overrides
+        # FIXED: Enforce a transparent base color palette directly on the layout label widget
         self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
+        # Functional overlay frame for text and buttons
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
         self.bg_ctk_image = None  
 
+        # Sync interface coordinates instantly
         self.update()
         self.setup_background_canvas()
 
@@ -165,12 +151,17 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self):
-        # FIXED: Build image from raw memory data instead of a local file path link
-        if RAW_IMAGE_DATA != "":
+        png_path = os.path.join(self.dir_path, "background.png")
+        
+        if os.path.exists(png_path):
             try:
-                import base64
-                image_bytes = base64.b64decode(RAW_IMAGE_DATA)
-                pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+                # FIXED: Direct programmatic byte injection.
+                # Read the file directly into raw memory bytes, convert color spaces to clean RGBA, 
+                # and bypass any text parsing layers completely.
+                with open(png_path, "rb") as f:
+                    image_data = f.read()
+                
+                pil_img = Image.open(io.BytesIO(image_data)).convert("RGBA")
                 
                 w = self.winfo_width()
                 h = self.winfo_height()
@@ -179,12 +170,12 @@ class SurrealPlayerApp(ctk.CTk):
                 
                 self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: Direct memory array injected onto display window.", flush=True)
+                print(f"SUCCESS: Local asset parsed straight into active memory at {w}x{h}.", flush=True)
             except Exception as e:
-                print(f"Internal memory load failure: {e}", flush=True)
+                print(f"Internal file load failure: {e}", flush=True)
         else:
             self.bg_label.configure(image=None, fg_color="#101012")
-            print("FALLBACK: RAW_IMAGE_DATA string field is empty.", flush=True)
+            print(f"CRITICAL: background.png not found at {png_path}", flush=True)
 
     def on_window_resize(self, event):
         if event.widget == self:
