@@ -47,8 +47,7 @@ class TrackScroller:
             overlay = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
             
-            # FIXED: Drastically lowered the alpha opacity value (from 180 down to 110)
-            # This makes the panel heavily translucent so your background image easily shines through!
+            # Translucent box fill
             draw.rectangle(
                 [int(w * 0.05), int(h * 0.12), int(w * 0.95), int(h * 0.82)], 
                 fill=(5, 5, 10, 110),
@@ -86,7 +85,7 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def close_full_page_scroller(self):
-        """Destroys the scroll list view cleanly and drops you straight back to the main menu."""
+        """Destroys the scroll list view cleanly and forces a clean background image reload."""
         self.is_open = False
 
         # Destroy the layout tracking components entirely
@@ -97,7 +96,12 @@ class TrackScroller:
             self.nav_frame.destroy()
             self.nav_frame = None
 
-        # Command the main hub to instantly recalculate and paint its default background image
+        # FIXED: Wipe out the cached image tracking properties inside main app state memory
+        self.app.pil_bg_image = None
+        self.app.bg_photo = None
+        self.app.bg_canvas.delete("all")
+
+        # Command the main hub to freshly reload background.png straight from your project folder
         self.app.setup_background_canvas()
 
         # Bring back your home selection menu options exactly where they belong
@@ -106,7 +110,7 @@ class TrackScroller:
         self.app.btn_add.place(relx=0.5, rely=0.58, anchor="center")
         self.app.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # CRITICAL RE-RENDER PATCH: Forces the Mac graphics processor to instantly drop old residue layers
+        # Forces the OS graphics display pipeline to instantly refresh
         self.app.update_idletasks()
 
     def wrapped_load_local_tracks(self):
