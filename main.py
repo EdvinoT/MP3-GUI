@@ -154,37 +154,49 @@ class SurrealPlayerApp(ctk.CTk):
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
         
+        print(f"Setting up background from: {png_path}", flush=True)
+        
         if os.path.exists(png_path):
             try:
                 with open(png_path, "rb") as f:
                     image_data = f.read()
+                print(f"Image file loaded: {len(image_data)} bytes", flush=True)
                 
                 self.pil_bg_image = Image.open(io.BytesIO(image_data))
+                print(f"PIL Image size: {self.pil_bg_image.size}", flush=True)
                 
                 # Get canvas size
                 w = self.bg_canvas.winfo_width()
                 h = self.bg_canvas.winfo_height()
+                print(f"Canvas size: {w}x{h}", flush=True)
                 
                 # If canvas not ready, use window size
                 if w <= 1:
                     w = self.winfo_width()
                 if h <= 1:
                     h = self.winfo_height()
+                print(f"Using fallback: {w}x{h}", flush=True)
+                
                 if w <= 1: w = 800
                 if h <= 1: h = 600
+                print(f"Final size: {w}x{h}", flush=True)
                 
                 # Resize image to match canvas
                 self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
+                print(f"Image resized to: {self.resized_bg_image.size}", flush=True)
                 
                 # Convert to PhotoImage
                 self.bg_photo = ImageTk.PhotoImage(self.resized_bg_image)
+                print(f"PhotoImage created", flush=True)
                 
                 # Draw on canvas
                 self.bg_canvas.delete("all")
-                self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
-                print(f"Background loaded: {w}x{h}", flush=True)
+                image_id = self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                print(f"Image drawn on canvas with ID: {image_id}", flush=True)
             except Exception as e:
+                import traceback
                 print(f"Error loading background: {e}", flush=True)
+                traceback.print_exc()
         else:
             print(f"Background image not found at {png_path}", flush=True)
 
