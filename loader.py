@@ -120,14 +120,11 @@ class SongLoader:
 
     def download_web_audio_pipeline(self, url):
         ydl_opts = {
+            # Change format to best audio extraction without forcing conversion
             'format': 'bestaudio/best',
-            'nocheckcertificate': True,  # <-- ADD THIS LINE TO BYPASS THE SSL ERROR
+            'nocheckcertificate': True,
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }],
+            # REMOVED the FFmpeg postprocessor block entirely
             'quiet': True,
             'no_warnings': True,
         }
@@ -141,6 +138,6 @@ class SongLoader:
             messagebox.showinfo("Success", "Audio asset saved to your playlist bank!")
         except Exception as e:
             print(f"Download error details: {e}")
-            messagebox.showerror("Error", f"Web extractor pipeline failure.\nEnsure link integrity or check FFmpeg.")
+            messagebox.showerror("Error", f"Web extractor pipeline failure.\nEnsure link integrity.")
         finally:
             self.app.btn_add.configure(state="normal", text="ADD SONG")

@@ -140,9 +140,13 @@ class SurrealPlayerApp(ctk.CTk):
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
-        self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
+        
+        # Accept multiple standard audio extensions that Pygame can play
+        valid_extensions = (".mp3", ".m4a", ".wav", ".ogg", ".webm")
+        self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
-        print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
+        if not self.current_playlist:
+            self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
@@ -199,9 +203,11 @@ class SurrealPlayerApp(ctk.CTk):
             self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper())
 
     def play_current_track(self):
-        if not self.track_list: return
-        track_name = self.track_list[self.current_track_index]
-        track_path = os.path.join(self.tracks_dir, track_name)
+        # Replaces any of our extensions cleanly for screen display
+        clean_display_name = track_name
+        for ext in (".mp3", ".m4a", ".wav", ".ogg", ".webm"):
+            clean_display_name = clean_display_name.replace(ext, "")
+        self.update_status_text(f"▪ PLAYING: {clean_display_name} ▪")
         try:
             pygame.mixer.music.load(track_path)
             pygame.mixer.music.play()
