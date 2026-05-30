@@ -165,10 +165,11 @@ class SurrealPlayerApp(ctk.CTk):
                 # Layer 1: Render background image structure
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
                 
-                # Layer 2: Draw typography strings natively on the canvas to eliminate block backgrounds
+                # Layer 2: Draw typography strings natively on the canvas.
+                # FIXED: Bounding box text color changed to absolute black (#000000).
                 self.title_text_id = self.bg_canvas.create_text(
                     w // 2, 95, text="I D L E   S Y S T E M",
-                    font=("Arial", 32, "bold"), fill="#FFFFFF", anchor="center"
+                    font=("Arial", 32, "bold"), fill="#000000", anchor="center"
                 )
                 
                 self.sub_text_id = self.bg_canvas.create_text(
@@ -177,7 +178,7 @@ class SurrealPlayerApp(ctk.CTk):
                 )
                 
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
-                print(f"Background image and flawless text strings displayed successfully", flush=True)
+                print(f"Background image and flawless black text strings displayed successfully", flush=True)
             except Exception as e:
                 print(f"Error loading background canvas: {e}", flush=True)
         else:
@@ -188,7 +189,6 @@ class SurrealPlayerApp(ctk.CTk):
             self.setup_background_canvas()
 
     def update_status_text(self, custom_subtext):
-        # Update the live state status text rendered on the canvas layer seamlessly
         if self.sub_text_id is not None:
             self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper())
 
