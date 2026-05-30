@@ -3,7 +3,7 @@ from tkinter import messagebox
 import threading
 import time
 import os
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw, ImageFont
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
@@ -32,51 +32,50 @@ class SurrealPlayerApp(ctk.CTk):
         elif os.path.exists(png_path):
             final_image_path = png_path
 
-        # Completely clear base frame to prevent bleed
+        # Completely clear base frame
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.pack(fill="both", expand=True)
 
         if final_image_path:
             try:
-                self.bg_image = Image.open(final_image_path).resize((800, 600))
-                self.bg_photo = ImageTk.PhotoImage(self.bg_image)
+                # Open image and scale it to layout dimensions
+                base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
+                
+                # Create an editing layer to draw directly onto the image pixels
+                draw = ImageDraw.Draw(base_img)
+                
+                # Try to use a clean default system font, fallback to standard if unavailable
+                try:
+                    title_font = ImageFont.truetype("Arial", 32)
+                    sub_font = ImageFont.truetype("Arial", 10)
+                except IOError:
+                    title_font = ImageFont.load_default()
+                    sub_font = ImageFont.load_default()
+                
+                # BAKE THE TITLE: Write text directly onto image canvas (Pure Black)
+                # Positioned roughly around where the old label sat
+                draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
+                
+                # BAKE THE SUB-TRACKER: (Dark Charcoal Gray text)
+                draw.text((400, 145), "▪ ONLINE ▪", fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
+
+                # Convert the modified pixel canvas into something Tkinter can display
+                self.bg_photo = ImageTk.PhotoImage(base_img)
                 self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
                 self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                print(f"Hardware Log: Successfully loaded background asset from {final_image_path}", flush=True)
+                
+                print(f"Hardware Log: Successfully baked typography directly into asset: {final_image_path}", flush=True)
             except Exception as e:
-                print(f"Hardware Log: Error loading image framework: {e}", flush=True)
+                print(f"Hardware Log: Error binding graphic engine layers: {e}", flush=True)
         else:
             self.main_frame.configure(fg_color="#121214")
 
-        # 2. FIXED TITLE: Pure black to contrast your white background section (No surrounding box)
-        self.title_label = ctk.CTkLabel(
-            self.main_frame, 
-            text="I D L E   S Y S T E M", 
-            font=("Futura", 32, "normal"), 
-            text_color="#000000", 
-            fg_color="transparent",
-            bg_color="transparent"
-        )
-        self.title_label.configure(bg_color="transparent")
-        self.title_label.place(relx=0.5, rely=0.16, anchor="center")
-
-        # Sub-tracker text (Kept dark charcoal to sit neatly under the black title)
-        self.status_bar = ctk.CTkLabel(
-            self.main_frame, 
-            text="▪ ONLINE ▪", 
-            font=("Futura", 10), 
-            text_color="#444444", 
-            fg_color="transparent",
-            bg_color="transparent"
-        )
-        self.status_bar.place(relx=0.5, rely=0.24, anchor="center")
-
-        # 3. Transparent Menu Controls (Flipped back to clean white/silver text)
+        # 3. Transparent Menu Controls (Clean light silver text over the lower background area)
         button_font = ("Futura", 14)
         
         btn_bg = "transparent"
-        btn_text = "#DDDDDD" # Clean light silver
-        btn_hover = "#FFFFFF" # Glows pure white on hover
+        btn_text = "#DDDDDD" 
+        btn_hover = "#FFFFFF" 
 
         self.btn_access = ctk.CTkButton(
             self.main_frame, text="ACCESS SONGS", font=button_font, 
@@ -102,7 +101,6 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
-        # Keeping your good red color profile for the shut down button
         self.btn_off = ctk.CTkButton(
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
@@ -111,7 +109,7 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Geometric Audio Deck Controls (Flipped back to light text)
+        # Geometric Audio Deck Controls
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -156,15 +154,12 @@ class SurrealPlayerApp(ctk.CTk):
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
     def update_status(self, action_text):
-        # Keeps status updates styled cleanly in dark text to remain readable over the title backdrop area
-        self.status_bar.configure(text=f"▪ {action_text} ▪")
+        print(f"Status Updated: {action_text}", flush=True)
 
     def access_songs(self):
-        self.update_status("ACCESSING STORAGE")
         messagebox.showinfo("Library", "Opening local storage music library.")
 
     def make_playlist(self):
-        self.update_status("PLAYLIST CONFIG MODE")
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
 
     def start_download_thread(self):
@@ -179,10 +174,7 @@ class SurrealPlayerApp(ctk.CTk):
                 time.sleep(0.8) 
                 percent = i * 20
                 self.btn_add.configure(text=f"DOWNLOADING... {percent}%")
-                self.status_bar.configure(text=f"▪ DOWNLOADING DATA: {percent}% ▪")
-            
             print("Hardware Log: Track successfully written to target download format (.mp3)", flush=True)
-            self.status_bar.configure(text="▪ DOWNLOAD COMPLETE ▪")
             messagebox.showinfo("Success", "Audio track saved locally in .mp3 format!")
         except Exception as e:
             messagebox.showerror("Error", f"Download failed: {str(e)}")
