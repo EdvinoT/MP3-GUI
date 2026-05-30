@@ -6,11 +6,12 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and inject a true translucent canvas overlay.
+        the ACCESS SONGS button and inject a beautiful translucent text panel box.
         """
         self.app = main_app_instance
-        self.is_open = False  # Track whether the list page is active
+        self.is_open = False  
         self.scroll_frame = None
+        self.nav_frame = None
 
         # Overwrite the default button command in main.py to trigger our custom view toggle
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
@@ -27,34 +28,41 @@ class TrackScroller:
             self.close_full_page_scroller()
 
     def open_full_page_scroller(self):
-        """Alters the background image to add a translucent tint layer and reveals the tracks."""
+        """Alters the background image to add an isolated translucent text box panel."""
         self.is_open = True
         
-        # 1. Hide the main operational menu buttons so they don't peek through
+        # 1. Hide the main operational menu buttons (Leave the lower audio deck visible!)
         self.app.btn_access.place_forget()
         self.app.btn_playlist.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
 
-        # 2. Apply a true alpha-channel translucent dark mask directly over the background image pixels
+        # 2. Render a true alpha-channel translucent glass box panel directly onto the background canvas
         if self.app.pil_bg_image:
             w = self.app.bg_canvas.winfo_width()
             h = self.app.bg_canvas.winfo_height()
             
-            # Create an exact sized copy of the background image converted to alpha-layers (RGBA)
-            translucent_img = self.app.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS).convert("RGBA")
+            # Base copy of your background image
+            base_img = self.app.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS).convert("RGBA")
             
-            # Draw a dark overlay layer directly onto the image with an alpha value of 210 (out of 255)
-            # This makes the background dark enough to read text, but keeps the underlying image visible!
-            overlay = Image.new('RGBA', translucent_img.size, (10, 10, 13, 210))
-            final_tinted_image = Image.alpha_composite(translucent_img, overlay)
+            # Create an alpha overlay layer
+            overlay = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
             
-            # Render it onto the existing background canvas
+            # Draw an isolated dark translucent panel rectangle right where the text box sits
+            # (Left: 5% of width, Top: 12% of height, Right: 95% of width, Bottom: 82% of height)
+            # 180 out of 255 is the alpha opacity level for the dark glass box
+            draw.rectangle([int(w * 0.05), int(h * 0.12), int(w * 0.95), int(h * 0.82)], fill=(12, 12, 16, 180))
+            
+            # Combine the glass panel box onto your background image
+            final_tinted_image = Image.alpha_composite(base_img, overlay)
+            
+            # Swap the background image dynamically
             self.app.bg_photo = ImageTk.PhotoImage(final_tinted_image)
             self.app.bg_canvas.delete("all")
             self.app.bg_canvas.create_image(0, 0, image=self.app.bg_photo, anchor="nw")
 
-        # 3. Create a clean, transparent navigation layout container for the return controller
+        # 3. Create a clean transparent header container for our Return Button
         self.nav_frame = ctk.CTkFrame(self.app, height=60, fg_color="transparent")
         self.nav_frame.place(relx=0, rely=0, relwidth=1, anchor="nw")
 
@@ -66,33 +74,34 @@ class TrackScroller:
         )
         btn_back.pack(side="left", padx=20, pady=12)
 
-        # 4. Spawn the giant scrolling frame directly on the app window with a transparent background
+        # 4. Spawn the giant scrolling track frame right inside our translucent box boundaries
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.app, 
             fg_color="transparent", 
             corner_radius=0, 
             border_width=0
         )
-        self.scroll_frame.place(relx=0.05, rely=0.12, relwidth=0.9, relheight=0.7)
+        self.scroll_frame.place(relx=0.06, rely=0.14, relwidth=0.88, relheight=0.66)
 
         # Re-populate rows
         self.refresh_scroll_list()
 
     def close_full_page_scroller(self):
-        """Restores the original clean background image and brings back the main menu options."""
+        """Destroys the scroll list view cleanly and drops you straight back to the main menu."""
         self.is_open = False
 
-        # Destroy the scroll list and nav components
+        # Destroy the scroll components entirely so nothing stays behind
         if self.scroll_frame is not None:
             self.scroll_frame.destroy()
             self.scroll_frame = None
-        if hasattr(self, 'nav_frame'):
+        if self.nav_frame is not None:
             self.nav_frame.destroy()
+            self.nav_frame = None
 
-        # Command the main app hub to recalculate and redraw its default clean background layout
+        # Command the main hub to instantly redraw its default clean background image
         self.app.setup_background_canvas()
 
-        # Bring your home menu selection buttons back to their original screen positions
+        # Bring back your home selection menu options exactly where they belong
         self.app.btn_access.place(relx=0.5, rely=0.38, anchor="center")
         self.app.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
         self.app.btn_add.place(relx=0.5, rely=0.58, anchor="center")
@@ -123,21 +132,21 @@ class TrackScroller:
         for index, track_name in enumerate(self.app.track_list):
             clean_display_title = track_name.replace(".mp3", "")
 
-            # Rows use a very light outline or transparent fill so the tinted image shows right through
+            # Transparent row backgrounds so they layer perfectly over the frosted container panel box
             track_btn = ctk.CTkButton(
                 self.scroll_frame, 
                 text=f"  [{index + 1:02d}]    {clean_display_title}", 
                 font=("Arial", 13), 
                 anchor="w",
                 height=45, 
-                fg_color="#18181F", # Very dark tinted block
+                fg_color="transparent", 
                 text_color="#CCCCCC",
-                hover_color="#252530", # Highlights beautifully on hover
+                hover_color="#202028", 
                 corner_radius=0,
                 border_width=0,
                 command=lambda idx=index: self.select_track_from_scroller(idx)
             )
-            track_btn.pack(fill="x", pady=4, padx=10)
+            track_btn.pack(fill="x", pady=2, padx=10)
 
     def select_track_from_scroller(self, track_index):
         """Changes the track pointer index and commands the app engine to execute playback."""
