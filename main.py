@@ -1,9 +1,20 @@
+import base64
+
+try:
+    with open("background.png", "rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+        print("\n=== COPY ALL THE TEXT BELOW THIS LINE ===\n")
+        print(f'RAW_IMAGE_DATA = "{encoded_string}"')
+        print("\n=== END OF COPIED TEXT ===")
+except Exception as e:
+    print(f"Error reading image file: {e}")
 import customtkinter as ctk
 from tkinter import messagebox
 import threading
 import time
 import os
 import warnings
+import io
 from PIL import Image
 
 # Mute high-DPI warning logs entirely
@@ -13,7 +24,12 @@ warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 import pygame
 pygame.mixer.init()
 
-# HARD FORCE SYNC: Bind layout settings directly into the engine architecture
+# ==========================================
+# PASTE YOUR GENERATED DATA LINE DIRECTLY HERE:
+# Example: RAW_IMAGE_DATA = "iVBORw0KGgoAAA..."
+RAW_IMAGE_DATA = "" 
+# ==========================================
+
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
 
@@ -21,11 +37,10 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Set strict dark background window values directly at the root window layer
+        # Window Configurations
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
-        self._set_appearance_mode("Dark") # Force internal Mac system window configuration
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
@@ -39,36 +54,32 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # FIXED: Core background layout uses a solid dark color block fallback
-        # to permanently eliminate the system light grey layout window block.
-        self.bg_label = ctk.CTkLabel(self, text="", fg_color="#101012")
+        # Pure transparent layout containers to avoid light grey overrides
+        self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # Functional structural overlay container holding UI layers
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
-        # Persistent variable to hold image object in memory
         self.bg_ctk_image = None  
 
-        # Execute immediate window calculations before loading image pixels
         self.update()
         self.setup_background_canvas()
 
-        # Typography Layer - Text styling
+        # Typography Layer
         self.text_title_label = ctk.CTkLabel(
             self.main_frame, text="I D L E   S Y S T E M", 
-            font=("Arial", 32), text_color="#FFFFFF", fg_color="#000000"
+            font=("Arial", 32), text_color="#FFFFFF", fg_color="transparent"
         )
         self.text_title_label.place(relx=0.5, y=95, anchor="center")
 
         self.text_sub_label = ctk.CTkLabel(
             self.main_frame, text="▪ ONLINE ▪", 
-            font=("Arial", 11), text_color="#666666", fg_color="#000000"
+            font=("Arial", 11), text_color="#666666", fg_color="transparent"
         )
         self.text_sub_label.place(relx=0.5, y=145, anchor="center")
 
-        # Pure Black Minimalist Option Menu Buttons
+        # Minimalist Options UI Layout
         button_font = ("Futura", 14)
         btn_bg = "#000000" 
         btn_text = "#DDDDDD" 
@@ -107,7 +118,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
         # Audio Deck Controls
-        self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="#000000", corner_radius=0)
+        self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
         control_font = ("Arial", 16)
@@ -144,7 +155,6 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Direct window resize event configuration handler
         self.bind("<Configure>", self.on_window_resize)
 
     def load_local_tracks(self):
@@ -155,27 +165,26 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self):
-        png_path = os.path.join(self.dir_path, "background.png")
-        
-        if os.path.exists(png_path):
+        # FIXED: Build image from raw memory data instead of a local file path link
+        if RAW_IMAGE_DATA != "":
             try:
-                pil_img = Image.open(png_path).convert("RGBA")
+                import base64
+                image_bytes = base64.b64decode(RAW_IMAGE_DATA)
+                pil_img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
                 
-                # Query explicit geometry layout metrics
                 w = self.winfo_width()
                 h = self.winfo_height()
                 if w <= 10: w = 800
                 if h <= 10: h = 600
                 
-                # FIXED: Apply high-DPI scaling directly over the CTkImage processing layer
                 self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: CustomTkinter mapped blue & white asset natively at {w}x{h}.", flush=True)
+                print(f"SUCCESS: Direct memory array injected onto display window.", flush=True)
             except Exception as e:
-                print(f"Graphic engine load failure: {e}", flush=True)
+                print(f"Internal memory load failure: {e}", flush=True)
         else:
             self.bg_label.configure(image=None, fg_color="#101012")
-            print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
+            print("FALLBACK: RAW_IMAGE_DATA string field is empty.", flush=True)
 
     def on_window_resize(self, event):
         if event.widget == self:
