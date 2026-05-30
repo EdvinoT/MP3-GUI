@@ -7,7 +7,7 @@ class TrackScroller:
         """
         Takes the main app instance so this separate module can hijack
         the ACCESS SONGS button and project a widened, frosted light-glass lane
-        with dynamic background row selection highlights.
+        with custom step-animated background row selection highlights.
         """
         self.app = main_app_instance
         self.is_open = False  
@@ -15,8 +15,14 @@ class TrackScroller:
         self.visible_count = 13  
         
         self.canvas_item_ids = []
-        self.hover_strip_id = None    # Keeps track of the currently drawn highlight bar
-        self.currently_hovered_idx = None  # Tracks the index of the row being hovered
+        self.hover_strip_id = None    
+        self.currently_hovered_idx = None  
+        
+        # NEW ANIMATION TRACKING VARIABLES
+        self.animation_job = None      # Stores the active .after() loop ID
+        self.animation_step = 0        # Tracks the current frame of the fade
+        # HEX shades from very transparent light gray to less transparent light gray
+        self.fade_colors = ["#EFEFF4", "#EAEAEF", "#E5E5EA", "#E2E2E8"]
 
         # Overwrite the default button command in main.py to trigger our canvas view
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
@@ -97,7 +103,7 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
-        """Detects if the cursor is hovering over an asset to trigger animations and blips."""
+        """Detects if the cursor is hovering over an asset to trigger fade animations and blips."""
         if not self.is_open:
             return
 
@@ -109,54 +115,70 @@ class TrackScroller:
             item_id = current_item[0]
             tags = self.app.bg_canvas.gettags(item_id)
             
-            # 1. If hovering over the BACK button, clear song highlights and color it red
+            # If hovering over the BACK button, clear song highlights and color it red
             if "back_btn" in tags:
                 self.clear_hover_strip()
                 self.app.bg_canvas.itemconfig(item_id, fill="#FF5555")
                 return
             else:
-                # Reset back button to default color if we moved away from it
                 self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
 
-            # 2. If hovering over a song track item
+            # If hovering over a song track item
             if "track_item" in tags:
                 for tag in tags:
                     if tag.startswith("track_") and tag != "track_item":
                         track_idx = int(tag.split("_")[1])
                         
-                        # Only redraw if we've moved to a completely different row
+                        # Only trigger if we moved to a completely different row
                         if self.currently_hovered_idx != track_idx:
                             self.currently_hovered_idx = track_idx
                             
-                            # Play sound blip
                             if hasattr(self.app, 'play_ui_sound'):
                                 self.app.play_ui_sound("scroll")
                             
-                            # Clear old background highlight strip
+                            # Clean up previous background element and kill old animation loops
                             self.clear_hover_strip()
                             
-                            # Get coordinates of the current text item to draw a perfect rectangle behind it
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
                                 _, y1, _, y2 = bbox
                                 padding = 6
                                 
-                                # Draw a sleek, slightly whiter gray solid strip behind the text lane
+                                # CHANGED: Spawn the base strip at the initial entry color frame index (0)
                                 self.hover_strip_id = self.app.bg_canvas.create_rectangle(
                                     int(w * 0.11), y1 - padding, int(w * 0.89), y2 + padding,
-                                    fill="#E2E2E8", outline="", tags=("hover_strip",)
+                                    fill=self.fade_colors[0], outline="", tags=("hover_strip",)
                                 )
-                                
-                                # Send the background strip behind the text so it doesn't block it
                                 self.app.bg_canvas.tag_lower(self.hover_strip_id, item_id)
+                                
+                                # Start the step-fade tracking routine loop
+                                self.animation_step = 0
+                                self.run_fade_step(item_id)
                         return
 
-        # If cursor leaves interactive items completely, wipe the selection strips out
+        # If cursor leaves interactive items completely, wipe everything out
         self.clear_hover_strip()
         self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
 
+    def run_fade_step(self, text_item_id):
+        """Increments the background color shade step-by-step to make it smoothly less transparent."""
+        if not self.is_open or not self.hover_strip_id:
+            return
+            
+        if self.animation_step < len(self.fade_colors) - 1:
+            self.animation_step += 1
+            # Apply the next slightly darker/less transparent hex color frame
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill=self.fade_colors[self.animation_step])
+            
+            # Schedule the next visual color frame update in 12 milliseconds
+            self.animation_job = self.app.after(12, lambda: self.run_fade_step(text_item_id))
+
     def clear_hover_strip(self):
-        """Removes the highlight strip from the canvas background layer."""
+        """Removes the highlight strip from the canvas and safely stops any running animation jobs."""
+        if self.animation_job:
+            self.app.after_cancel(self.animation_job)
+            self.animation_job = None
+            
         if self.hover_strip_id:
             self.app.bg_canvas.delete(self.hover_strip_id)
             self.hover_strip_id = None
