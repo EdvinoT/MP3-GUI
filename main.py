@@ -35,6 +35,11 @@ class SurrealPlayerApp(ctk.CTk):
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
+        # UI Sound Properties
+        self.click_sound = None
+        self.scroll_sound = None
+        self.load_ui_sounds()
+
         # Core States
         self.track_list = []
         self.current_playlist = []  # INITIALIZED FIRST: Prevents Tkinter AttributeErrors
@@ -144,6 +149,16 @@ class SurrealPlayerApp(ctk.CTk):
         
         # Initialize the separate scroller module and plug it in
         scroller.TrackScroller(self)
+
+    def load_ui_sounds(self):
+        """Safely caches interface audio clicks and scrolls from disk directory."""
+        try:
+            if os.path.exists("click.wav"):
+                self.click_sound = pygame.mixer.Sound("click.wav")
+            if os.path.exists("scroll.wav"):
+                self.scroll_sound = pygame.mixer.Sound("scroll.wav")
+        except Exception as e:
+            print(f"Notice: Could not cache audio feedback components: {e}")
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
@@ -266,11 +281,8 @@ class SurrealPlayerApp(ctk.CTk):
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
     def access_songs(self):
-        if self.track_list:
-            track_manifest = "\n".join([f"- {t}" for t in self.track_list])
-            messagebox.showinfo("Local Index", f"Available MP3 Files:\n\n{track_manifest}")
-        else:
-            messagebox.showinfo("Local Index", "Storage bank directory empty.")
+        # Intentional empty pass behavior so our scroller.py hijack command overrides this entirely
+        pass
 
     def make_playlist(self):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
@@ -278,6 +290,16 @@ class SurrealPlayerApp(ctk.CTk):
     def turn_off(self):
         pygame.mixer.quit()
         self.destroy()
+
+    def play_ui_sound(self, sound_type):
+        """Global utility method triggered by scroller.py to execute interface audio cues."""
+        try:
+            if sound_type == "click" and self.click_sound is not None:
+                self.click_sound.play()
+            elif sound_type == "scroll" and self.scroll_sound is not None:
+                self.scroll_sound.play()
+        except Exception as e:
+            print(f"Audio system feedback error: {e}")
 
 if __name__ == "__main__":
     app = SurrealPlayerApp()

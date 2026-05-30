@@ -6,12 +6,12 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and project a widened, frosted light-glass lane.
+        the ACCESS SONGS button and project a widened, frosted light-glass lane with sound effects.
         """
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 13  # Increased count since font size is smaller now!
+        self.visible_count = 13  
         
         self.canvas_item_ids = []
 
@@ -34,6 +34,10 @@ class TrackScroller:
         self.is_open = True
         self.scroll_offset = 0
         
+        # Trigger an opening click sound
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
+        
         # 1. HIDE EVERYTHING: Clear out main menu buttons and audio deck entirely
         self.app.btn_access.place_forget()
         self.app.btn_playlist.place_forget()
@@ -41,7 +45,7 @@ class TrackScroller:
         self.app.btn_off.place_forget()
         self.app.playback_frame.place_forget()
 
-        # 2. GENERATE LIGHT FROSTED GLASS TINT: Draw a semi-transparent light grey panel over the canvas
+        # 2. GENERATE LIGHT FROSTED GLASS TINT
         if self.app.pil_bg_image:
             w = self.app.bg_canvas.winfo_width()
             h = self.app.bg_canvas.winfo_height()
@@ -51,8 +55,6 @@ class TrackScroller:
             overlay = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
             
-            # FIXED: Widened the panel layout (now covers 10% width to 90% width)
-            # FIXED: Changed tint to a bright light grey (235, 235, 240) with a highly transparent glass alpha (95)
             draw.rectangle(
                 [int(w * 0.10), 0, int(w * 0.90), h], 
                 fill=(235, 235, 240, 95),
@@ -60,7 +62,6 @@ class TrackScroller:
                 width=1
             )
             
-            # Layer the bright frost directly over your white wallpaper asset
             final_tinted_image = Image.alpha_composite(base_img, overlay)
             self.app.bg_photo = ImageTk.PhotoImage(final_tinted_image)
             self.app.bg_canvas.delete("all")
@@ -72,7 +73,6 @@ class TrackScroller:
         self.app.bind("<Button-5>", self.on_mouse_scroll)
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
 
-        # Render rows
         self.refresh_scroll_list()
 
     def on_mouse_scroll(self, event):
@@ -80,17 +80,27 @@ class TrackScroller:
         if not self.app.track_list:
             return
 
+        old_offset = self.scroll_offset
+
         if event.num == 4 or event.delta > 0:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5 or event.delta < 0:
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
+        # ADDED: Only play the scrolling blip sound if the page actually moves
+        if self.scroll_offset != old_offset and hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("scroll")
+
         self.refresh_scroll_list()
 
     def close_full_page_scroller(self):
         """Clears text elements, wipes the light tint layer out, and returns to home core layout."""
         self.is_open = False
+
+        # Trigger a closing click sound
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
 
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
@@ -131,7 +141,7 @@ class TrackScroller:
         w = self.app.bg_canvas.winfo_width()
         if w <= 1: w = 800
 
-        # --- BACK LINK COORDINATES (Shifted left to line up with new wide margins) ---
+        # --- BACK LINK COORDINATES ---
         back_id = self.app.bg_canvas.create_text(
             int(w * 0.13), 35, text="◀  BACK TO MENU", 
             font=("Futura", 10, "bold"), fill="#222226", anchor="w"
@@ -151,7 +161,7 @@ class TrackScroller:
         visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
         
         start_y = 85  
-        line_height = 36 # Tighter row padding to allow more compact track lines on screen
+        line_height = 36 
 
         for index, track_name in enumerate(visible_tracks):
             actual_track_index = index + self.scroll_offset
@@ -160,8 +170,6 @@ class TrackScroller:
             y_pos = start_y + (index * line_height)
             display_string = f"  [{actual_track_index + 1:02d}]    {clean_display_title}"
 
-            # FIXED: Smaller clean text sizing (font size 10)
-            # FIXED: Dark Charcoal Slate color code ("#222226") to remain completely legible over light glass frost
             track_id = self.app.bg_canvas.create_text(
                 int(w * 0.13), y_pos, text=display_string,
                 font=("Arial", 10), fill="#222226", anchor="w"
@@ -183,6 +191,10 @@ class TrackScroller:
             
         for tag in tags:
             if tag.startswith("track_") and tag != "track_item":
+                # ADDED: Trigger a selection click sound right as the item executes
+                if hasattr(self.app, 'play_ui_sound'):
+                    self.app.play_ui_sound("click")
+                    
                 track_index = int(tag.split("_")[1])
                 self.app.current_track_index = track_index
                 self.app.play_current_track()
