@@ -46,43 +46,44 @@ class SurrealPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Hardware Log: Error loading image framework: {e}", flush=True)
         else:
-            self.main_frame.configure(fg_color="#121214")
+            self.main_frame.configure(fg_color="#F2F2F7") # Light gray fallback
 
-        # 2. NEW TITLE: "Idle System" with spaced-out minimalist aesthetic effect
-        # We explicitly strip any corner radius or forced padding to ensure zero boxing
+        # 2. FIXED TITLE: Turned Black with hard-disabled background structures to kill the box
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
             text="I D L E   S Y S T E M", 
             font=("Futura", 32, "normal"), 
-            text_color="#FFFFFF", 
+            text_color="#000000", # Pure black for your white background
             fg_color="transparent",
-            corner_radius=0
+            bg_color="transparent"
         )
+        # Deep configuration layer check to force transparent background rendering on Mac
+        self.title_label.configure(bg_color="transparent")
         self.title_label.place(relx=0.5, rely=0.16, anchor="center")
 
-        # Minimal Status Sub-tracker
+        # Sub-tracker text turned dark charcoal gray to match the look
         self.status_bar = ctk.CTkLabel(
             self.main_frame, 
             text="▪ ONLINE ▪", 
             font=("Futura", 10), 
-            text_color="#888888", 
+            text_color="#444444", 
             fg_color="transparent",
-            corner_radius=0
+            bg_color="transparent"
         )
         self.status_bar.place(relx=0.5, rely=0.24, anchor="center")
 
-        # 3. Transparent Floating Menu Controls
+        # 3. Transparent Floating Menu Controls (Darkened text to fit the light canvas)
         button_font = ("Futura", 14)
         
         btn_bg = "transparent"
-        btn_text = "#DDDDDD"
-        btn_hover = "#FFFFFF"
+        btn_text = "#222222" # Dark text for visibility
+        btn_hover = "#000000" # Turns crisp black on hover
 
         self.btn_access = ctk.CTkButton(
             self.main_frame, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            command=self.access_songs
+            bg_color="transparent", command=self.access_songs
         )
         self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
@@ -90,7 +91,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            command=self.make_playlist
+            bg_color="transparent", command=self.make_playlist
         )
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
@@ -98,15 +99,15 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            command=self.start_download_thread
+            bg_color="transparent", command=self.start_download_thread
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
         self.btn_off = ctk.CTkButton(
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
-            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
-            command=self.turn_off
+            fg_color=btn_bg, border_width=0, text_color="#A30000", # Richer crimson for light backgrounds
+            bg_color="transparent", command=self.turn_off
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
@@ -144,7 +145,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
+        self._setup_hover_glow(self.btn_off, "#A30000", "#FF0000")
         self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
