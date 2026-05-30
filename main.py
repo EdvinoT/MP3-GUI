@@ -38,18 +38,14 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # FIXED: Enforce a transparent base color palette directly on the layout label widget
-        self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
-        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        # Create canvas for background image
+        self.bg_canvas = Canvas(self, highlightthickness=0)
+        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Functional overlay frame for text and buttons
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
-
-        # Create canvas for background image
-        self.bg_canvas = Canvas(self, highlightthickness=0)
-        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-        self.bg_canvas.lower()
+        self.main_frame.tkraise()
 
         self.bg_photo = None
         self.pil_bg_image = None
