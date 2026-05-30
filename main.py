@@ -70,14 +70,14 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.status_bar.place(relx=0.5, rely=0.26, anchor="center")
 
-        # 3. Enhanced Navigation Buttons
+        # 3. Enhanced Navigation Buttons (Completely cleaned)
         button_font = ("Futura", 14, "bold")
         
         self.btn_access = ctk.CTkButton(
             self.main_frame, text="ACCESS SONGS", font=button_font, 
             width=280, height=48, corner_radius=14, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=self.access_songs
         )
         self.btn_access.place(relx=0.5, rely=0.40, anchor="center")
@@ -86,7 +86,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
             width=280, height=48, corner_radius=14, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=self.make_playlist
         )
         self.btn_playlist.place(relx=0.5, rely=0.51, anchor="center")
@@ -95,7 +95,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="ADD SONG", font=button_font, 
             width=280, height=48, corner_radius=14, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=self.start_download_thread
         )
         self.btn_add.place(relx=0.5, rely=0.62, anchor="center")
@@ -104,7 +104,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=48, corner_radius=14, 
             fg_color="#340505", border_color="#FF5555", border_width=1, 
-            hover_color="#991B1B", text_color="#FFAAAA", hover_text_color="#FFFFFF",
+            hover_color="#991B1B", text_color="#FFAAAA",
             command=self.turn_off
         )
         self.btn_off.place(relx=0.5, rely=0.73, anchor="center")
@@ -119,7 +119,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="◀◀", font=control_font, 
             width=55, height=40, corner_radius=10, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=lambda: self.update_status("SKIP BACKWARD")
         )
         self.btn_prev.pack(side="left", padx=12)
@@ -128,7 +128,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶", font=control_font, 
             width=65, height=40, corner_radius=10, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=lambda: self.update_status("PLAYING TRACK")
         )
         self.btn_play.pack(side="left", padx=12)
@@ -137,12 +137,25 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶▶", font=control_font, 
             width=55, height=40, corner_radius=10, 
             fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF", hover_text_color="#FFFFFF",
+            hover_color="#5A189A", text_color="#E0AAFF",
             command=lambda: self.update_status("SKIP FORWARD")
         )
         self.btn_next.pack(side="left", padx=12)
 
+        # Handle hover colors dynamically via structural bindings
+        self._setup_hover_glow(self.btn_access, "#E0AAFF", "#FFFFFF")
+        self._setup_hover_glow(self.btn_playlist, "#E0AAFF", "#FFFFFF")
+        self._setup_hover_glow(self.btn_add, "#E0AAFF", "#FFFFFF")
+        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FFFFFF")
+        self._setup_hover_glow(self.btn_prev, "#E0AAFF", "#FFFFFF")
+        self._setup_hover_glow(self.btn_play, "#E0AAFF", "#FFFFFF")
+        self._setup_hover_glow(self.btn_next, "#E0AAFF", "#FFFFFF")
+
     # --- Interactive Features ---
+    def _setup_hover_glow(self, button, normal_color, glow_color):
+        button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
+        button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
+
     def update_status(self, action_text):
         self.status_bar.configure(text=f"▪ {action_text} ▪")
 
