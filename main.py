@@ -6,6 +6,8 @@ import time
 import os
 import warnings
 import io
+import loader
+from loader import SurrealPlayerApp as LoaderApp
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -76,7 +78,8 @@ class SurrealPlayerApp(ctk.CTk):
             self, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.start_download_thread
+            hover_color="#151515", 
+            command=lambda: loader.SurrealPlayerApp.open_add_song_menu(self)
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
