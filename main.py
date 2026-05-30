@@ -74,12 +74,13 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
+        # FIXED: Spawning a clean background instance of the loader to process the menu assets securely
         self.btn_add = ctk.CTkButton(
             self, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
             hover_color="#151515", 
-            command=lambda: loader.SurrealPlayerApp.open_add_song_menu(self)
+            command=lambda: loader.SurrealPlayerApp.open_add_song_menu(loader.SurrealPlayerApp())
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
