@@ -120,8 +120,8 @@ class SongLoader:
 
     def download_web_audio_pipeline(self, url):
         ydl_opts = {
-            # REMOVED the 'cookiesfrombrowser' line completely to stop the macOS error
             'format': 'bestaudio/best',
+            'nocheckcertificate': True,  # <-- ADD THIS LINE TO BYPASS THE SSL ERROR
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
