@@ -1,9 +1,10 @@
 import customtkinter as ctk
-from tkinter import messagebox, Canvas, PhotoImage
+from tkinter import messagebox
 import threading
 import time
 import os
 import warnings
+from PIL import Image
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -23,6 +24,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
+        self.configure(fg_color="#101012") # Fallback to clean black/dark charcoal if image fails
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
@@ -36,18 +38,15 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # FIXED: Explicitly set background color to absolute dark black (#000000)
-        self.bg_canvas = Canvas(self, highlightthickness=0, borderwidth=0, bg="#000000")
-        self.bg_canvas.pack(fill="both", expand=True)
+        # Build the background label first (so it sits at the absolute bottom layer)
+        self.bg_label = ctk.CTkLabel(self, text="")
+        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # Build the functional container frame directly on top of the canvas layer
-        self.main_frame = ctk.CTkFrame(self.bg_canvas, fg_color="transparent", corner_radius=0)
+        # Build the functional content frame directly on top of the background layer
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
-        # Persistent image state variable to completely stop Python garbage collection
-        self.bg_tk_image = None  
-
-        # Draw the initial image background canvas setup
+        # Draw the initial image background configuration
         self.setup_background_canvas()
 
         # Typography Layer - Clean, light, skinny minimal style headers
@@ -139,7 +138,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Bind window resizing to dynamically refresh background layout positions
+        # Bind window resizing to dynamically scale the background image smoothly
         self.bind("<Configure>", self.on_window_resize)
 
     def load_local_tracks(self):
@@ -154,12 +153,13 @@ class SurrealPlayerApp(ctk.CTk):
         
         if os.path.exists(png_path):
             try:
-                # FIXED: Force load natively using Tkinter's clean PhotoImage mapping engine
-                self.bg_tk_image = PhotoImage(file=png_path)
-                self.bg_canvas.delete("all")
+                pil_img = Image.open(png_path)
+                w = max(self.winfo_width(), 800)
+                h = max(self.winfo_height(), 600)
                 
-                # Center the background graphic anchor point perfectly
-                self.bg_canvas.create_image(0, 0, image=self.bg_tk_image, anchor="nw")
+                # Use CustomTkinter's specialized CTkImage to scale natively on high-res Mac displays
+                self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
+                self.bg_label.configure(image=self.bg_ctk_image)
                 print(f"SUCCESS: Background graphic mapped natively over dark workspace.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
