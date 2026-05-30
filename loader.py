@@ -123,14 +123,14 @@ class SongLoader:
         ffmpeg_bin_path = os.path.join(project_dir, "ffmpeg")
 
         ydl_opts = {
-            # FIXED: Forces YouTube to give us ONLY the raw audio track, preventing duplicate video files
+            # FIXED: Tells yt-dlp to strictly ignore playlists and only download the single track
+            'noplaylist': True,
             'format': 'bestaudio/best',
             'extract_flat': False,
             'nocheckcertificate': True,
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
             'quiet': True,
             'no_warnings': True,
-            # FIXED: Direct absolute path to the local ffmpeg tool so your script never loses it
             'ffmpeg_location': ffmpeg_bin_path, 
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
