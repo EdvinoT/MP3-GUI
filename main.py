@@ -39,17 +39,16 @@ class SurrealPlayerApp(ctk.CTk):
         self.load_local_tracks()
 
         # Create canvas for background image
-        self.bg_canvas = Canvas(self, highlightthickness=0)
-        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
-
-        # Functional overlay frame for text and buttons
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        self.main_frame.place(relwidth=1, relheight=1)
-        self.main_frame.tkraise()
+        self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
+        self.bg_canvas.pack(fill="both", expand=True)
 
         self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
+        
+        # Create frame for widgets on top of canvas
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
+        self.main_frame.place(relwidth=1, relheight=1)
 
         # Typography Layer
         self.text_title_label = ctk.CTkLabel(
@@ -154,45 +153,40 @@ class SurrealPlayerApp(ctk.CTk):
 
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
-        print(f"Loading background from: {png_path}", flush=True)
         
         if os.path.exists(png_path):
             try:
                 with open(png_path, "rb") as f:
                     image_data = f.read()
-                    print(f"Image file size: {len(image_data)} bytes", flush=True)
                 
                 self.pil_bg_image = Image.open(io.BytesIO(image_data))
-                print(f"PIL image loaded: {self.pil_bg_image.size}", flush=True)
                 
-                # Get current window size
-                w = self.winfo_width()
-                h = self.winfo_height()
-                print(f"Window size: {w}x{h}", flush=True)
+                # Get canvas size
+                w = self.bg_canvas.winfo_width()
+                h = self.bg_canvas.winfo_height()
                 
-                # If window not ready, use defaults
+                # If canvas not ready, use window size
+                if w <= 1:
+                    w = self.winfo_width()
+                if h <= 1:
+                    h = self.winfo_height()
                 if w <= 1: w = 800
                 if h <= 1: h = 600
                 
-                # Resize image to fit window
+                # Resize image to match canvas
                 self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
-                print(f"Image resized to: {w}x{h}", flush=True)
                 
-                # Convert PIL image to PhotoImage for Canvas
+                # Convert to PhotoImage
                 self.bg_photo = ImageTk.PhotoImage(self.resized_bg_image)
                 
-                # Clear canvas and draw image
+                # Draw on canvas
                 self.bg_canvas.delete("all")
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
-                self.bg_canvas.config(width=w, height=h)
-                print(f"SUCCESS: Background image displayed on canvas at {w}x{h}.", flush=True)
+                print(f"Background loaded: {w}x{h}", flush=True)
             except Exception as e:
-                import traceback
-                print(f"Image load error: {e}", flush=True)
-                traceback.print_exc()
+                print(f"Error loading background: {e}", flush=True)
         else:
-            self.bg_canvas.config(bg="#101012")
-            print(f"ERROR: background.png not found at {png_path}", flush=True)
+            print(f"Background image not found at {png_path}", flush=True)
 
     def on_window_resize(self, event):
         if event.widget == self:
