@@ -3,7 +3,11 @@ from tkinter import messagebox
 import threading
 import time
 import os
-from PIL import Image, ImageDraw, ImageFont
+import warnings
+from PIL import Image, ImageTk, ImageDraw, ImageFont
+
+# Mute CustomTkinter's high-DPI PhotoImage warnings from flooding your terminal profile
+warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
 # Initialize the hardware audio mixer completely independent of the desktop environment
 import pygame
@@ -32,7 +36,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Canvas asset setup
+        # Canvas asset setup using the original, working PhotoImage framework
         self.setup_background_canvas()
 
         # Transparent Menu Buttons
@@ -144,17 +148,15 @@ class SurrealPlayerApp(ctk.CTk):
                     title_font = ImageFont.load_default()
                     sub_font = ImageFont.load_default()
                 
-                # Render baked typography values onto pixels
+                # Write typography directly to your working pixel layer
                 draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
                 draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
 
-                # FIXED: Force layout sizing engine to remain explicitly at 800x600 
-                # This breaks the auto-retina layout loop causing blank screens on macOS
-                self.bg_photo = ctk.CTkImage(light_image=base_img, dark_image=base_img, size=(800, 600))
+                # RESTORED AND FIXED: Standard PhotoImage framework using clean relative layout expansion
+                self.bg_photo = ImageTk.PhotoImage(base_img)
                 
                 self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
-                # Use absolute placements instead of relative layout expansion
-                self.bg_label.place(x=0, y=0, width=800, height=600)
+                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1) # Correct placement formatting
                 self.bg_label.lower() 
             except Exception as e:
                 print(f"Hardware Log: Graphic engine draw failure: {e}", flush=True)
