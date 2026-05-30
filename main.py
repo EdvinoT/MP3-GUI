@@ -32,7 +32,8 @@ class SurrealPlayerApp(ctk.CTk):
         elif os.path.exists(png_path):
             final_image_path = png_path
 
-        self.main_frame = ctk.CTkFrame(self, fg_color="#0F051D", corner_radius=0)
+        # Completely clear base frame to prevent purple bleed
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.pack(fill="both", expand=True)
 
         if final_image_path:
@@ -45,111 +46,107 @@ class SurrealPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Hardware Log: Error loading image framework: {e}", flush=True)
         else:
-            print(f"Hardware Log: No image file detected (.jpg, .jpeg, or .png). Using fallback asset color.", flush=True)
+            # Simple dark slate gray fallback if no image is present
+            self.main_frame.configure(fg_color="#121214")
 
-        # 2. Typography Header
+        # 2. Sleek Minimal Typography Header (Melts into image)
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
             text="M A I N   M E N U", 
-            font=("Futura", 38, "bold"), 
-            text_color="#E0AAFF", 
+            font=("Futura", 36, "normal"), 
+            text_color="#FFFFFF", # Crisp white to pop off any dark image
             fg_color="transparent"
         )
         self.title_label.place(relx=0.5, rely=0.15, anchor="center")
 
-        # Active Track Status Bar
+        # Minimal Status Bar (Completely transparent background, just clean text tracking)
         self.status_bar = ctk.CTkLabel(
             self.main_frame, 
-            text="▪ NOW PLAYING: IDLE SYSTEM ▪", 
-            font=("Futura", 11, "bold"), 
-            text_color="#9D4EDD", 
-            fg_color="#0A0314",   
-            corner_radius=20,
-            width=320,
-            height=28
+            text="▪ IDLE SYSTEM ▪", 
+            font=("Futura", 11), 
+            text_color="#AAAAAA", # Subdued light gray
+            fg_color="transparent"
         )
-        self.status_bar.place(relx=0.5, rely=0.26, anchor="center")
+        self.status_bar.place(relx=0.5, rely=0.24, anchor="center")
 
-        # 3. Enhanced Navigation Buttons (Completely cleaned)
-        button_font = ("Futura", 14, "bold")
+        # 3. Transparent Floating Menu Controls
+        button_font = ("Futura", 14)
         
+        # We use a very faint dark tint with NO borders so the background image shows right through the buttons
+        btn_bg = "transparent"
+        btn_text = "#DDDDDD"
+        btn_hover = "#FFFFFF"
+
         self.btn_access = ctk.CTkButton(
             self.main_frame, text="ACCESS SONGS", font=button_font, 
-            width=280, height=48, corner_radius=14, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
             command=self.access_songs
         )
-        self.btn_access.place(relx=0.5, rely=0.40, anchor="center")
+        self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
         self.btn_playlist = ctk.CTkButton(
             self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
-            width=280, height=48, corner_radius=14, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
             command=self.make_playlist
         )
-        self.btn_playlist.place(relx=0.5, rely=0.51, anchor="center")
+        self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
         self.btn_add = ctk.CTkButton(
             self.main_frame, text="ADD SONG", font=button_font, 
-            width=280, height=48, corner_radius=14, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
             command=self.start_download_thread
         )
-        self.btn_add.place(relx=0.5, rely=0.62, anchor="center")
+        self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
         self.btn_off = ctk.CTkButton(
             self.main_frame, text="TURN OFF", font=button_font, 
-            width=280, height=48, corner_radius=14, 
-            fg_color="#340505", border_color="#FF5555", border_width=1, 
-            hover_color="#991B1B", text_color="#FFAAAA",
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", # Soft red hue for the exit trigger
             command=self.turn_off
         )
-        self.btn_off.place(relx=0.5, rely=0.73, anchor="center")
+        self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Modern Geometric Deck Controls
+        # Geometric Audio Deck Controls (Stripped down to minimal transparent icons)
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, rely=0.88, anchor="center")
+        self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
-        control_font = ("Arial", 16, "bold")
+        control_font = ("Arial", 16)
 
         self.btn_prev = ctk.CTkButton(
             self.playback_frame, text="◀◀", font=control_font, 
-            width=55, height=40, corner_radius=10, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
             command=lambda: self.update_status("SKIP BACKWARD")
         )
-        self.btn_prev.pack(side="left", padx=12)
+        self.btn_prev.pack(side="left", padx=15)
 
         self.btn_play = ctk.CTkButton(
             self.playback_frame, text="▶", font=control_font, 
-            width=65, height=40, corner_radius=10, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
             command=lambda: self.update_status("PLAYING TRACK")
         )
-        self.btn_play.pack(side="left", padx=12)
+        self.btn_play.pack(side="left", padx=15)
 
         self.btn_next = ctk.CTkButton(
             self.playback_frame, text="▶▶", font=control_font, 
-            width=55, height=40, corner_radius=10, 
-            fg_color="#1A0933", border_color="#9D4EDD", border_width=1, 
-            hover_color="#5A189A", text_color="#E0AAFF",
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
             command=lambda: self.update_status("SKIP FORWARD")
         )
-        self.btn_next.pack(side="left", padx=12)
+        self.btn_next.pack(side="left", padx=15)
 
-        # Handle hover colors dynamically via structural bindings
-        self._setup_hover_glow(self.btn_access, "#E0AAFF", "#FFFFFF")
-        self._setup_hover_glow(self.btn_playlist, "#E0AAFF", "#FFFFFF")
-        self._setup_hover_glow(self.btn_add, "#E0AAFF", "#FFFFFF")
-        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FFFFFF")
-        self._setup_hover_glow(self.btn_prev, "#E0AAFF", "#FFFFFF")
-        self._setup_hover_glow(self.btn_play, "#E0AAFF", "#FFFFFF")
-        self._setup_hover_glow(self.btn_next, "#E0AAFF", "#FFFFFF")
+        # Connect dynamic hover brightness bindings
+        self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
+        self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
     # --- Interactive Features ---
     def _setup_hover_glow(self, button, normal_color, glow_color):
