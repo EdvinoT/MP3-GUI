@@ -5,159 +5,144 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and project a 100% true transparent vertical track lane.
+        the ACCESS SONGS button and draw text directly onto the main canvas.
         """
         self.app = main_app_instance
-        self.archive_screen = None  
-        self.scroll_offset = 0  # Tracks our custom scroll position
+        self.is_open = False  
+        self.scroll_offset = 0
+        self.visible_count = 10  # Maximum number of tracks to display at once
+        
+        # Track canvas item IDs so we can cleanly wipe them out later
+        self.canvas_item_ids = []
 
-        # Overwrite the default button command in main.py to trigger our view creator
-        self.app.btn_access.configure(command=self.open_full_page_scroller)
+        # Overwrite the default button command in main.py to trigger our canvas view
+        self.app.btn_access.configure(command=self.toggle_full_page_scroller)
 
         # Intercept the track-loading system to update our scroller if it's currently open
         self.original_load_tracks = self.app.load_local_tracks
         self.app.load_local_tracks = self.wrapped_load_local_tracks
 
-    def open_full_page_scroller(self):
-        """Spawns a vertical lane stretching from the absolute top to the absolute bottom."""
-        if self.archive_screen is not None:
-            return  
+    def toggle_full_page_scroller(self):
+        """Toggles the full screen track archive menu view on and off."""
+        if not self.is_open:
+            self.open_full_page_scroller()
+        else:
+            self.close_full_page_scroller()
 
-        # 1. HIDE EVERYTHING: Main menu buttons AND the lower audio playback controls deck!
+    def open_full_page_scroller(self):
+        """Hides the menu widgets and draws text elements directly onto the wallpaper canvas."""
+        self.is_open = True
+        self.scroll_offset = 0
+        
+        # 1. HIDE EVERYTHING: Main menu buttons AND the lower audio playback controls deck
         self.app.btn_access.place_forget()
         self.app.btn_playlist.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
         self.app.playback_frame.place_forget()
 
-        self.scroll_offset = 0
-
-        # 2. TRUE TRANSPARENT CONTAINER: Using a standard frame allows true transparency over the canvas image
-        self.archive_screen = ctk.CTkFrame(
-            self.app, 
-            fg_color="transparent", 
-            corner_radius=0, 
-            border_width=0
-        )
-        self.archive_screen.place(relx=0.2, rely=0.0, relwidth=0.6, relheight=1.0)
-
-        # 3. HEADER ROW: Transparent bar at the top for your Back button control
-        self.nav_frame = ctk.CTkFrame(self.archive_screen, height=60, fg_color="transparent")
-        self.nav_frame.pack(fill="x", side="top", pady=(20, 5))
-
-        btn_back = ctk.CTkButton(
-            self.nav_frame, text="◀  BACK TO MENU", font=("Futura", 11),
-            width=130, height=35, corner_radius=0,
-            fg_color="#000000", text_color="#DDDDDD", hover_color="#151515",
-            command=self.close_full_page_scroller
-        )
-        btn_back.pack(side="left", padx=15)
-
-        # 4. TRACK CONTAINER PANEL: A completely open frame with a thin boundary wire
-        self.track_container = ctk.CTkFrame(
-            self.archive_screen,
-            fg_color="transparent",
-            corner_radius=0,
-            border_width=1,
-            border_color="#222226"
-        )
-        self.track_container.pack(fill="both", expand=True, padx=15, pady=(5, 20))
-
-        # Bind the mouse wheel directly to the screen to handle custom scrolling mechanics
+        # 2. Bind the mouse wheel directly to the canvas to handle scrolling actions
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
-        # Linux compatibility
         self.app.bind("<Button-4>", self.on_mouse_scroll)
         self.app.bind("<Button-5>", self.on_mouse_scroll)
 
-        # Render the tracks
+        # 3. Bind click events to the canvas so we can click our text-buttons
+        self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
+
+        # Render the text items
         self.refresh_scroll_list()
 
     def on_mouse_scroll(self, event):
-        """Custom pure-Python scroll wheel physics handler."""
+        """Handles page navigation calculations when the mouse wheel spins."""
         if not self.app.track_list:
             return
 
-        # Handle Mac/Windows vs Linux scroll signals
         if event.num == 4 or event.delta > 0:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5 or event.delta < 0:
-            # Prevent scrolling down past the total number of tracks that fit on screen (approx 10 rows)
-            max_scroll = max(0, len(self.app.track_list) - 10)
+            max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
         self.refresh_scroll_list()
 
     def close_full_page_scroller(self):
-        """Destroys the archive screen layer completely and restores the main media center dashboard."""
-        # Unbind the scrolling events so they don't break the main menu
+        """Clears all text elements from the canvas and brings back the original dashboard interface."""
+        self.is_open = False
+
+        # Unbind all canvas events
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
+        self.app.bg_canvas.unbind("<Button-1>")
 
-        if self.archive_screen is not None:
-            self.archive_screen.destroy()
-            self.archive_screen = None
+        # Wipe out all song list graphics from the canvas pipeline
+        self.clear_canvas_items()
 
-        # 1. Bring back your home selection menu options
+        # Redraw the original main menu titles ("IDLE SYSTEM", etc.)
+        self.app.setup_background_canvas()
+
+        # Bring back the core interactive dashboard menus
         self.app.btn_access.place(relx=0.5, rely=0.38, anchor="center")
         self.app.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
         self.app.btn_add.place(relx=0.5, rely=0.58, anchor="center")
         self.app.btn_off.place(relx=0.5, rely=0.68, anchor="center")
-
-        # 2. Bring back the lower audio playback controls deck!
         self.app.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
-        # Force a hard display pipeline redraw
         self.app.update_idletasks()
 
     def wrapped_load_local_tracks(self):
-        """Runs the original track loader in main.py, then updates the scroller if it's open."""
+        """Runs the original track loader in main.py, then updates the canvas list if open."""
         self.original_load_tracks()
-        if self.archive_screen is not None:
+        if self.is_open:
             self.refresh_scroll_list()
 
+    def clear_canvas_items(self):
+        """Safely removes custom drawn song texts from the background canvas layer."""
+        for item_id in self.canvas_item_ids:
+            self.app.bg_canvas.delete(item_id)
+        self.canvas_item_ids.clear()
+
     def refresh_scroll_list(self):
-        """Clears and rebuilds text row tracks based on current scroll math updates."""
-        if self.archive_screen is None:
+        """Clears and redraws raw text strings directly onto the canvas pixels."""
+        if not self.is_open:
             return
 
-        # Clear out old widget views inside the open frame
-        for widget in self.track_container.winfo_children():
-            widget.destroy()
+        self.clear_canvas_items()
+        
+        w = self.app.bg_canvas.winfo_width()
+        if w <= 1: w = 800
+
+        # --- DRAW THE BACK BUTTON TEXT ---
+        # Instead of a widget box, we draw an explicit interactive string location coordinates
+        back_id = self.app.bg_canvas.create_text(
+            60, 40, text="◀  BACK TO MENU", 
+            font=("Futura", 12, "bold"), fill="#FFFFFF", anchor="w"
+        )
+        self.canvas_item_ids.append(back_id)
+        # Tag it so our click handler knows what it is
+        self.app.bg_canvas.itemconfig(back_id, tags=("back_btn",))
 
         if not self.app.track_list:
-            no_songs_lbl = ctk.CTkLabel(
-                self.track_container, text="No Audio Entries Found Inside Local /tracks Directory", 
-                font=("Arial", 12), text_color="#66666A"
+            empty_id = self.app.bg_canvas.create_text(
+                w // 2, 250, text="No Audio Entries Found Inside Local /tracks Directory",
+                font=("Arial", 13), fill="#66666A", anchor="center"
             )
-            no_songs_lbl.pack(pady=100)
+            self.canvas_item_ids.append(empty_id)
             return
 
-        # Calculate visible frame slice range based on mouse offset (shows up to 11 tracks at once)
-        visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + 11]
+        # --- DRAW THE TRACK LIST LINES ---
+        visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
+        
+        start_y = 100  # Vertical starting point for line listings
+        line_height = 45
 
         for index, track_name in enumerate(visible_tracks):
             actual_track_index = index + self.scroll_offset
             clean_display_title = track_name.replace(".mp3", "")
+            
+            y_pos = start_y + (index * line_height)
+            display_string = f"  [{actual_track_index + 1:02d}]    {clean_display_title}"
 
-            # Set completely transparent button layouts! 
-            # Only the text and hover states are rendered, keeping the background entirely pristine.
-            track_btn = ctk.CTkButton(
-                self.track_container, 
-                text=f"  [{actual_track_index + 1:02d}]    {clean_display_title}", 
-                font=("Arial", 12), 
-                anchor="w",
-                height=42, 
-                fg_color="transparent", 
-                text_color="#CCCCCC",
-                hover_color="#14141A", # Faint reactive row highlight on hover
-                corner_radius=0,
-                border_width=0,
-                command=lambda idx=actual_track_index: self.select_track_from_scroller(idx)
-            )
-            track_btn.pack(fill="x", pady=2, padx=5)
-
-    def select_track_from_scroller(self, track_index):
-        """Changes the track pointer index and commands the app engine to execute playback."""
-        self.app.current_track_index = track_index
-        self.app.play_current_track()
+            # Draw the text item straight onto the canvas pixels
+            track_id = self.app.bg_canvas.create_text(
+                int(w * 0.22), y_pos, text=display_string
