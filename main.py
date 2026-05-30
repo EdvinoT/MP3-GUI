@@ -45,20 +45,10 @@ class SurrealPlayerApp(ctk.CTk):
         self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
-        self.canvas_image_id = None
-
-        # Typography Layer
-        self.text_title_label = ctk.CTkLabel(
-            self, text="I D L E   S Y S T E M", 
-            font=("Arial", 32), text_color="#FFFFFF", fg_color="transparent"
-        )
-        self.text_title_label.place(relx=0.5, y=95, anchor="center")
-
-        self.text_sub_label = ctk.CTkLabel(
-            self, text="▪ ONLINE ▪", 
-            font=("Arial", 11), text_color="#666666", fg_color="transparent"
-        )
-        self.text_sub_label.place(relx=0.5, y=145, anchor="center")
+        
+        # Canvas item ID tracking variables for dynamic redraw events
+        self.title_text_id = None
+        self.sub_text_id = None
 
         # Minimalist Options UI Layout
         button_font = ("Futura", 14)
@@ -151,47 +141,45 @@ class SurrealPlayerApp(ctk.CTk):
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
         
-        print(f"Setting up background from: {png_path}", flush=True)
-        
         if os.path.exists(png_path):
             try:
                 with open(png_path, "rb") as f:
                     image_data = f.read()
-                print(f"Image file loaded: {len(image_data)} bytes", flush=True)
                 
                 self.pil_bg_image = Image.open(io.BytesIO(image_data))
-                print(f"PIL Image size: {self.pil_bg_image.size}", flush=True)
                 
-                # Get canvas size
                 w = self.bg_canvas.winfo_width()
                 h = self.bg_canvas.winfo_height()
-                print(f"Canvas size: {w}x{h}", flush=True)
                 
-                # If canvas not ready, use window size
-                if w <= 1:
-                    w = self.winfo_width()
-                if h <= 1:
-                    h = self.winfo_height()
-                
+                if w <= 1: w = self.winfo_width()
+                if h <= 1: h = self.winfo_height()
                 if w <= 1: w = 800
-                if h <= 1: h = 600
-                print(f"Final size: {w}x{h}", flush=True)
+                if h <= 10: h = 600
                 
-                # Resize image to match canvas
                 self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
-                
-                # Convert to PhotoImage
                 self.bg_photo = ImageTk.PhotoImage(self.resized_bg_image)
                 
-                # Draw on canvas
+                # Clear all canvas content to draw a fresh frame
                 self.bg_canvas.delete("all")
+                
+                # Layer 1: Render background image structure
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                
+                # Layer 2: Draw typography strings natively on the canvas to eliminate block backgrounds
+                self.title_text_id = self.bg_canvas.create_text(
+                    w // 2, 95, text="I D L E   S Y S T E M",
+                    font=("Arial", 32, "bold"), fill="#FFFFFF", anchor="center"
+                )
+                
+                self.sub_text_id = self.bg_canvas.create_text(
+                    w // 2, 145, text="▪ ONLINE ▪",
+                    font=("Arial", 11), fill="#666666", anchor="center"
+                )
+                
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
-                print(f"Background image displayed successfully", flush=True)
+                print(f"Background image and flawless text strings displayed successfully", flush=True)
             except Exception as e:
-                import traceback
-                print(f"Error loading background: {e}", flush=True)
-                traceback.print_exc()
+                print(f"Error loading background canvas: {e}", flush=True)
         else:
             print(f"Background image not found at {png_path}", flush=True)
 
@@ -200,7 +188,9 @@ class SurrealPlayerApp(ctk.CTk):
             self.setup_background_canvas()
 
     def update_status_text(self, custom_subtext):
-        self.text_sub_label.configure(text=custom_subtext.upper())
+        # Update the live state status text rendered on the canvas layer seamlessly
+        if self.sub_text_id is not None:
+            self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper())
 
     def play_current_track(self):
         if not self.track_list: return
