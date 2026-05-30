@@ -1,10 +1,9 @@
 import customtkinter as ctk
-from tkinter import messagebox, Canvas
+from tkinter import messagebox, Canvas, PhotoImage
 import threading
 import time
 import os
 import warnings
-from PIL import Image, ImageTk
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -37,8 +36,8 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # CRITICAL FIX: Use a dedicated, raw native Canvas to force macOS to display the pixels
-        self.bg_canvas = Canvas(self, highlightthickness=0, borderwidth=0)
+        # FIXED: Explicitly set background color to absolute dark black (#000000)
+        self.bg_canvas = Canvas(self, highlightthickness=0, borderwidth=0, bg="#000000")
         self.bg_canvas.pack(fill="both", expand=True)
 
         # Build the functional container frame directly on top of the canvas layer
@@ -140,7 +139,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Bind window resizing to dynamically update image scale cleanly
+        # Bind window resizing to dynamically refresh background layout positions
         self.bind("<Configure>", self.on_window_resize)
 
     def load_local_tracks(self):
@@ -155,24 +154,16 @@ class SurrealPlayerApp(ctk.CTk):
         
         if os.path.exists(png_path):
             try:
-                pil_img = Image.open(png_path)
-                w = max(self.winfo_width(), 800)
-                h = max(self.winfo_height(), 600)
-                
-                # Resize the image dynamically using high-quality sampling filters
-                resized_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
-                
-                # FIXED: Convert using ImageTk directly onto the Canvas object.
-                # This guarantees macOS paints the pixels without losing them to garbage collection.
-                self.bg_tk_image = ImageTk.PhotoImage(resized_img)
-                
+                # FIXED: Force load natively using Tkinter's clean PhotoImage mapping engine
+                self.bg_tk_image = PhotoImage(file=png_path)
                 self.bg_canvas.delete("all")
+                
+                # Center the background graphic anchor point perfectly
                 self.bg_canvas.create_image(0, 0, image=self.bg_tk_image, anchor="nw")
-                print(f"SUCCESS: Hardware canvas force-painted background image.", flush=True)
+                print(f"SUCCESS: Background graphic mapped natively over dark workspace.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
-            self.bg_canvas.configure(bg="#101012")
             print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
 
     def on_window_resize(self, event):
