@@ -89,15 +89,17 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
         # Audio Deck Controls
+        # FIXED: Changed fg_color from "#000000" to "transparent" to remove the box surrounding the icons
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
         control_font = ("Arial", 16)
 
+        # FIXED: Removed native button background blocks to float text strings directly over the canvas
         self.btn_prev = ctk.CTkButton(
             self.playback_frame, text="◀◀", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="#000000", border_width=0, text_color=btn_text,
+            fg_color="transparent", border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.prev_track
         )
         self.btn_prev.pack(side="left", padx=15)
@@ -105,7 +107,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_play = ctk.CTkButton(
             self.playback_frame, text="▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="#000000", border_width=0, text_color=btn_text,
+            fg_color="transparent", border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.toggle_play
         )
         self.btn_play.pack(side="left", padx=15)
@@ -113,7 +115,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_next = ctk.CTkButton(
             self.playback_frame, text="▶▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
-            fg_color="#000000", border_width=0, text_color=btn_text,
+            fg_color="transparent", border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.next_track
         )
         self.btn_next.pack(side="left", padx=15)
@@ -166,10 +168,10 @@ class SurrealPlayerApp(ctk.CTk):
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
                 
                 # Layer 2: Draw typography strings natively on the canvas.
-                # FIXED: Bounding box text color changed to absolute black (#000000).
+                # FIXED: Font swapped to "Futura" and "bold" argument removed for a cleaner profile
                 self.title_text_id = self.bg_canvas.create_text(
                     w // 2, 95, text="I D L E   S Y S T E M",
-                    font=("Arial", 32, "bold"), fill="#000000", anchor="center"
+                    font=("Futura", 32), fill="#000000", anchor="center"
                 )
                 
                 self.sub_text_id = self.bg_canvas.create_text(
@@ -178,7 +180,7 @@ class SurrealPlayerApp(ctk.CTk):
                 )
                 
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
-                print(f"Background image and flawless black text strings displayed successfully", flush=True)
+                print(f"Interface refreshing completely tracking system parameters.", flush=True)
             except Exception as e:
                 print(f"Error loading background canvas: {e}", flush=True)
         else:
