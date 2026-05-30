@@ -4,6 +4,7 @@ import threading
 import time
 import os
 import warnings
+from PIL import Image
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -19,7 +20,7 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # RESTORED: Absolute Original CustomTkinter Window Properties
+        # Original CustomTkinter Window Properties
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
@@ -31,14 +32,21 @@ class SurrealPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
 
-        # Build local paths
+        # Build absolute local paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Build clean base container frame - Sets the ultimate dark minimalist background color
+        # Build clean base container frame
         self.main_frame = ctk.CTkFrame(self, fg_color="#101012", corner_radius=0)
         self.main_frame.pack(fill="both", expand=True)
+
+        # CRITICAL FIX: Persistent variables to prevent Python garbage collection
+        self.bg_image = None  
+        self.bg_label = None  
+
+        # Load and set the background image first so text layers sit on top of it
+        self.setup_background_canvas()
 
         # Typography Layer - Clean, light, skinny minimal style headers
         self.text_title_label = ctk.CTkLabel(
@@ -55,7 +63,7 @@ class SurrealPlayerApp(ctk.CTk):
 
         # Pure Black Minimalist Option Menu Buttons
         button_font = ("Futura", 14)
-        btn_bg = "#000000"  # Pure black background box restored
+        btn_bg = "#000000"  # Pure black background box
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
@@ -129,12 +137,45 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
+        # Bind window resizing to dynamically update image scale
+        self.bind("<Configure>", self.on_window_resize)
+
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
         self.track_list.sort()
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
+
+    def setup_background_canvas(self):
+        # Look specifically in the absolute project folder path
+        png_path = os.path.join(self.dir_path, "background.png")
+        
+        if os.path.exists(png_path):
+            try:
+                pil_img = Image.open(png_path)
+                w = max(self.winfo_width(), 800)
+                h = max(self.winfo_height(), 600)
+                
+                # FIXED: Use CustomTkinter's specialized CTkImage component to prevent Mac scaling bugs
+                self.bg_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
+                
+                if self.bg_label is None:
+                    self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_image, text="")
+                    self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                    self.bg_label.lower()  # Send it back behind text layers
+                else:
+                    self.bg_label.configure(image=self.bg_image)
+                print(f"SUCCESS: Loaded background image asset safely.", flush=True)
+            except Exception as e:
+                print(f"Graphic engine load failure: {e}", flush=True)
+        else:
+            print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
+
+    def on_window_resize(self, event):
+        # Only trigger rewrite if the main application window size shifts
+        if event.widget == self:
+            self.setup_background_canvas()
 
     def update_status_text(self, custom_subtext):
         self.text_sub_label.configure(text=custom_subtext.upper())
