@@ -112,16 +112,14 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
     def load_local_tracks(self):
-        """Scans directory for executable tracks. Designed to swap to USB mounts later."""
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
             
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
         self.track_list.sort()
-        print(f"Hardware Log: Loaded {len(self.track_list)} track targets from local bank.", flush=True)
+        print(f"Hardware Log: Loaded {len(self.track_list)} track targets.", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        """Bakes typography directly to the pixel frame and wraps via CTkImage for high-DPI screens"""
         jpeg_path = os.path.join(self.dir_path, "background.jpeg")
         jpg_path = os.path.join(self.dir_path, "background.jpg")
         png_path = os.path.join(self.dir_path, "background.png")
@@ -146,16 +144,17 @@ class SurrealPlayerApp(ctk.CTk):
                     title_font = ImageFont.load_default()
                     sub_font = ImageFont.load_default()
                 
-                # Render permanent Title Node
+                # Render baked typography values onto pixels
                 draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
-                # Render Dynamic Context Node
                 draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
 
-                # FIXED: Swapped out old photo wrapper to native CTkImage structure
+                # FIXED: Force layout sizing engine to remain explicitly at 800x600 
+                # This breaks the auto-retina layout loop causing blank screens on macOS
                 self.bg_photo = ctk.CTkImage(light_image=base_img, dark_image=base_img, size=(800, 600))
                 
                 self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
-                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                # Use absolute placements instead of relative layout expansion
+                self.bg_label.place(x=0, y=0, width=800, height=600)
                 self.bg_label.lower() 
             except Exception as e:
                 print(f"Hardware Log: Graphic engine draw failure: {e}", flush=True)
@@ -177,7 +176,6 @@ class SurrealPlayerApp(ctk.CTk):
             
             clean_display_name = track_name.replace(".mp3", "")
             self.setup_background_canvas(custom_subtext=f"▪ PLAYING: {clean_display_name} ▪")
-            print(f"Hardware Log: Streaming pipeline active on path: {track_path}", flush=True)
         except Exception as e:
             print(f"Hardware Log: Stream execution error: {e}", flush=True)
 
