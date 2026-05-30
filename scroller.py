@@ -6,7 +6,8 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and project a widened, frosted light-glass lane with sound effects.
+        the ACCESS SONGS button and project a widened, frosted light-glass lane
+        with custom text hover color transitions and scrolling sounds.
         """
         self.app = main_app_instance
         self.is_open = False  
@@ -14,6 +15,7 @@ class TrackScroller:
         self.visible_count = 13  
         
         self.canvas_item_ids = []
+        self.currently_hovered_id = None  # Tracks which song text is being hovered over
 
         # Overwrite the default button command in main.py to trigger our canvas view
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
@@ -72,6 +74,9 @@ class TrackScroller:
         self.app.bind("<Button-4>", self.on_mouse_scroll)
         self.app.bind("<Button-5>", self.on_mouse_scroll)
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
+        
+        # NEW BINDING: Tracks mouse pointer movement over the canvas for selection glow effects
+        self.app.bg_canvas.bind("<Motion>", self.on_canvas_hover)
 
         self.refresh_scroll_list()
 
@@ -88,17 +93,69 @@ class TrackScroller:
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
-        # ADDED: Only play the scrolling blip sound if the page actually moves
+        # Only play the scrolling blip sound if the page actually moves
         if self.scroll_offset != old_offset and hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("scroll")
 
         self.refresh_scroll_list()
 
+    def on_canvas_hover(self, event):
+        """Detects if the cursor is hovering over an asset to trigger animations and blips."""
+        if not self.is_open:
+            return
+
+        # Find the canvas item directly underneath the user's cursor coordinates
+        current_item = self.app.bg_canvas.find_withtag("current")
+        
+        if current_item:
+            item_id = current_item[0]
+            tags = self.app.bg_canvas.gettags(item_id)
+            
+            # Check if we are hovering over a valid interactive target item
+            if "track_item" in tags or "back_btn" in tags:
+                if self.currently_hovered_id != item_id:
+                    # Reset the previously hovered item color back to normal
+                    if self.currently_hovered_id:
+                        self.animate_text_color(self.currently_hovered_id, selected=False)
+                    
+                    # Set our tracking pointer to the new item
+                    self.currently_hovered_id = item_id
+                    
+                    # Trigger the selection animation (fades to bright white)
+                    self.animate_text_color(item_id, selected=True)
+                    
+                    # Play the interface audio feedback blip when selection changes
+                    if hasattr(self.app, 'play_ui_sound'):
+                        self.app.play_ui_sound("scroll")
+                return
+
+        # If the cursor moves into blank space, clear out any lingering glows
+        if self.currently_hovered_id:
+            self.animate_text_color(self.currently_hovered_id, selected=False)
+            self.currently_hovered_id = None
+
+    def animate_text_color(self, item_id, selected=True):
+        """Uses step loops to transition text colors gracefully for selection states."""
+        tags = self.app.bg_canvas.gettags(item_id)
+        
+        # Define color schemes based on the target object type
+        if "back_btn" in tags:
+            normal_rgb = (34, 34, 38)     # Dark Charcoal Slate
+            hover_rgb = (255, 85, 85)     # Glowing Light Red for back option
+        else:
+            normal_rgb = (34, 34, 38)     # Dark Charcoal Slate
+            hover_rgb = (255, 255, 255)   # Pure Brilliant White for selected song
+            
+        target_color = hover_rgb if selected else normal_rgb
+        hex_color = f"#{target_color[0]:02x}{target_color[1]:02x}{target_color[2]:02x}"
+        
+        # Apply the color update directly onto the canvas layout
+        self.app.bg_canvas.itemconfig(item_id, fill=hex_color)
+
     def close_full_page_scroller(self):
         """Clears text elements, wipes the light tint layer out, and returns to home core layout."""
         self.is_open = False
 
-        # Trigger a closing click sound
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
@@ -106,6 +163,7 @@ class TrackScroller:
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
         self.app.bg_canvas.unbind("<Button-1>")
+        self.app.bg_canvas.unbind("<Motion>")
 
         self.clear_canvas_items()
         self.app.setup_background_canvas()
@@ -137,6 +195,7 @@ class TrackScroller:
             return
 
         self.clear_canvas_items()
+        self.currently_hovered_id = None
         
         w = self.app.bg_canvas.winfo_width()
         if w <= 1: w = 800
@@ -191,7 +250,6 @@ class TrackScroller:
             
         for tag in tags:
             if tag.startswith("track_") and tag != "track_item":
-                # ADDED: Trigger a selection click sound right as the item executes
                 if hasattr(self.app, 'play_ui_sound'):
                     self.app.play_ui_sound("click")
                     
