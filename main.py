@@ -37,9 +37,10 @@ if not background_loaded:
 
 # Font Layer Configuration
 try:
-    title_font = pygame.font.SysFont("Arial", 32, bold=True)
+    # Removed bold=True to make the title font skinny again
+    title_font = pygame.font.SysFont("Arial", 32, bold=False)
     sub_font = pygame.font.SysFont("Arial", 14)
-    button_font = pygame.font.SysFont("Futura", 14) # Kept Futura matching CustomTkinter
+    button_font = pygame.font.SysFont("Futura", 14) 
 except Exception:
     title_font = pygame.font.Font(None, 36)
     sub_font = pygame.font.Font(None, 18)
@@ -146,7 +147,7 @@ while running:
     # 1. Clear background surface with your image file asset
     screen.blit(bg_image, (0, 0))
 
-    # 2. Render Text Typography Elements
+    # 2. Render Text Typography Elements (Anti-aliasing set to True)
     title_surface = title_font.render("I D L E   S Y S T E M", True, COLOR_TEXT_MAIN)
     title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, 95))
     screen.blit(title_surface, title_rect)
@@ -168,6 +169,7 @@ while running:
         else:
             text_color = COLOR_BTN_HOVER if is_hovered else COLOR_BTN_DEFAULT
             
+        # FIX: The second parameter is now set to True to force smooth anti-aliased font edges
         btn_surface = button_font.render(btn["text"], True, text_color)
         btn_rect = btn_surface.get_rect(center=btn["rect"].center)
         screen.blit(btn_surface, btn_rect)
