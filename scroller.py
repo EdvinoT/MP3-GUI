@@ -151,7 +151,6 @@ class TrackScroller:
                         return
         else:
             # FIX: If the mouse is between text items but still within the glass panel row space
-            # This keeps the animation from breaking if the mouse slips off a text pixel
             canvas_y = event.y
             start_y = 85
             line_height = 36
@@ -197,7 +196,9 @@ class TrackScroller:
             draw = ImageDraw.Draw(fade_layer)
             
             x1, y1, x2, y2 = self.active_row_coords
-            draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline="")
+            
+            # FIXED: outline changed from "" to None to satisfy Pillow's color processor
+            draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline=None)
             
             self.hover_strip_photo = ImageTk.PhotoImage(fade_layer)
             
@@ -207,7 +208,6 @@ class TrackScroller:
                 self.hover_strip_id = self.app.bg_canvas.create_image(0, 0, image=self.hover_strip_photo, anchor="nw")
                 
             # CRITICAL FIX: Explicitly send this image layout tag to the absolute bottom of the stack
-            # This makes sure it sits BEHIND text and dividers so it never intercepts mouse events
             self.app.bg_canvas.tag_lower(self.hover_strip_id)
             
             self.animation_job = self.app.after(10, lambda: self.run_smooth_fade(text_item_id))
@@ -312,7 +312,6 @@ class TrackScroller:
             self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
 
             # 2. FIXED: ADDED A VERY THIN SEPARATOR LINE BETWEEN EACH TRACK ROW
-            # Draws a clean white line with low visibility across the bottom border edge of the text row lane
             line_y = y_pos + 17  
             divider_id = self.app.bg_canvas.create_line(
                 int(w * 0.10), line_y, int(w * 0.90), line_y,
@@ -341,4 +340,3 @@ class TrackScroller:
                 self.app.current_track_index = track_index
                 self.app.play_current_track()
                 break
-            
