@@ -46,22 +46,21 @@ class SurrealPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Hardware Log: Error loading image framework: {e}", flush=True)
         else:
-            self.main_frame.configure(fg_color="#F2F2F7") # Light gray fallback
+            self.main_frame.configure(fg_color="#121214")
 
-        # 2. FIXED TITLE: Turned Black with hard-disabled background structures to kill the box
+        # 2. FIXED TITLE: Pure black to contrast your white background section (No surrounding box)
         self.title_label = ctk.CTkLabel(
             self.main_frame, 
             text="I D L E   S Y S T E M", 
             font=("Futura", 32, "normal"), 
-            text_color="#000000", # Pure black for your white background
+            text_color="#000000", 
             fg_color="transparent",
             bg_color="transparent"
         )
-        # Deep configuration layer check to force transparent background rendering on Mac
         self.title_label.configure(bg_color="transparent")
         self.title_label.place(relx=0.5, rely=0.16, anchor="center")
 
-        # Sub-tracker text turned dark charcoal gray to match the look
+        # Sub-tracker text (Kept dark charcoal to sit neatly under the black title)
         self.status_bar = ctk.CTkLabel(
             self.main_frame, 
             text="▪ ONLINE ▪", 
@@ -72,12 +71,12 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.status_bar.place(relx=0.5, rely=0.24, anchor="center")
 
-        # 3. Transparent Floating Menu Controls (Darkened text to fit the light canvas)
+        # 3. Transparent Menu Controls (Flipped back to clean white/silver text)
         button_font = ("Futura", 14)
         
         btn_bg = "transparent"
-        btn_text = "#222222" # Dark text for visibility
-        btn_hover = "#000000" # Turns crisp black on hover
+        btn_text = "#DDDDDD" # Clean light silver
+        btn_hover = "#FFFFFF" # Glows pure white on hover
 
         self.btn_access = ctk.CTkButton(
             self.main_frame, text="ACCESS SONGS", font=button_font, 
@@ -103,15 +102,16 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
+        # Keeping your good red color profile for the shut down button
         self.btn_off = ctk.CTkButton(
             self.main_frame, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
-            fg_color=btn_bg, border_width=0, text_color="#A30000", # Richer crimson for light backgrounds
+            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
             bg_color="transparent", command=self.turn_off
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Geometric Audio Deck Controls
+        # Geometric Audio Deck Controls (Flipped back to light text)
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -145,7 +145,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_off, "#A30000", "#FF0000")
+        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
         self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
@@ -156,6 +156,7 @@ class SurrealPlayerApp(ctk.CTk):
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
     def update_status(self, action_text):
+        # Keeps status updates styled cleanly in dark text to remain readable over the title backdrop area
         self.status_bar.configure(text=f"▪ {action_text} ▪")
 
     def access_songs(self):
