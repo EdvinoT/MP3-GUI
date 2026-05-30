@@ -4,12 +4,28 @@ import os
 class TrackScroller:
     def __init__(self, main_app_instance):
         """
-        Takes the main app instance so this separate module can inject 
-        a scrollable track list onto the existing UI layout.
+        Takes the main app instance so this separate module can hijack
+        the ACCESS SONGS button and toggle the list window dynamically.
         """
         self.app = main_app_instance
-        
-        # Build the scrolling frame container on the left side
+        self.scroll_frame = None  # Start with the frame completely hidden
+
+        # Overwrite the default button command in main.py to point to our custom toggle function
+        self.app.btn_access.configure(command=self.toggle_scroller_view)
+
+        # Intercept the track-loading system to update our scroller if it's currently open
+        self.original_load_tracks = self.app.load_local_tracks
+        self.app.load_local_tracks = self.wrapped_load_local_tracks
+
+    def toggle_scroller_view(self):
+        """Spawns or destroys the scrolling panel dynamically when ACCESS SONGS is pressed."""
+        # If the menu is already open, close it!
+        if self.scroll_frame is not None:
+            self.scroll_frame.destroy()
+            self.scroll_frame = None
+            return
+
+        # Otherwise, build the scrolling frame container on the left side
         self.scroll_frame = ctk.CTkScrollableFrame(
             self.app, width=300, height=320, 
             fg_color="#08080A", label_text="ACCESS SONGS",
@@ -18,20 +34,20 @@ class TrackScroller:
         )
         self.scroll_frame.place(relx=0.1, rely=0.32, anchor="nw")
 
-        # Intercept the original track-loading system to automatically update our scroller
-        self.original_load_tracks = self.app.load_local_tracks
-        self.app.load_local_tracks = self.wrapped_load_local_tracks
-
-        # Populate the list right away on startup
+        # Instantly populate the lines with tracks
         self.refresh_scroll_list()
 
     def wrapped_load_local_tracks(self):
-        """Runs the original track loader in main.py, then immediately refreshes the UI list."""
+        """Runs the original track loader in main.py, then updates the scroller if it's open."""
         self.original_load_tracks()
-        self.refresh_scroll_list()
+        if self.scroll_frame is not None:
+            self.refresh_scroll_list()
 
     def refresh_scroll_list(self):
         """Clears and rebuilds small, clickable track rows inside the scroller view."""
+        if self.scroll_frame is None:
+            return
+
         # Clear out any old widgets in the frame
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
@@ -48,7 +64,6 @@ class TrackScroller:
         for index, track_name in enumerate(self.app.track_list):
             clean_display_title = track_name.replace(".mp3", "")
             
-            # Shorten display strings if titles are too long for the sidebar layout
             if len(clean_display_title) > 32:
                 clean_display_title = clean_display_title[:29] + "..."
 
