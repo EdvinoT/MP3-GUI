@@ -3,7 +3,11 @@ from tkinter import messagebox
 import threading
 import time
 import os
-from PIL import Image, ImageTk, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
+
+# Initialize the hardware audio mixer completely independent of the desktop environment
+import pygame
+pygame.mixer.init()
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
@@ -16,63 +20,23 @@ class SurrealPlayerApp(ctk.CTk):
         self.geometry("800x600")
         self.resizable(False, False) 
 
-        print("Hardware Log: Booting universally compatible media player...", flush=True)
+        print("Hardware Log: Initializing audio processing layer...", flush=True)
 
-        # 1. Background Setup (Accepts .jpeg, .jpg, and .png)
-        dir_path = os.path.dirname(__file__)
-        jpeg_path = os.path.join(dir_path, "background.jpeg")
-        jpg_path = os.path.join(dir_path, "background.jpg")
-        png_path = os.path.join(dir_path, "background.png")
-        
-        final_image_path = None
-        if os.path.exists(jpeg_path):
-            final_image_path = jpeg_path
-        elif os.path.exists(jpg_path):
-            final_image_path = jpg_path
-        elif os.path.exists(png_path):
-            final_image_path = png_path
+        # Core Playback States
+        self.track_list = []
+        self.current_track_index = 0
+        self.is_playing = False
 
-        # Completely clear base frame
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        self.main_frame.pack(fill="both", expand=True)
+        # Scan for media targets
+        self.dir_path = os.path.dirname(__file__)
+        self.tracks_dir = os.path.join(self.dir_path, "tracks")
+        self.load_local_tracks()
 
-        if final_image_path:
-            try:
-                # Open image and scale it to layout dimensions
-                base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
-                
-                # Create an editing layer to draw directly onto the image pixels
-                draw = ImageDraw.Draw(base_img)
-                
-                # Try to use a clean default system font, fallback to standard if unavailable
-                try:
-                    title_font = ImageFont.truetype("Arial", 32)
-                    sub_font = ImageFont.truetype("Arial", 10)
-                except IOError:
-                    title_font = ImageFont.load_default()
-                    sub_font = ImageFont.load_default()
-                
-                # BAKE THE TITLE: Write text directly onto image canvas (Pure Black)
-                # Positioned roughly around where the old label sat
-                draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
-                
-                # BAKE THE SUB-TRACKER: (Dark Charcoal Gray text)
-                draw.text((400, 145), "▪ ONLINE ▪", fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
+        # Canvas asset setup
+        self.setup_background_canvas()
 
-                # Convert the modified pixel canvas into something Tkinter can display
-                self.bg_photo = ImageTk.PhotoImage(base_img)
-                self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
-                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                
-                print(f"Hardware Log: Successfully baked typography directly into asset: {final_image_path}", flush=True)
-            except Exception as e:
-                print(f"Hardware Log: Error binding graphic engine layers: {e}", flush=True)
-        else:
-            self.main_frame.configure(fg_color="#121214")
-
-        # 3. Transparent Menu Controls (Clean light silver text over the lower background area)
+        # Transparent Menu Buttons
         button_font = ("Futura", 14)
-        
         btn_bg = "transparent"
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
@@ -119,7 +83,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="◀◀", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            command=lambda: self.update_status("SKIP BACKWARD")
+            command=self.prev_track
         )
         self.btn_prev.pack(side="left", padx=15)
 
@@ -127,7 +91,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            command=lambda: self.update_status("PLAYING TRACK")
+            command=self.toggle_play
         )
         self.btn_play.pack(side="left", padx=15)
 
@@ -135,11 +99,10 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            command=lambda: self.update_status("SKIP FORWARD")
+            command=self.next_track
         )
         self.btn_next.pack(side="left", padx=15)
 
-        # Connect dynamic hover brightness bindings
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -148,16 +111,113 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-    # --- Interactive Features ---
+    def load_local_tracks(self):
+        """Scans directory for executable tracks. Designed to swap to USB mounts later."""
+        if not os.path.exists(self.tracks_dir):
+            os.makedirs(self.tracks_dir)
+            
+        self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
+        self.track_list.sort()
+        print(f"Hardware Log: Loaded {len(self.track_list)} track targets from local bank.", flush=True)
+
+    def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
+        """Bakes typography directly to the pixel frame and wraps via CTkImage for high-DPI screens"""
+        jpeg_path = os.path.join(self.dir_path, "background.jpeg")
+        jpg_path = os.path.join(self.dir_path, "background.jpg")
+        png_path = os.path.join(self.dir_path, "background.png")
+        
+        final_image_path = next((p for p in [jpeg_path, jpg_path, png_path] if os.path.exists(p)), None)
+
+        if hasattr(self, 'main_frame'):
+            if hasattr(self, 'bg_label'): self.bg_label.destroy()
+        else:
+            self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
+            self.main_frame.pack(fill="both", expand=True)
+
+        if final_image_path:
+            try:
+                base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
+                draw = ImageDraw.Draw(base_img)
+                
+                try:
+                    title_font = ImageFont.truetype("Arial", 32)
+                    sub_font = ImageFont.truetype("Arial", 10)
+                except IOError:
+                    title_font = ImageFont.load_default()
+                    sub_font = ImageFont.load_default()
+                
+                # Render permanent Title Node
+                draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
+                # Render Dynamic Context Node
+                draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
+
+                # FIXED: Swapped out old photo wrapper to native CTkImage structure
+                self.bg_photo = ctk.CTkImage(light_image=base_img, dark_image=base_img, size=(800, 600))
+                
+                self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
+                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                self.bg_label.lower() 
+            except Exception as e:
+                print(f"Hardware Log: Graphic engine draw failure: {e}", flush=True)
+        else:
+            self.main_frame.configure(fg_color="#121214")
+
+    def play_current_track(self):
+        if not self.track_list:
+            return
+        
+        track_name = self.track_list[self.current_track_index]
+        track_path = os.path.join(self.tracks_dir, track_name)
+        
+        try:
+            pygame.mixer.music.load(track_path)
+            pygame.mixer.music.play()
+            self.is_playing = True
+            self.btn_play.configure(text="❚❚") 
+            
+            clean_display_name = track_name.replace(".mp3", "")
+            self.setup_background_canvas(custom_subtext=f"▪ PLAYING: {clean_display_name} ▪")
+            print(f"Hardware Log: Streaming pipeline active on path: {track_path}", flush=True)
+        except Exception as e:
+            print(f"Hardware Log: Stream execution error: {e}", flush=True)
+
+    def toggle_play(self):
+        if not self.track_list:
+            messagebox.showinfo("Storage", "No .mp3 file entries detected inside the /tracks directory folder.")
+            return
+
+        if not self.is_playing:
+            if pygame.mixer.music.get_pos() > 0:
+                pygame.mixer.music.unpause()
+                self.is_playing = True
+                self.btn_play.configure(text="❚❚")
+            else:
+                self.play_current_track()
+        else:
+            pygame.mixer.music.pause()
+            self.is_playing = False
+            self.btn_play.configure(text="▶")
+
+    def next_track(self):
+        if not self.track_list: return
+        self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
+        self.play_current_track()
+
+    def prev_track(self):
+        if not self.track_list: return
+        self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
+        self.play_current_track()
+
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
-    def update_status(self, action_text):
-        print(f"Status Updated: {action_text}", flush=True)
-
     def access_songs(self):
-        messagebox.showinfo("Library", "Opening local storage music library.")
+        if self.track_list:
+            track_manifest = "\n".join([f"- {t}" for t in self.track_list])
+            messagebox.showinfo("Local Index", f"Available Storage Formats:\n\n{track_manifest}")
+        else:
+            messagebox.showinfo("Local Index", "Storage bank directory empty.")
 
     def make_playlist(self):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
@@ -175,6 +235,7 @@ class SurrealPlayerApp(ctk.CTk):
                 percent = i * 20
                 self.btn_add.configure(text=f"DOWNLOADING... {percent}%")
             print("Hardware Log: Track successfully written to target download format (.mp3)", flush=True)
+            self.load_local_tracks() 
             messagebox.showinfo("Success", "Audio track saved locally in .mp3 format!")
         except Exception as e:
             messagebox.showerror("Error", f"Download failed: {str(e)}")
@@ -182,6 +243,7 @@ class SurrealPlayerApp(ctk.CTk):
             self.btn_add.configure(state="normal", text="ADD SONG")
 
     def turn_off(self):
+        pygame.mixer.quit()
         self.quit()
 
 if __name__ == "__main__":
