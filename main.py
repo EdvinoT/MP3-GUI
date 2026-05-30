@@ -1,10 +1,10 @@
 import customtkinter as ctk
-from tkinter import messagebox, Label
+from tkinter import messagebox
 import threading
 import time
 import os
 import warnings
-from PIL import Image, ImageTk
+from PIL import Image
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -20,7 +20,7 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Original Window Properties
+        # Original Layout Geometry Configurations
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
@@ -37,16 +37,16 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # FIXED: Use a raw standard Tkinter Label to bypass CustomTkinter's dark mode overrides
-        self.bg_label = Label(self, borderwidth=0, highlightthickness=0)
+        # FIXED: Core background image container using purely native CustomTkinter hooks
+        self.bg_label = ctk.CTkLabel(self, text="")
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-        # Build the functional content frame directly on top of the background layer
+        # Functional overlay frame for text and buttons (completely transparent)
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
         # Persistent variable to hold image object in memory
-        self.bg_tk_image = None  
+        self.bg_ctk_image = None  
 
         # Draw the initial image background configuration
         self.setup_background_canvas()
@@ -155,21 +155,22 @@ class SurrealPlayerApp(ctk.CTk):
         
         if os.path.exists(png_path):
             try:
+                # Open the raw file using Pillow
                 pil_img = Image.open(png_path)
+                
+                # Get the window's actual, updated width and height
                 w = max(self.winfo_width(), 800)
                 h = max(self.winfo_height(), 600)
                 
-                # Dynamic scaling via Pillow
-                resized_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
-                
-                # FIXED: Force native mapping to prevent dark mode transparency bugs
-                self.bg_tk_image = ImageTk.PhotoImage(resized_img)
-                self.bg_label.configure(image=self.bg_tk_image)
-                print(f"SUCCESS: Raw image asset projected onto background.", flush=True)
+                # FIXED: Force mapping your image asset to BOTH light and dark mode properties.
+                # This guarantees the engine renders your white and blue pixels instantly.
+                self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
+                self.bg_label.configure(image=self.bg_ctk_image)
+                print(f"SUCCESS: CustomTkinter mapped blue & white asset natively.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
-            self.bg_label.configure(bg="#101012", image="")
+            self.bg_label.configure(image=None, fg_color="#101012")
             print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
 
     def on_window_resize(self, event):
