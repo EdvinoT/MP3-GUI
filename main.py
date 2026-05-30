@@ -2,7 +2,8 @@ import customtkinter as ctk
 from tkinter import messagebox
 import threading
 import time
-import sys
+import os
+from PIL import Image, ImageTk
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
@@ -12,64 +13,58 @@ class SurrealPlayerApp(ctk.CTk):
         super().__init__()
 
         self.title("Surreal Media Player")
-        
-        # MAC FORCE-REFRESH FIX: We allow resizing but manage drawing explicitly
         self.geometry("800x600")
-        self.resizable(True, True) 
+        self.resizable(False, False) 
 
-        # Main background frame
+        print("Hardware Log: Booting media player interface...", flush=True)
+
+        # Look for the background image in the exact same folder as this script
+        dir_path = os.path.dirname(__file__)
+        jpeg_path = os.path.join(dir_path, "background.jpeg")
+        jpg_path = os.path.join(dir_path, "background.jpg")
+        
+        final_image_path = None
+        if os.path.exists(jpeg_path):
+            final_image_path = jpeg_path
+        elif os.path.exists(jpg_path):
+            final_image_path = jpg_path
+
+        # Create the base frame container
         self.main_frame = ctk.CTkFrame(self, fg_color="#0F051D", corner_radius=0)
         self.main_frame.pack(fill="both", expand=True)
 
-        # Title
-        self.title_label = ctk.CTkLabel(
-            self.main_frame, text="MAIN MENU", 
-            font=("Segoe UI", 36, "bold"), text_color="#D6A4FF"
-        )
-        self.title_label.pack(pady=(100, 40))
+        # Attempt to load the background image if found
+        if final_image_path:
+            print(f"Hardware Log: Found background image at {final_image_path}", flush=True)
+            try:
+                self.bg_image = Image.open(final_image_path).resize((800, 600))
+                self.bg_photo = ImageTk.PhotoImage(self.bg_image)
+                
+                # Display the image across the entire frame
+                self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
+                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+            except Exception as e:
+                print(f"Hardware Log: Error loading image: {e}", flush=True)
+        else:
+            print(f"Hardware Log: No 'background.jpeg' or 'background.jpg' found in {dir_path}. Using solid purple color.", flush=True)
 
-        # Separator
-        self.separator = ctk.CTkFrame(self.main_frame, height=2, width=200, fg_color="#3A1C5C")
-        self.separator.pack(pady=(0, 40))
+        # Glassmorphic UI layout placed over the background
+        button_font = ("Futura", 14, "bold")
+        
+        self.title_label = ctk.CTkLabel(self.main_frame, text="M A I N   M E N U", font=("Futura", 38, "bold"), text_color="#E0AAFF", fg_color="transparent")
+        self.title_label.place(relx=0.5, rely=0.2, anchor="center")
 
-        # Buttons
-        self.btn_access = ctk.CTkButton(
-            self.main_frame, text="ACCESS SONGS", font=("Segoe UI", 14, "bold"),
-            width=260, height=45, corner_radius=8, fg_color="#240B36",
-            hover_color="#5A189A", text_color="#E0AAFF", command=self.access_songs
-        )
-        self.btn_access.pack(pady=10)
+        self.btn_access = ctk.CTkButton(self.main_frame, text="ACCESS SONGS", font=button_font, width=280, height=48, corner_radius=14, fg_color="#1A0933", border_color="#9D4EDD", border_width=1, hover_color="#7B2CBF", text_color="#E0AAFF", command=self.access_songs)
+        self.btn_access.place(relx=0.5, rely=0.4, anchor="center")
 
-        self.btn_playlist = ctk.CTkButton(
-            self.main_frame, text="MAKE A PLAYLIST", font=("Segoe UI", 14, "bold"),
-            width=260, height=45, corner_radius=8, fg_color="#240B36",
-            hover_color="#5A189A", text_color="#E0AAFF", command=self.make_playlist
-        )
-        self.btn_playlist.pack(pady=10)
+        self.btn_playlist = ctk.CTkButton(self.main_frame, text="MAKE A PLAYLIST", font=button_font, width=280, height=48, corner_radius=14, fg_color="#1A0933", border_color="#9D4EDD", border_width=1, hover_color="#7B2CBF", text_color="#E0AAFF", command=self.make_playlist)
+        self.btn_playlist.place(relx=0.5, rely=0.52, anchor="center")
 
-        self.btn_add = ctk.CTkButton(
-            self.main_frame, text="ADD SONG", font=("Segoe UI", 14, "bold"),
-            width=260, height=45, corner_radius=8, fg_color="#240B36",
-            hover_color="#5A189A", text_color="#E0AAFF", command=self.start_download_thread
-        )
-        self.btn_add.pack(pady=10)
+        self.btn_add = ctk.CTkButton(self.main_frame, text="ADD SONG", font=button_font, width=280, height=48, corner_radius=14, fg_color="#1A0933", border_color="#9D4EDD", border_width=1, hover_color="#7B2CBF", text_color="#E0AAFF", command=self.start_download_thread)
+        self.btn_add.place(relx=0.5, rely=0.64, anchor="center")
 
-        self.btn_off = ctk.CTkButton(
-            self.main_frame, text="TURN OFF", font=("Segoe UI", 14, "bold"),
-            width=260, height=45, corner_radius=8, fg_color="#450A0A",
-            hover_color="#991B1B", text_color="#FFAAAA", command=self.turn_off
-        )
-        self.btn_off.pack(pady=30)
-
-        # Force a rendering engine kickstart specifically for macOS environments
-        self.after(100, self.kickstart_mac_render)
-
-    def kickstart_mac_render(self):
-        """Forces the window engine to cycle frame states, breaking the blank loop."""
-        self.update()
-        self.geometry("801x601")  # Shift by 1 pixel to shock the window manager into drawing
-        self.update()
-        self.geometry("800x600")  # Set back to original layout target
+        self.btn_off = ctk.CTkButton(self.main_frame, text="TURN OFF", font=button_font, width=280, height=48, corner_radius=14, fg_color="#340505", border_color="#FF5555", border_width=1, hover_color="#991B1B", text_color="#FFAAAA", command=self.turn_off)
+        self.btn_off.place(relx=0.5, rely=0.78, anchor="center")
 
     def access_songs(self):
         messagebox.showinfo("Library", "Opening local storage music library.")
@@ -90,9 +85,8 @@ class SurrealPlayerApp(ctk.CTk):
                 percent = i * 20
                 self.btn_add.configure(text=f"DOWNLOADING... {percent}%")
             
-            print("Hardware Log: Track successfully written to /home/pi/Music/track.mp3")
+            print("Hardware Log: Track successfully written to target download format (.mp3)", flush=True)
             messagebox.showinfo("Success", "Audio track saved locally in .mp3 format!")
-            
         except Exception as e:
             messagebox.showerror("Error", f"Download failed: {str(e)}")
         finally:
