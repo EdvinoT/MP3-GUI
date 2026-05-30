@@ -5,83 +5,110 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and toggle the list window dynamically.
+        the ACCESS SONGS button and overlay a full-page scroll menu.
         """
         self.app = main_app_instance
-        self.scroll_frame = None  # Start with the frame completely hidden
+        self.page_overlay = None  # Holds our full-screen container frame
 
-        # Overwrite the default button command in main.py to point to our custom toggle function
-        self.app.btn_access.configure(command=self.toggle_scroller_view)
+        # Overwrite the default button command in main.py to trigger our custom page load
+        self.app.btn_access.configure(command=self.open_full_page_scroller)
 
         # Intercept the track-loading system to update our scroller if it's currently open
         self.original_load_tracks = self.app.load_local_tracks
         self.app.load_local_tracks = self.wrapped_load_local_tracks
 
-    def toggle_scroller_view(self):
-        """Spawns or destroys the scrolling panel dynamically when ACCESS SONGS is pressed."""
-        # If the menu is already open, close it!
-        if self.scroll_frame is not None:
-            self.scroll_frame.destroy()
-            self.scroll_frame = None
-            return
+    def open_full_page_scroller(self):
+        """Spawns a full-window layout over the background image."""
+        if self.page_overlay is not None:
+            return  # Safety guard to prevent double-stacking frames
 
-        # Otherwise, build the scrolling frame container on the left side
-        self.scroll_frame = ctk.CTkScrollableFrame(
-            self.app, width=300, height=320, 
-            fg_color="#08080A", label_text="ACCESS SONGS",
-            label_font=("Futura", 12), label_text_color="#888888",
-            corner_radius=0, border_width=1, border_color="#1A1A1F"
+        # Create a massive master container frame pinned across the entire window view
+        self.page_overlay = ctk.CTkFrame(self.app, fg_color="#0D0D10")
+        self.page_overlay.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # --- NAVIGATION HEADER BAR ---
+        nav_bar = ctk.CTkFrame(self.page_overlay, height=60, fg_color="#08080A", corner_radius=0)
+        nav_bar.pack(fill="x", side="top")
+
+        # Minimalist Return Button positioned inside our navigation bar layout
+        btn_back = ctk.CTkButton(
+            nav_bar, text="◀  BACK TO MENU", font=("Futura", 12),
+            width=140, height=35, corner_radius=0,
+            fg_color="#000000", text_color="#DDDDDD", hover_color="#151515",
+            command=self.close_full_page_scroller
         )
-        self.scroll_frame.place(relx=0.1, rely=0.32, anchor="nw")
+        btn_back.pack(side="left", padx=20, pady=12)
 
-        # Instantly populate the lines with tracks
+        # Small indicator text showing current catalog status profiles
+        page_title = ctk.CTkLabel(
+            nav_bar, text="LOCAL AUDIO ARCHIVE STORAGE", 
+            font=("Futura", 11), text_color="#666666"
+        )
+        page_title.pack(side="right", padx=25)
+
+        # --- THE GIANT SEAMLESS SCROLLER ---
+        # Takes up all remaining vertical screen real estate down the interface plane
+        self.scroll_frame = ctk.CTkScrollableFrame(
+            self.page_overlay, 
+            fg_color="transparent", 
+            corner_radius=0, 
+            border_width=0
+        )
+        self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Instantly compile rows
         self.refresh_scroll_list()
 
+    def close_full_page_scroller(self):
+        """Destroys the top frame page cleanly to expose core dashboard menu options again."""
+        if self.page_overlay is not None:
+            self.page_overlay.destroy()
+            self.page_overlay = None
+            self.scroll_frame = None
+
     def wrapped_load_local_tracks(self):
-        """Runs the original track loader in main.py, then updates the scroller if it's open."""
+        """Runs the original track loader in main.py, then updates the scroller if it's currently open."""
         self.original_load_tracks()
         if self.scroll_frame is not None:
             self.refresh_scroll_list()
 
     def refresh_scroll_list(self):
-        """Clears and rebuilds small, clickable track rows inside the scroller view."""
+        """Clears and rebuilds wide, clickable track rows inside the giant scroller view."""
         if self.scroll_frame is None:
             return
 
-        # Clear out any old widgets in the frame
+        # Clear out any old widgets in the frame container
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
 
         if not self.app.track_list:
             no_songs_lbl = ctk.CTkLabel(
-                self.scroll_frame, text="Empty Directory Bank", 
-                font=("Arial", 11), text_color="#555555"
+                self.scroll_frame, text="No Audio Entries Found Inside Local /tracks Directory", 
+                font=("Arial", 12), text_color="#555555"
             )
-            no_songs_lbl.pack(pady=20)
+            no_songs_lbl.pack(pady=100)
             return
 
-        # Populate with small interactive button items for every music file
+        # Populate wide button blocks for every music track entry detected
         for index, track_name in enumerate(self.app.track_list):
             clean_display_title = track_name.replace(".mp3", "")
-            
-            if len(clean_display_title) > 32:
-                clean_display_title = clean_display_title[:29] + "..."
 
+            # Beautiful wide row button design matching your interface framework aesthetic
             track_btn = ctk.CTkButton(
                 self.scroll_frame, 
-                text=f"{index + 1}. {clean_display_title}", 
-                font=("Arial", 11), 
+                text=f"  [{index + 1:02d}]    {clean_display_title}", 
+                font=("Arial", 13), 
                 anchor="w",
-                height=28, 
-                fg_color="transparent", 
-                text_color="#AAAAAA",
-                hover_color="#18181C", 
+                height=45, 
+                fg_color="#121216", 
+                text_color="#CCCCCC",
+                hover_color="#1C1C22", 
                 corner_radius=0,
                 command=lambda idx=index: self.select_track_from_scroller(idx)
             )
-            track_btn.pack(fill="x", pady=2)
+            track_btn.pack(fill="x", pady=3, padx=10)
 
     def select_track_from_scroller(self, track_index):
-        """Changes the track pointer index and commands the app engine to play it."""
+        """Changes the track pointer index and commands the app engine to execute playback."""
         self.app.current_track_index = track_index
         self.app.play_current_track()
