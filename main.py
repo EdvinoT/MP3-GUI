@@ -39,7 +39,7 @@ if not background_loaded:
 try:
     title_font = pygame.font.SysFont("Arial", 32, bold=True)
     sub_font = pygame.font.SysFont("Arial", 14)
-    button_font = pygame.font.SysFont("Futura", 16)
+    button_font = pygame.font.SysFont("Futura", 14) # Kept Futura matching CustomTkinter
 except Exception:
     title_font = pygame.font.Font(None, 36)
     sub_font = pygame.font.Font(None, 18)
@@ -48,20 +48,24 @@ except Exception:
 # Colors
 COLOR_TEXT_MAIN = (0, 0, 0)      # Deep Black matching your typography requirements
 COLOR_TEXT_SUB = (68, 68, 68)    # Muted Charcoal Gray
-COLOR_BTN_DEFAULT = (221, 221, 221)
-COLOR_BTN_HOVER = (255, 255, 255)
-COLOR_BTN_OFF = (255, 170, 170)
-COLOR_BTN_OFF_HOVER = (255, 85, 85)
+COLOR_BOX_BG = (0, 0, 0)         # Pure Black for the button backgrounds
+
+COLOR_BTN_DEFAULT = (221, 221, 221) # Light gray text
+COLOR_BTN_HOVER = (255, 255, 255)   # White text on hover
+COLOR_BTN_OFF = (255, 170, 170)     # Soft pink/red text for turn off
+COLOR_BTN_OFF_HOVER = (255, 85, 85) # Vivid red text on hover
 
 # Interactive Menu Button Bounds
 buttons = [
-    {"text": "ACCESS SONGS", "rect": pygame.Rect(260, 210, 280, 45), "type": "access"},
-    {"text": "MAKE A PLAYLIST", "rect": pygame.Rect(260, 270, 280, 45), "type": "playlist"},
-    {"text": "ADD SONG", "rect": pygame.Rect(260, 330, 280, 45), "type": "add"},
+    {"text": "ACCESS SONGS", "rect": pygame.Rect(260, 210, 280, 45), "type": "menu"},
+    {"text": "MAKE A PLAYLIST", "rect": pygame.Rect(260, 270, 280, 45), "type": "menu"},
+    {"text": "ADD SONG", "rect": pygame.Rect(260, 330, 280, 45), "type": "menu"},
     {"text": "TURN OFF", "rect": pygame.Rect(260, 390, 280, 45), "type": "off"},
-    {"text": "◀◀", "rect": pygame.Rect(300, 495, 50, 40), "type": "prev"},
-    {"text": "▶", "rect": pygame.Rect(375, 495, 50, 40), "type": "play"},
-    {"text": "▶▶", "rect": pygame.Rect(450, 495, 50, 40), "type": "next"}
+    
+    # Geometric Deck Controls (Smaller square hitboxes)
+    {"text": "◀◀", "rect": pygame.Rect(300, 495, 50, 40), "type": "control"},
+    {"text": "▶", "rect": pygame.Rect(375, 495, 50, 40), "type": "control"},
+    {"text": "▶▶", "rect": pygame.Rect(450, 495, 50, 40), "type": "control"}
 ]
 
 # State Engines
@@ -89,18 +93,18 @@ def play_current_track():
         pygame.mixer.music.load(track_path)
         pygame.mixer.music.play()
         is_playing = True
-        buttons[5]["text"] = "❚❚"  # Toggle play button icon string
+        buttons[5]["text"] = "❚❚" 
         clean_name = track_name.replace(".mp3", "")
         current_subtext = f"▪ PLAYING: {clean_name} ▪"
     except Exception as e:
         print(f"Playback execution error: {e}", flush=True)
 
-# Main Window Application Frame Loop
+# Main Application Frame Loop
 running = True
 while running:
     mouse_pos = pygame.mouse.get_pos()
     
-    for event in pygame.event.get_events() if hasattr(pygame.event, 'get_events') else pygame.event.get():
+    for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             
@@ -110,13 +114,13 @@ while running:
                     if btn["rect"].collidepoint(mouse_pos):
                         if btn["type"] == "off":
                             running = False
-                        elif btn["type"] == "access":
+                        elif btn["text"] == "ACCESS SONGS":
                             print(f"Storage Index Request: {track_list}", flush=True)
-                        elif btn["type"] == "playlist":
+                        elif btn["text"] == "MAKE A PLAYLIST":
                             print("Action Triggered: Initialize playlist layout configuration.", flush=True)
-                        elif btn["type"] == "add":
+                        elif "ADD SONG" in btn["text"] or "DOWNLOADING" in btn["text"]:
                             print("Action Triggered: Run track downloader engine.", flush=True)
-                        elif btn["type"] == "play":
+                        elif btn["text"] in ["▶", "❚❚"]:
                             if not track_list:
                                 print("Storage Alert: No tracks inside /tracks folder.", flush=True)
                             elif is_playing:
@@ -130,16 +134,16 @@ while running:
                                     play_current_track()
                                 is_playing = True
                                 btn["text"] = "❚❚"
-                        elif btn["type"] == "next":
+                        elif btn["text"] == "▶▶":
                             if track_list:
                                 current_track_index = (current_track_index + 1) % len(track_list)
                                 play_current_track()
-                        elif btn["type"] == "prev":
+                        elif btn["text"] == "◀◀":
                             if track_list:
                                 current_track_index = (current_track_index - 1) % len(track_list)
                                 play_current_track()
 
-    # 1. Clear background surface with your original file assets
+    # 1. Clear background surface with your image file asset
     screen.blit(bg_image, (0, 0))
 
     # 2. Render Text Typography Elements
@@ -151,11 +155,14 @@ while running:
     sub_rect = sub_surface.get_rect(center=(SCREEN_WIDTH // 2, 145))
     screen.blit(sub_surface, sub_rect)
 
-    # 3. Draw & Track Hover Button Transformations
+    # 3. Draw solid boxes and render option text overlays
     for btn in buttons:
         is_hovered = btn["rect"].collidepoint(mouse_pos)
         
-        # Determine current interactive color state
+        # Draw the solid black background box behind every option option/control
+        pygame.draw.rect(screen, COLOR_BOX_BG, btn["rect"])
+        
+        # Determine current text coloring logic based on hover rules
         if btn["type"] == "off":
             text_color = COLOR_BTN_OFF_HOVER if is_hovered else COLOR_BTN_OFF
         else:
