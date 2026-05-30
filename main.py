@@ -6,10 +6,10 @@ import sys
 pygame.init()
 pygame.mixer.init()
 
-# Window Setup
+# Window Setup - RESTORED: Added RESIZABLE flag so you can scale the window freely
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("Surreal Media Player")
 clock = pygame.time.Clock()
 
@@ -24,7 +24,6 @@ background_loaded = False
 if os.path.exists(BACKGROUND_PATH):
     try:
         bg_image = pygame.image.load(BACKGROUND_PATH).convert()
-        bg_image = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
         background_loaded = True
         print("Hardware Engine Status: background.png successfully bound to hardware acceleration.", flush=True)
     except Exception as e:
@@ -35,17 +34,15 @@ if not background_loaded:
     bg_image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     bg_image.fill((20, 20, 25))
 
-# Font Layer Configuration
+# Font Layer Configuration - RESTORED: Clean, elegant, light minimalist typography weights
 try:
-    # Title and subtext kept clean and skinny
     title_font = pygame.font.SysFont("Arial", 32, bold=False)
     sub_font = pygame.font.SysFont("Arial", 14)
-    # Dropped down to size 12 for a tight, high-end minimalist look
-    button_font = pygame.font.SysFont("Futura", 12) 
+    button_font = pygame.font.SysFont("Futura", 14) # Restored original sleek size 14
 except Exception:
     title_font = pygame.font.Font(None, 36)
     sub_font = pygame.font.Font(None, 18)
-    button_font = pygame.font.Font(None, 18)
+    button_font = pygame.font.Font(None, 22)
 
 # Colors
 COLOR_TEXT_MAIN = (0, 0, 0)      
@@ -57,13 +54,14 @@ COLOR_BTN_HOVER = (255, 255, 255)
 COLOR_BTN_OFF = (255, 170, 170)     
 COLOR_BTN_OFF_HOVER = (255, 85, 85) 
 
-# Interactive Menu Button Bounds (Kept original sleek placement rectangles)
+# Interactive Menu Button Bounds - RESTORED: Exact layout coordinates from your nice build
 buttons = [
     {"text": "ACCESS SONGS", "rect": pygame.Rect(260, 210, 280, 45), "type": "menu"},
     {"text": "MAKE A PLAYLIST", "rect": pygame.Rect(260, 270, 280, 45), "type": "menu"},
     {"text": "ADD SONG", "rect": pygame.Rect(260, 330, 280, 45), "type": "menu"},
     {"text": "TURN OFF", "rect": pygame.Rect(260, 390, 280, 45), "type": "off"},
     
+    # Geometric Deck Controls 
     {"text": "◀◀", "rect": pygame.Rect(300, 495, 50, 40), "type": "control"},
     {"text": "▶", "rect": pygame.Rect(375, 495, 50, 40), "type": "control"},
     {"text": "▶▶", "rect": pygame.Rect(450, 495, 50, 40), "type": "control"}
@@ -109,6 +107,11 @@ while running:
         if event.type == pygame.QUIT:
             running = False
             
+        elif event.type == pygame.VIDEORESIZE:
+            # Dynamically adapt window scaling variables if you choose to drag-resize
+            SCREEN_WIDTH, SCREEN_HEIGHT = event.size
+            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: 
                 for btn in buttons:
@@ -144,10 +147,11 @@ while running:
                                 current_track_index = (current_track_index - 1) % len(track_list)
                                 play_current_track()
 
-    # 1. Clear background surface with your image file asset
-    screen.blit(bg_image, (0, 0))
+    # 1. Dynamically scale background asset to match current window dimensions
+    scaled_bg = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen.blit(scaled_bg, (0, 0))
 
-    # 2. Render Text Typography Elements (Clean anti-aliased native lines)
+    # 2. Render Text Typography Elements (Crisp, clean anti-aliasing)
     title_surface = title_font.render("I D L E   S Y S T E M", True, COLOR_TEXT_MAIN)
     title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, 95))
     screen.blit(title_surface, title_rect)
@@ -156,11 +160,11 @@ while running:
     sub_rect = sub_surface.get_rect(center=(SCREEN_WIDTH // 2, 145))
     screen.blit(sub_surface, sub_rect)
 
-    # 3. Draw solid black container frames and center the minimal font strings
+    # 3. Draw solid black container boxes and render clean text overlays
     for btn in buttons:
         is_hovered = btn["rect"].collidepoint(mouse_pos)
         
-        # Solid minimalist button backdrop
+        # Draw the original crisp black boxes
         pygame.draw.rect(screen, COLOR_BOX_BG, btn["rect"])
         
         if btn["type"] == "off":
@@ -168,7 +172,7 @@ while running:
         else:
             text_color = COLOR_BTN_HOVER if is_hovered else COLOR_BTN_DEFAULT
             
-        # Clean, native size 12 font rendering
+        # Clean, native anti-aliased font rendering
         btn_surface = button_font.render(btn["text"], True, text_color)
         btn_rect = btn_surface.get_rect(center=btn["rect"].center)
         screen.blit(btn_surface, btn_rect)
