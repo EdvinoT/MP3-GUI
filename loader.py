@@ -120,6 +120,7 @@ class SongLoader:
 
     def download_web_audio_pipeline(self, url):
         ydl_opts = {
+            'cookiesfrombrowser': ('safari',), # <-- ADD THIS LINE (Can change 'safari' to 'chrome' or 'firefox')
             'format': 'bestaudio/best',
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
             'postprocessors': [{
