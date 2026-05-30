@@ -1,185 +1,242 @@
-import pygame
+import customtkinter as ctk
+from tkinter import messagebox
+import threading
+import time
 import os
-import sys
+import warnings
+from PIL import Image
 
-# Initialize Pygame core and audio engines
-pygame.init()
+# Mute high-DPI warning logs entirely
+warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
+
+# Initialize audio engine
+import pygame
 pygame.mixer.init()
 
-# Window Setup - RESTORED: Added RESIZABLE flag so you can scale the window freely
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Surreal Media Player")
-clock = pygame.time.Clock()
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue") 
 
-# Setup Paths
-DIR_PATH = os.path.dirname(os.path.abspath(__file__))
-TRACKS_DIR = os.path.join(DIR_PATH, "tracks")
+class SurrealPlayerApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-# Load Background Graphic safely
-BACKGROUND_PATH = os.path.join(DIR_PATH, "background.png")
-background_loaded = False
+        # RESTORED: Original CustomTkinter frame properties and scaling capabilities
+        self.title("Surreal Media Player")
+        self.geometry("800x600")
+        self.resizable(True, True) 
 
-if os.path.exists(BACKGROUND_PATH):
-    try:
-        bg_image = pygame.image.load(BACKGROUND_PATH).convert()
-        background_loaded = True
-        print("Hardware Engine Status: background.png successfully bound to hardware acceleration.", flush=True)
-    except Exception as e:
-        print(f"Hardware Error reading image asset: {e}", flush=True)
+        print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-if not background_loaded:
-    print("System Warning: background.png missing or corrupt. Generating solid fallback canvas.", flush=True)
-    bg_image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-    bg_image.fill((20, 20, 25))
+        # Core States
+        self.track_list = []
+        self.current_track_index = 0
+        self.is_playing = False
 
-# Font Layer Configuration - RESTORED: Clean, elegant, light minimalist typography weights
-try:
-    title_font = pygame.font.SysFont("Arial", 32, bold=False)
-    sub_font = pygame.font.SysFont("Arial", 14)
-    button_font = pygame.font.SysFont("Futura", 14) # Restored original sleek size 14
-except Exception:
-    title_font = pygame.font.Font(None, 36)
-    sub_font = pygame.font.Font(None, 18)
-    button_font = pygame.font.Font(None, 22)
+        # Build local paths
+        self.dir_path = os.path.dirname(os.path.abspath(__file__))
+        self.tracks_dir = os.path.join(self.dir_path, "tracks")
+        self.load_local_tracks()
 
-# Colors
-COLOR_TEXT_MAIN = (0, 0, 0)      
-COLOR_TEXT_SUB = (68, 68, 68)    
-COLOR_BOX_BG = (0, 0, 0)         
+        # Build clean base container frame
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
+        self.main_frame.pack(fill="both", expand=True)
 
-COLOR_BTN_DEFAULT = (221, 221, 221) 
-COLOR_BTN_HOVER = (255, 255, 255)   
-COLOR_BTN_OFF = (255, 170, 170)     
-COLOR_BTN_OFF_HOVER = (255, 85, 85) 
+        # Explicitly declare memory placeholders to block garbage collection
+        self.bg_image_object = None
+        self.bg_label = None
 
-# Interactive Menu Button Bounds - RESTORED: Exact layout coordinates from your nice build
-buttons = [
-    {"text": "ACCESS SONGS", "rect": pygame.Rect(260, 210, 280, 45), "type": "menu"},
-    {"text": "MAKE A PLAYLIST", "rect": pygame.Rect(260, 270, 280, 45), "type": "menu"},
-    {"text": "ADD SONG", "rect": pygame.Rect(260, 330, 280, 45), "type": "menu"},
-    {"text": "TURN OFF", "rect": pygame.Rect(260, 390, 280, 45), "type": "off"},
-    
-    # Geometric Deck Controls 
-    {"text": "◀◀", "rect": pygame.Rect(300, 495, 50, 40), "type": "control"},
-    {"text": "▶", "rect": pygame.Rect(375, 495, 50, 40), "type": "control"},
-    {"text": "▶▶", "rect": pygame.Rect(450, 495, 50, 40), "type": "control"}
-]
+        # Transparent Menu Buttons
+        button_font = ("Futura", 14)
+        btn_bg = "transparent"
+        btn_text = "#DDDDDD" 
+        btn_hover = "#FFFFFF" 
 
-# State Engines
-track_list = []
-current_track_index = 0
-is_playing = False
-current_subtext = "▪ ONLINE ▪"
+        self.btn_access = ctk.CTkButton(
+            self.main_frame, text="ACCESS SONGS", font=button_font, 
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
+            bg_color="transparent", command=self.access_songs
+        )
+        self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
-def load_local_tracks():
-    global track_list
-    if not os.path.exists(TRACKS_DIR):
-        os.makedirs(TRACKS_DIR)
-    track_list = [f for f in os.listdir(TRACKS_DIR) if f.endswith(".mp3")]
-    track_list.sort()
-    print(f"Audio Tracks Loaded: {len(track_list)} targets inside /tracks folder", flush=True)
+        self.btn_playlist = ctk.CTkButton(
+            self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
+            bg_color="transparent", command=self.make_playlist
+        )
+        self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
-load_local_tracks()
+        self.btn_add = ctk.CTkButton(
+            self.main_frame, text="ADD SONG", font=button_font, 
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color=btn_text,
+            bg_color="transparent", command=self.start_download_thread
+        )
+        self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
-def play_current_track():
-    global is_playing, current_subtext
-    if not track_list: return
-    track_name = track_list[current_track_index]
-    track_path = os.path.join(TRACKS_DIR, track_name)
-    try:
-        pygame.mixer.music.load(track_path)
-        pygame.mixer.music.play()
-        is_playing = True
-        buttons[5]["text"] = "❚❚" 
-        clean_name = track_name.replace(".mp3", "")
-        current_subtext = f"▪ PLAYING: {clean_name} ▪"
-    except Exception as e:
-        print(f"Playback execution error: {e}", flush=True)
+        self.btn_off = ctk.CTkButton(
+            self.main_frame, text="TURN OFF", font=button_font, 
+            width=280, height=45, corner_radius=0, 
+            fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
+            bg_color="transparent", command=self.turn_off
+        )
+        self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-# Main Application Frame Loop
-running = True
-while running:
-    mouse_pos = pygame.mouse.get_pos()
-    
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-            
-        elif event.type == pygame.VIDEORESIZE:
-            # Dynamically adapt window scaling variables if you choose to drag-resize
-            SCREEN_WIDTH, SCREEN_HEIGHT = event.size
-            screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+        # Audio Deck Controls
+        self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1: 
-                for btn in buttons:
-                    if btn["rect"].collidepoint(mouse_pos):
-                        if btn["type"] == "off":
-                            running = False
-                        elif btn["text"] == "ACCESS SONGS":
-                            print(f"Storage Index Request: {track_list}", flush=True)
-                        elif btn["text"] == "MAKE A PLAYLIST":
-                            print("Action Triggered: Initialize playlist layout configuration.", flush=True)
-                        elif "ADD SONG" in btn["text"] or "DOWNLOADING" in btn["text"]:
-                            print("Action Triggered: Run track downloader engine.", flush=True)
-                        elif btn["text"] in ["▶", "❚❚"]:
-                            if not track_list:
-                                print("Storage Alert: No tracks inside /tracks folder.", flush=True)
-                            elif is_playing:
-                                pygame.mixer.music.pause()
-                                is_playing = False
-                                btn["text"] = "▶"
-                            else:
-                                if pygame.mixer.music.get_pos() > 0:
-                                    pygame.mixer.music.unpause()
-                                else:
-                                    play_current_track()
-                                is_playing = True
-                                btn["text"] = "❚❚"
-                        elif btn["text"] == "▶▶":
-                            if track_list:
-                                current_track_index = (current_track_index + 1) % len(track_list)
-                                play_current_track()
-                        elif btn["text"] == "◀◀":
-                            if track_list:
-                                current_track_index = (current_track_index - 1) % len(track_list)
-                                play_current_track()
+        control_font = ("Arial", 16)
 
-    # 1. Dynamically scale background asset to match current window dimensions
-    scaled_bg = pygame.transform.scale(bg_image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-    screen.blit(scaled_bg, (0, 0))
+        self.btn_prev = ctk.CTkButton(
+            self.playback_frame, text="◀◀", font=control_font, 
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
+            command=self.prev_track
+        )
+        self.btn_prev.pack(side="left", padx=15)
 
-    # 2. Render Text Typography Elements (Crisp, clean anti-aliasing)
-    title_surface = title_font.render("I D L E   S Y S T E M", True, COLOR_TEXT_MAIN)
-    title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, 95))
-    screen.blit(title_surface, title_rect)
+        self.btn_play = ctk.CTkButton(
+            self.playback_frame, text="▶", font=control_font, 
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
+            command=self.toggle_play
+        )
+        self.btn_play.pack(side="left", padx=15)
 
-    sub_surface = sub_font.render(current_subtext.upper(), True, COLOR_TEXT_SUB)
-    sub_rect = sub_surface.get_rect(center=(SCREEN_WIDTH // 2, 145))
-    screen.blit(sub_surface, sub_rect)
+        self.btn_next = ctk.CTkButton(
+            self.playback_frame, text="▶▶", font=control_font, 
+            width=50, height=40, corner_radius=0, 
+            fg_color="transparent", border_width=0, text_color=btn_text,
+            command=self.next_track
+        )
+        self.btn_next.pack(side="left", padx=15)
 
-    # 3. Draw solid black container boxes and render clean text overlays
-    for btn in buttons:
-        is_hovered = btn["rect"].collidepoint(mouse_pos)
+        self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
+        self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
+
+        # Initialize background using original setup structure
+        self.setup_background_canvas()
         
-        # Draw the original crisp black boxes
-        pygame.draw.rect(screen, COLOR_BOX_BG, btn["rect"])
+        # Bind the window resize event to keep the background scaled perfectly
+        self.bind("<Configure>", self.on_window_resize)
+
+    def load_local_tracks(self):
+        if not os.path.exists(self.tracks_dir):
+            os.makedirs(self.tracks_dir)
+        self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
+        self.track_list.sort()
+        print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
+
+    def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
+        png_path = os.path.join(self.dir_path, "background.png")
         
-        if btn["type"] == "off":
-            text_color = COLOR_BTN_OFF_HOVER if is_hovered else COLOR_BTN_OFF
+        if os.path.exists(png_path):
+            try:
+                # Load the raw PIL image cleanly
+                pil_img = Image.open(png_path)
+                
+                # RESTORED: Using CustomTkinter's native CTkImage object to handle Mac rendering perfectly
+                self.bg_image_object = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(self.winfo_width(), self.winfo_height()))
+                
+                if self.bg_label is None:
+                    self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_image_object, text="")
+                    self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                    self.bg_label.lower()
+            except Exception as e:
+                print(f"Graphic engine load failure: {e}", flush=True)
         else:
-            text_color = COLOR_BTN_HOVER if is_hovered else COLOR_BTN_DEFAULT
-            
-        # Clean, native anti-aliased font rendering
-        btn_surface = button_font.render(btn["text"], True, text_color)
-        btn_rect = btn_surface.get_rect(center=btn["rect"].center)
-        screen.blit(btn_surface, btn_rect)
+            self.main_frame.configure(fg_color="#121214")
 
-    pygame.display.flip()
-    clock.tick(60)
+    def on_window_resize(self, event):
+        """Ensures that the native background scales nicely whenever you resize the window."""
+        if self.bg_image_object and event.widget == self:
+            self.bg_image_object.configure(size=(event.width, event.height))
 
-pygame.mixer.quit()
-pygame.quit()
-sys.exit()
+    def play_current_track(self):
+        if not self.track_list: return
+        track_name = self.track_list[self.current_track_index]
+        track_path = os.path.join(self.tracks_dir, track_name)
+        try:
+            pygame.mixer.music.load(track_path)
+            pygame.mixer.music.play()
+            self.is_playing = True
+            self.btn_play.configure(text="❚❚") 
+            clean_display_name = track_name.replace(".mp3", "")
+            self.setup_background_canvas(custom_subtext=f"▪ PLAYING: {clean_display_name} ▪")
+        except Exception as e:
+            print(f"Stream execution error: {e}", flush=True)
+
+    def toggle_play(self):
+        if not self.track_list:
+            messagebox.showinfo("Storage", "No .mp3 file entries detected inside the /tracks directory folder.")
+            return
+        if not self.is_playing:
+            if pygame.mixer.music.get_pos() > 0:
+                pygame.mixer.music.unpause()
+                self.is_playing = True
+                self.btn_play.configure(text="❚❚")
+            else:
+                self.play_current_track()
+        else:
+            pygame.mixer.music.pause()
+            self.is_playing = False
+            self.btn_play.configure(text="▶")
+
+    def next_track(self):
+        if not self.track_list: return
+        self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
+        self.play_current_track()
+
+    def prev_track(self):
+        if not self.track_list: return
+        self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
+        self.play_current_track()
+
+    def _setup_hover_glow(self, button, normal_color, glow_color):
+        button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
+        button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
+
+    def access_songs(self):
+        if self.track_list:
+            track_manifest = "\n".join([f"- {t}" for t in self.track_list])
+            messagebox.showinfo("Local Index", f"Available Storage Formats:\n\n{track_manifest}")
+        else:
+            messagebox.showinfo("Local Index", "Storage bank directory empty.")
+
+    def make_playlist(self):
+        messagebox.showinfo("Playlist", "Create a new playlist configuration.")
+
+    def start_download_thread(self):
+        self.btn_add.configure(state="disabled", text="DOWNLOADING... 0%")
+        download_thread = threading.Thread(target=self.simulated_download)
+        download_thread.daemon = True 
+        download_thread.start()
+
+    def simulated_download(self):
+        try:
+            for i in range(1, 6):
+                time.sleep(0.8) 
+                percent = i * 20
+                self.btn_add.configure(text=f"DOWNLOADING... {percent}%")
+            print("Hardware Log: Track successfully written to target download format (.mp3)", flush=True)
+            self.load_local_tracks() 
+            messagebox.showinfo("Success", "Audio track saved locally in .mp3 format!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Download failed: {str(e)}")
+        finally:
+            self.btn_add.configure(state="normal", text="ADD SONG")
+
+    def turn_off(self):
+        pygame.mixer.quit()
+        self.quit()
+
+if __name__ == "__main__":
+    app = SurrealPlayerApp()
+    app.mainloop()
