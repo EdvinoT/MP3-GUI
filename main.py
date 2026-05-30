@@ -45,10 +45,11 @@ class SurrealPlayerApp(ctk.CTk):
         self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
+        self.canvas_image_id = None
         
-        # Create frame for widgets on top of canvas
+        # Create frame for widgets
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        self.main_frame.place(relwidth=1, relheight=1)
+        # We'll add it to canvas after drawing the image
 
         # Typography Layer
         self.text_title_label = ctk.CTkLabel(
@@ -191,8 +192,12 @@ class SurrealPlayerApp(ctk.CTk):
                 
                 # Draw on canvas
                 self.bg_canvas.delete("all")
-                image_id = self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
-                print(f"Image drawn on canvas with ID: {image_id}", flush=True)
+                self.canvas_image_id = self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                print(f"Image drawn on canvas with ID: {self.canvas_image_id}", flush=True)
+                
+                # Add main frame to canvas as a window on top of the image
+                self.bg_canvas.create_window(0, 0, window=self.main_frame, anchor="nw", width=w, height=h)
+                print(f"Main frame added to canvas", flush=True)
             except Exception as e:
                 import traceback
                 print(f"Error loading background: {e}", flush=True)
