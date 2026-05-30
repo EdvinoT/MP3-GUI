@@ -141,8 +141,9 @@ class SurrealPlayerApp(ctk.CTk):
         
         # Schedule background setup after window is fully rendered
         self.after(100, self.setup_background_canvas)
+        
         # Initialize the separate scroller module and plug it in
-scroller.TrackScroller(self)
+        scroller.TrackScroller(self)
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
