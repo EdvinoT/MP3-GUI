@@ -6,8 +6,10 @@ import os
 import warnings
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 
+# Mute high-DPI warning logs
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
+# Initialize audio engine
 import pygame
 pygame.mixer.init()
 
@@ -24,19 +26,25 @@ class SurrealPlayerApp(ctk.CTk):
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-        # Core Playback States
+        # Playback States
         self.track_list = []
         self.current_track_index = 0
         self.is_playing = False
 
-        # Scan for media targets
+        # Build paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
-        print(f"Project Directory Detected: {self.dir_path}", flush=True)
-        
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Canvas asset setup
+        # Build clean base container frame
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0, width=800, height=600)
+        self.main_frame.pack(fill="both", expand=True)
+
+        # Keep placeholder variables to protect memory states from garbage collection
+        self.bg_photo = None
+        self.bg_label = None
+
+        # Load graphic assets
         self.setup_background_canvas()
 
         # Transparent Menu Buttons
@@ -77,7 +85,7 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Geometric Audio Deck Controls
+        # Audio Deck Controls
         self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -118,15 +126,14 @@ class SurrealPlayerApp(ctk.CTk):
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
-            
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.endswith(".mp3")]
         self.track_list.sort()
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        jpeg_path = os.path.join(self.dir_path, "background.jpeg")
-        jpg_path = os.path.join(self.dir_path, "background.jpg")
         png_path = os.path.join(self.dir_path, "background.png")
+        jpg_path = os.path.join(self.dir_path, "background.jpg")
+        jpeg_path = os.path.join(self.dir_path, "background.jpeg")
         
         final_image_path = None
         for p in [png_path, jpg_path, jpeg_path]:
@@ -134,50 +141,46 @@ class SurrealPlayerApp(ctk.CTk):
                 final_image_path = p
                 break
 
-        if hasattr(self, 'main_frame'):
-            if hasattr(self, 'bg_label'): 
-                self.bg_label.destroy()
-        else:
-            self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-            self.main_frame.pack(fill="both", expand=True)
+        # Safely remove old background widget references if updating track text
+        if self.bg_label is not None:
+            self.bg_label.destroy()
 
-        base_img = None
         if final_image_path:
             try:
                 print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
-                # Keep RGBA temporarily for clean text layer blending
                 base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
-            except Exception as img_err:
-                print(f"Image load failure, utilizing layout safety engine: {img_err}", flush=True)
+                
+                draw = ImageDraw.Draw(base_img)
+                try:
+                    title_font = ImageFont.truetype("Arial", 32)
+                    sub_font = ImageFont.truetype("Arial", 10)
+                except IOError:
+                    title_font = ImageFont.load_default()
+                    sub_font = ImageFont.load_default()
+                
+                # Bake typography onto raw pixels
+                draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
+                draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
 
-        if base_img is None:
-            print("System Warning: No artwork file found or load failed. Generating empty canvas backdrop.", flush=True)
-            base_img = Image.new("RGBA", (800, 600), color=(255, 255, 255, 255))
+                # Convert image back to solid RGB mode
+                final_rendered_image = base_img.convert("RGB")
 
-        try:
-            draw = ImageDraw.Draw(base_img)
-            
-            try:
-                title_font = ImageFont.truetype("Arial", 32)
-                sub_font = ImageFont.truetype("Arial", 10)
-            except IOError:
-                title_font = ImageFont.load_default()
-                sub_font = ImageFont.load_default()
-            
-            # Draw typography onto the alpha-capable image canvas
-            draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
-            draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
+                # FIX 1: Save the PhotoImage to an explicit object attribute instance (self.bg_photo)
+                # This explicitly blocks Python's memory engine from trash-collecting the image pixels
+                self.bg_photo = ImageTk.PhotoImage(final_rendered_image)
 
-            # CRITICAL MAC FIX: Flatten image back to RGB mode to completely stop the transparent canvas glitch
-            final_rendered_image = base_img.convert("RGB")
-
-            self.bg_photo = ImageTk.PhotoImage(final_rendered_image)
-            self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
-            self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-            self.bg_label.lower()
-            print("Layout Engine Status: Complete Success. Interface online.\n", flush=True)
-        except Exception as e:
-            print(f"CRITICAL ENGINE EXCEPTION: {e}\n", flush=True)
+                # FIX 2: Clear default text attributes from the hosting wrapper label widget
+                self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
+                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                
+                # Push canvas directly behind active interface buttons
+                self.bg_label.lower()
+                print("Layout Engine Status: Complete Success. Image rendered to window.", flush=True)
+            except Exception as e:
+                print(f"Graphic engine draw failure: {e}", flush=True)
+        else:
+            print("System Warning: background.png missing. Defaulting to slate backup.", flush=True)
+            self.main_frame.configure(fg_color="#121214")
 
     def play_current_track(self):
         if not self.track_list: return
