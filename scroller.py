@@ -91,4 +91,79 @@ class TrackScroller:
         self.app.update_idletasks()
 
     def wrapped_load_local_tracks(self):
-        """Runs the original track loader in main.py,
+        """Runs the original track loader in main.py, then updates the canvas list if open."""
+        self.original_load_tracks()
+        if self.is_open:
+            self.refresh_scroll_list()
+
+    def clear_canvas_items(self):
+        """Safely removes custom drawn song texts from the background canvas layer."""
+        for item_id in self.canvas_item_ids:
+            self.app.bg_canvas.delete(item_id)
+        self.canvas_item_ids.clear()
+
+    def refresh_scroll_list(self):
+        """Clears and redraws raw text strings directly onto the canvas pixels."""
+        if not self.is_open:
+            return
+
+        self.clear_canvas_items()
+        
+        w = self.app.bg_canvas.winfo_width()
+        if w <= 1: w = 800
+
+        # --- DRAW THE BACK BUTTON TEXT ---
+        back_id = self.app.bg_canvas.create_text(
+            60, 40, text="◀  BACK TO MENU", 
+            font=("Futura", 12, "bold"), fill="#FFFFFF", anchor="w"
+        )
+        self.canvas_item_ids.append(back_id)
+        self.app.bg_canvas.itemconfig(back_id, tags=("back_btn",))
+
+        if not self.app.track_list:
+            empty_id = self.app.bg_canvas.create_text(
+                w // 2, 250, text="No Audio Entries Found Inside Local /tracks Directory",
+                font=("Arial", 13), fill="#66666A", anchor="center"
+            )
+            self.canvas_item_ids.append(empty_id)
+            return
+
+        # --- DRAW THE TRACK LIST LINES ---
+        visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
+        
+        start_y = 100  # Vertical starting point for line listings
+        line_height = 45
+
+        for index, track_name in enumerate(visible_tracks):
+            actual_track_index = index + self.scroll_offset
+            clean_display_title = track_name.replace(".mp3", "")
+            
+            y_pos = start_y + (index * line_height)
+            display_string = f"  [{actual_track_index + 1:02d}]    {clean_display_title}"
+
+            # FIXED: Syntax closure verified here
+            track_id = self.app.bg_canvas.create_text(
+                int(w * 0.22), y_pos, text=display_string,
+                font=("Arial", 13), fill="#CCCCCC", anchor="w"
+            )
+            self.canvas_item_ids.append(track_id)
+            self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
+
+    def on_canvas_click(self, event):
+        """Decodes coordinates to see if a floating text link was clicked."""
+        clicked_item = self.app.bg_canvas.find_withtag("current")
+        if not clicked_item:
+            return
+            
+        tags = self.app.bg_canvas.gettags(clicked_item[0])
+        
+        if "back_btn" in tags:
+            self.close_full_page_scroller()
+            return
+            
+        for tag in tags:
+            if tag.startswith("track_") and tag != "track_item":
+                track_index = int(tag.split("_")[1])
+                self.app.current_track_index = track_index
+                self.app.play_current_track()
+                break
