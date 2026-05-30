@@ -37,14 +37,15 @@ if not background_loaded:
 
 # Font Layer Configuration
 try:
+    # Title and subtext kept clean and skinny
     title_font = pygame.font.SysFont("Arial", 32, bold=False)
     sub_font = pygame.font.SysFont("Arial", 14)
-    # Increased base size slightly for cleaner crisp geometry definition
-    button_font = pygame.font.SysFont("Futura", 16) 
+    # Dropped down to size 12 for a tight, high-end minimalist look
+    button_font = pygame.font.SysFont("Futura", 12) 
 except Exception:
     title_font = pygame.font.Font(None, 36)
     sub_font = pygame.font.Font(None, 18)
-    button_font = pygame.font.Font(None, 24)
+    button_font = pygame.font.Font(None, 18)
 
 # Colors
 COLOR_TEXT_MAIN = (0, 0, 0)      
@@ -56,7 +57,7 @@ COLOR_BTN_HOVER = (255, 255, 255)
 COLOR_BTN_OFF = (255, 170, 170)     
 COLOR_BTN_OFF_HOVER = (255, 85, 85) 
 
-# Interactive Menu Button Bounds
+# Interactive Menu Button Bounds (Kept original sleek placement rectangles)
 buttons = [
     {"text": "ACCESS SONGS", "rect": pygame.Rect(260, 210, 280, 45), "type": "menu"},
     {"text": "MAKE A PLAYLIST", "rect": pygame.Rect(260, 270, 280, 45), "type": "menu"},
@@ -98,17 +99,6 @@ def play_current_track():
         current_subtext = f"▪ PLAYING: {clean_name} ▪"
     except Exception as e:
         print(f"Playback execution error: {e}", flush=True)
-
-def render_filtered_text(font, text, color):
-    """Renders text with high-fidelity anti-aliasing filtering optimizations."""
-    # Render natively with high anti-aliasing enabled
-    raw_surface = font.render(text, True, color)
-    
-    # Super-sampling technique: scale up then down smoothscale to drop pixel aliasing artifacts
-    w, h = raw_surface.get_size()
-    scaled_up = pygame.transform.scale(raw_surface, (w * 2, h * 2))
-    smooth_surface = pygame.transform.smoothscale(scaled_up, (w, h))
-    return smooth_surface
 
 # Main Application Frame Loop
 running = True
@@ -157,34 +147,32 @@ while running:
     # 1. Clear background surface with your image file asset
     screen.blit(bg_image, (0, 0))
 
-    # 2. Render Text Typography Elements 
-    title_surface = render_filtered_text(title_font, "I D L E   S Y S T E M", COLOR_TEXT_MAIN)
+    # 2. Render Text Typography Elements (Clean anti-aliased native lines)
+    title_surface = title_font.render("I D L E   S Y S T E M", True, COLOR_TEXT_MAIN)
     title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, 95))
     screen.blit(title_surface, title_rect)
 
-    sub_surface = render_filtered_text(sub_font, current_subtext.upper(), COLOR_TEXT_SUB)
+    sub_surface = sub_font.render(current_subtext.upper(), True, COLOR_TEXT_SUB)
     sub_rect = sub_surface.get_rect(center=(SCREEN_WIDTH // 2, 145))
     screen.blit(sub_surface, sub_rect)
 
-    # 3. Draw solid boxes and render option text overlays
+    # 3. Draw solid black container frames and center the minimal font strings
     for btn in buttons:
         is_hovered = btn["rect"].collidepoint(mouse_pos)
         
-        # Draw the solid black background box behind every option option/control
+        # Solid minimalist button backdrop
         pygame.draw.rect(screen, COLOR_BOX_BG, btn["rect"])
         
-        # Determine current text coloring logic based on hover rules
         if btn["type"] == "off":
             text_color = COLOR_BTN_OFF_HOVER if is_hovered else COLOR_BTN_OFF
         else:
             text_color = COLOR_BTN_HOVER if is_hovered else COLOR_BTN_DEFAULT
             
-        # Call our new smooth filtering text filter render system
-        btn_surface = render_filtered_text(button_font, btn["text"], text_color)
+        # Clean, native size 12 font rendering
+        btn_surface = button_font.render(btn["text"], True, text_color)
         btn_rect = btn_surface.get_rect(center=btn["rect"].center)
         screen.blit(btn_surface, btn_rect)
 
-    # Refresh Screen Buffer Matrix
     pygame.display.flip()
     clock.tick(60)
 
