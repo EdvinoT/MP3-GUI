@@ -31,15 +31,12 @@ class SurrealPlayerApp(ctk.CTk):
 
         # Core States
         self.track_list = []
-        self.current_playlist = []  # FIXED: Initialized BEFORE calling load_local_tracks()
         self.current_track_index = 0
         self.is_playing = False
 
         # Build absolute local paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
-        
-        # Now it is completely safe to load your tracks!
         self.load_local_tracks()
 
         # Create canvas for background image
@@ -76,7 +73,8 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
-        # Spawning a clean background instance of the loader to process the menu assets securely
+        # FIXED: Spawning a clean background instance of the loader to process the menu assets securely
+        # FIXED: Passing 'self' directly to the helper class for a completely seamless popup window
         self.btn_add = ctk.CTkButton(
             self, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
@@ -95,11 +93,13 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
         # Audio Deck Controls
+        # FIXED: Changed fg_color from "#000000" to "transparent" to remove the box surrounding the icons
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
         control_font = ("Arial", 16)
 
+        # FIXED: Removed native button background blocks to float text strings directly over the canvas
         self.btn_prev = ctk.CTkButton(
             self.playback_frame, text="◀◀", font=control_font, 
             width=50, height=40, corner_radius=0, 
@@ -145,7 +145,6 @@ class SurrealPlayerApp(ctk.CTk):
         valid_extensions = (".mp3", ".m4a", ".wav", ".ogg", ".webm")
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
-        
         if not self.current_playlist:
             self.current_playlist = list(self.track_list)
 
@@ -154,10 +153,10 @@ class SurrealPlayerApp(ctk.CTk):
         
         if os.path.exists(png_path):
             try:
-                if not self.pil_bg_image:
-                    with open(png_path, "rb") as f:
-                        image_data = f.read()
-                    self.pil_bg_image = Image.open(io.BytesIO(image_data))
+                with open(png_path, "rb") as f:
+                    image_data = f.read()
+                
+                self.pil_bg_image = Image.open(io.BytesIO(image_data))
                 
                 w = self.bg_canvas.winfo_width()
                 h = self.bg_canvas.winfo_height()
@@ -176,88 +175,64 @@ class SurrealPlayerApp(ctk.CTk):
                 # Layer 1: Render background image structure
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
                 
-                # Layer 2: Draw typography strings natively on the canvas
+                # Layer 2: Draw typography strings natively on the canvas.
+                # FIXED: Font swapped to "Futura" and "bold" argument removed for a cleaner profile
                 self.title_text_id = self.bg_canvas.create_text(
                     w // 2, 95, text="I D L E   S Y S T E M",
                     font=("Futura", 32), fill="#000000", anchor="center"
                 )
                 
-                # Dynamically set subtext status depending on playback state
-                current_status = "▪ ONLINE ▪"
-                if self.is_playing and self.track_list:
-                    clean_name = self.track_list[self.current_track_index]
-                    for ext in (".mp3", ".m4a", ".wav", ".ogg", ".webm"):
-                        clean_name = clean_name.replace(ext, "")
-                    current_status = f"▪ PLAYING: {clean_name} ▪"
-
                 self.sub_text_id = self.bg_canvas.create_text(
-                    w // 2, 145, text=current_status.upper(),
+                    w // 2, 145, text="▪ ONLINE ▪",
                     font=("Arial", 11), fill="#666666", anchor="center"
                 )
                 
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
+                print(f"Interface refreshing completely tracking system parameters.", flush=True)
             except Exception as e:
                 print(f"Error loading background canvas: {e}", flush=True)
         else:
-            self.bg_canvas.delete("all")
-            w = self.winfo_width()
-            self.title_text_id = self.bg_canvas.create_text(w // 2, 95, text="I D L E   S Y S T E M", font=("Futura", 32), fill="#FFFFFF")
+            print(f"Background image not found at {png_path}", flush=True)
 
     def on_window_resize(self, event):
         if event.widget == self:
-            # Debounce window resizing using Tkinter's 'after' helper to optimize frame processing performance
-            if hasattr(self, '_resize_after_id'):
-                self.after_cancel(self._resize_after_id)
-            self._resize_after_id = self.after(50, self.setup_background_canvas)
+            self.setup_background_canvas()
 
     def update_status_text(self, custom_subtext):
         if self.sub_text_id is not None:
             self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper())
 
     def play_current_track(self):
-        if not self.track_list:
-            return
-
-        # FIXED: Pulling the actual track name strings dynamically from the track list
-        track_name = self.track_list[self.current_track_index]
-        track_path = os.path.join(self.tracks_dir, track_name)
-
         # Replaces any of our extensions cleanly for screen display
         clean_display_name = track_name
         for ext in (".mp3", ".m4a", ".wav", ".ogg", ".webm"):
             clean_display_name = clean_display_name.replace(ext, "")
-        
+        self.update_status_text(f"▪ PLAYING: {clean_display_name} ▪")
         try:
             pygame.mixer.music.load(track_path)
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
+            clean_display_name = track_name.replace(".mp3", "")
             self.update_status_text(f"▪ PLAYING: {clean_display_name} ▪")
         except Exception as e:
             print(f"Stream execution error: {e}", flush=True)
-            self.update_status_text("▪ STREAM ERROR ▪")
 
     def toggle_play(self):
         if not self.track_list:
-            messagebox.showinfo("Storage", "No media entries detected inside the /tracks directory folder.")
+            messagebox.showinfo("Storage", "No .mp3 file entries detected inside the /tracks directory folder.")
             return
         if not self.is_playing:
             if pygame.mixer.music.get_pos() > 0:
                 pygame.mixer.music.unpause()
                 self.is_playing = True
                 self.btn_play.configure(text="❚❚")
-                
-                track_name = self.track_list[self.current_track_index]
-                for ext in (".mp3", ".m4a", ".wav", ".ogg", ".webm"):
-                    track_name = track_name.replace(ext, "")
-                self.update_status_text(f"▪ PLAYING: {track_name} ▪")
             else:
                 self.play_current_track()
         else:
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
-            self.update_status_text("▪ PAUSED ▪")
 
     def next_track(self):
         if not self.track_list: return
@@ -305,7 +280,7 @@ class SurrealPlayerApp(ctk.CTk):
 
     def turn_off(self):
         pygame.mixer.quit()
-        self.destroy() # FIXED: closes down window contexts cleanly without letting tasks hang
+        self.quit()
 
 if __name__ == "__main__":
     app = SurrealPlayerApp()

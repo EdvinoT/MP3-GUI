@@ -11,7 +11,6 @@ except ImportError:
 
 class SongLoader:
     def __init__(self, main_app_instance):
-        # Tie the loader directly to your main app context
         self.app = main_app_instance
         self.tracks_dir = main_app_instance.tracks_dir
 
@@ -25,7 +24,6 @@ class SongLoader:
         menu.transient(self.app)
         menu.focus_set()
         
-        # Center the popup over the main application window
         menu.update_idletasks()
         x = self.app.winfo_x() + (self.app.winfo_width() // 2) - (400 // 2)
         y = self.app.winfo_y() + (self.app.winfo_height() // 2) - (220 // 2)
@@ -65,6 +63,8 @@ class SongLoader:
                 shutil.copy(file_path, destination)
                 
                 self.app.load_local_tracks()
+                self.app.setup_background_canvas()
+                
                 messagebox.showinfo("Success", f"Imported successfully:\n{filename}")
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to import file: {e}")
@@ -82,7 +82,6 @@ class SongLoader:
         input_win.transient(self.app)
         input_win.focus_set()
 
-        # Center this window too
         input_win.update_idletasks()
         x = self.app.winfo_x() + (self.app.winfo_width() // 2) - (450 // 2)
         y = self.app.winfo_y() + (self.app.winfo_height() // 2) - (180 // 2)
@@ -120,13 +119,18 @@ class SongLoader:
 
     def download_web_audio_pipeline(self, url):
         ydl_opts = {
-            # Change format to best audio extraction without forcing conversion
             'format': 'bestaudio/best',
             'nocheckcertificate': True,
             'outtmpl': os.path.join(self.tracks_dir, '%(title)s.%(ext)s'),
-            # REMOVED the FFmpeg postprocessor block entirely
             'quiet': True,
             'no_warnings': True,
+            # FIXED: Tells yt-dlp to look inside your local project directory for ffmpeg
+            'ffmpeg_location': '.', 
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
         }
 
         try:
@@ -135,9 +139,14 @@ class SongLoader:
                 ydl.download([url])
             
             self.app.load_local_tracks()
-            messagebox.showinfo("Success", "Audio asset saved to your playlist bank!")
+            self.app.setup_background_canvas()
+            
+            messagebox.showinfo("Success", "Audio asset saved to your playlist bank as an MP3 file!")
         except Exception as e:
             print(f"Download error details: {e}")
-            messagebox.showerror("Error", f"Web extractor pipeline failure.\nEnsure link integrity.")
+            messagebox.showerror(
+                "Conversion Error", 
+                "Web download failed.\n\nPlease double check that the 'ffmpeg' file was downloaded and placed directly inside your project folder."
+            )
         finally:
             self.app.btn_add.configure(state="normal", text="ADD SONG")
