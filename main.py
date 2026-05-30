@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter as tk  # Imported native tkinter for the background bypass
 from tkinter import messagebox
 import threading
 import time
@@ -141,7 +142,6 @@ class SurrealPlayerApp(ctk.CTk):
                 final_image_path = p
                 break
 
-        # Safely remove old background widget references if updating track text
         if self.bg_label is not None:
             self.bg_label.destroy()
 
@@ -158,28 +158,24 @@ class SurrealPlayerApp(ctk.CTk):
                     title_font = ImageFont.load_default()
                     sub_font = ImageFont.load_default()
                 
-                # Bake typography onto raw pixels
+                # Bake text layer
                 draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
                 draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
 
-                # Convert image back to solid RGB mode
                 final_rendered_image = base_img.convert("RGB")
-
-                # FIX 1: Save the PhotoImage to an explicit object attribute instance (self.bg_photo)
-                # This explicitly blocks Python's memory engine from trash-collecting the image pixels
                 self.bg_photo = ImageTk.PhotoImage(final_rendered_image)
 
-                # FIX 2: Clear default text attributes from the hosting wrapper label widget
-                self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
+                # FIX: Using native tk.Label instead of ctk.CTkLabel
+                # This breaks CustomTkinter's internal canvas priority and forces the image to load visibly
+                self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
                 self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
                 
-                # Push canvas directly behind active interface buttons
                 self.bg_label.lower()
-                print("Layout Engine Status: Complete Success. Image rendered to window.", flush=True)
+                print("Layout Engine Status: Complete Success. Image rendered to window via native bypass.", flush=True)
             except Exception as e:
                 print(f"Graphic engine draw failure: {e}", flush=True)
         else:
-            print("System Warning: background.png missing. Defaulting to slate backup.", flush=True)
+            print("System Warning: background.png missing.", flush=True)
             self.main_frame.configure(fg_color="#121214")
 
     def play_current_track(self):
