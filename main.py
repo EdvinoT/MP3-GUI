@@ -37,8 +37,9 @@ class SurrealPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # FIXED: Core background image container using purely native CustomTkinter hooks
-        self.bg_label = ctk.CTkLabel(self, text="")
+        # FIXED: Explicitly force the label frame background to absolute pure black 
+        # instead of the standard light grey system default color.
+        self.bg_label = ctk.CTkLabel(self, text="", fg_color="#000000")
         self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # Functional overlay frame for text and buttons (completely transparent)
@@ -48,7 +49,9 @@ class SurrealPlayerApp(ctk.CTk):
         # Persistent variable to hold image object in memory
         self.bg_ctk_image = None  
 
-        # Draw the initial image background configuration
+        # FIXED: Force macOS to finish rendering the window layout boundaries
+        # before we query window sizing variables.
+        self.update_idletasks()
         self.setup_background_canvas()
 
         # Typography Layer - Clean, light, skinny minimal style headers
@@ -158,19 +161,21 @@ class SurrealPlayerApp(ctk.CTk):
                 # Open the raw file using Pillow
                 pil_img = Image.open(png_path)
                 
-                # Get the window's actual, updated width and height
-                w = max(self.winfo_width(), 800)
-                h = max(self.winfo_height(), 600)
+                # Get window dimensions, enforcing an 800x600 fallback minimum 
+                # if macOS reports a 0 or 1 pixel setup state.
+                w = self.winfo_width()
+                h = self.winfo_height()
+                if w <= 10: w = 800
+                if h <= 10: h = 600
                 
-                # FIXED: Force mapping your image asset to BOTH light and dark mode properties.
-                # This guarantees the engine renders your white and blue pixels instantly.
+                # Update background dimensions cleanly
                 self.bg_ctk_image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(w, h))
                 self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: CustomTkinter mapped blue & white asset natively.", flush=True)
+                print(f"SUCCESS: CustomTkinter mapped blue & white asset natively at {w}x{h}.", flush=True)
             except Exception as e:
                 print(f"Graphic engine load failure: {e}", flush=True)
         else:
-            self.bg_label.configure(image=None, fg_color="#101012")
+            self.bg_label.configure(image=None, fg_color="#000000")
             print(f"CRITICAL: background.png not detected at {png_path}", flush=True)
 
     def on_window_resize(self, event):
@@ -261,4 +266,3 @@ class SurrealPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = SurrealPlayerApp()
     app.mainloop()
-    
