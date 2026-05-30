@@ -40,26 +40,22 @@ class SurrealPlayerApp(ctk.CTk):
 
         # Create canvas for background image
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
-        self.bg_canvas.pack(fill="both", expand=True)
+        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
         self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
         self.canvas_image_id = None
-        
-        # Create frame for widgets
-        self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        # We'll add it to canvas after drawing the image
 
         # Typography Layer
         self.text_title_label = ctk.CTkLabel(
-            self.main_frame, text="I D L E   S Y S T E M", 
+            self, text="I D L E   S Y S T E M", 
             font=("Arial", 32), text_color="#FFFFFF", fg_color="transparent"
         )
         self.text_title_label.place(relx=0.5, y=95, anchor="center")
 
         self.text_sub_label = ctk.CTkLabel(
-            self.main_frame, text="▪ ONLINE ▪", 
+            self, text="▪ ONLINE ▪", 
             font=("Arial", 11), text_color="#666666", fg_color="transparent"
         )
         self.text_sub_label.place(relx=0.5, y=145, anchor="center")
@@ -71,7 +67,7 @@ class SurrealPlayerApp(ctk.CTk):
         btn_hover = "#FFFFFF" 
 
         self.btn_access = ctk.CTkButton(
-            self.main_frame, text="ACCESS SONGS", font=button_font, 
+            self, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.access_songs
@@ -79,7 +75,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
         self.btn_playlist = ctk.CTkButton(
-            self.main_frame, text="MAKE A PLAYLIST", font=button_font, 
+            self, text="MAKE A PLAYLIST", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.make_playlist
@@ -87,7 +83,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
         self.btn_add = ctk.CTkButton(
-            self.main_frame, text="ADD SONG", font=button_font, 
+            self, text="ADD SONG", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
             hover_color="#151515", command=self.start_download_thread
@@ -95,7 +91,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
         self.btn_off = ctk.CTkButton(
-            self.main_frame, text="TURN OFF", font=button_font, 
+            self, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
             hover_color="#201010", command=self.turn_off
@@ -103,7 +99,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
         # Audio Deck Controls
-        self.playback_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
         control_font = ("Arial", 16)
@@ -176,7 +172,6 @@ class SurrealPlayerApp(ctk.CTk):
                     w = self.winfo_width()
                 if h <= 1:
                     h = self.winfo_height()
-                print(f"Using fallback: {w}x{h}", flush=True)
                 
                 if w <= 1: w = 800
                 if h <= 1: h = 600
@@ -184,20 +179,15 @@ class SurrealPlayerApp(ctk.CTk):
                 
                 # Resize image to match canvas
                 self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
-                print(f"Image resized to: {self.resized_bg_image.size}", flush=True)
                 
                 # Convert to PhotoImage
                 self.bg_photo = ImageTk.PhotoImage(self.resized_bg_image)
-                print(f"PhotoImage created", flush=True)
                 
                 # Draw on canvas
                 self.bg_canvas.delete("all")
-                self.canvas_image_id = self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
-                print(f"Image drawn on canvas with ID: {self.canvas_image_id}", flush=True)
-                
-                # Add main frame to canvas as a window on top of the image
-                self.bg_canvas.create_window(0, 0, window=self.main_frame, anchor="nw", width=w, height=h)
-                print(f"Main frame added to canvas", flush=True)
+                self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
+                print(f"Background image displayed successfully", flush=True)
             except Exception as e:
                 import traceback
                 print(f"Error loading background: {e}", flush=True)
