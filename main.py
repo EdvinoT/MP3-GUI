@@ -1,11 +1,11 @@
 import customtkinter as ctk
-from tkinter import messagebox
+from tkinter import messagebox, Canvas
+from PIL import Image, ImageTk
 import threading
 import time
 import os
 import warnings
 import io
-from PIL import Image
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -46,7 +46,12 @@ class SurrealPlayerApp(ctk.CTk):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_frame.place(relwidth=1, relheight=1)
 
-        self.bg_ctk_image = None
+        # Create canvas for background image
+        self.bg_canvas = Canvas(self, highlightthickness=0)
+        self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        self.bg_canvas.lower()
+
+        self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
 
@@ -161,7 +166,7 @@ class SurrealPlayerApp(ctk.CTk):
                     image_data = f.read()
                     print(f"Image file size: {len(image_data)} bytes", flush=True)
                 
-                self.pil_bg_image = Image.open(io.BytesIO(image_data)).convert("RGBA")
+                self.pil_bg_image = Image.open(io.BytesIO(image_data))
                 print(f"PIL image loaded: {self.pil_bg_image.size}", flush=True)
                 
                 # Get current window size
@@ -173,19 +178,24 @@ class SurrealPlayerApp(ctk.CTk):
                 if w <= 1: w = 800
                 if h <= 1: h = 600
                 
-                # Resize image to fit window - STORE REFERENCE TO AVOID GARBAGE COLLECTION
+                # Resize image to fit window
                 self.resized_bg_image = self.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS)
                 print(f"Image resized to: {w}x{h}", flush=True)
                 
-                self.bg_ctk_image = ctk.CTkImage(light_image=self.resized_bg_image, dark_image=self.resized_bg_image, size=(w, h))
-                self.bg_label.configure(image=self.bg_ctk_image)
-                print(f"SUCCESS: Background image displayed at {w}x{h}.", flush=True)
+                # Convert PIL image to PhotoImage for Canvas
+                self.bg_photo = ImageTk.PhotoImage(self.resized_bg_image)
+                
+                # Clear canvas and draw image
+                self.bg_canvas.delete("all")
+                self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                self.bg_canvas.config(width=w, height=h)
+                print(f"SUCCESS: Background image displayed on canvas at {w}x{h}.", flush=True)
             except Exception as e:
                 import traceback
                 print(f"Image load error: {e}", flush=True)
                 traceback.print_exc()
         else:
-            self.bg_label.configure(image=None, fg_color="#101012")
+            self.bg_canvas.config(bg="#101012")
             print(f"ERROR: background.png not found at {png_path}", flush=True)
 
     def on_window_resize(self, event):
