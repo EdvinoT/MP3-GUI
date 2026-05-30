@@ -1,13 +1,12 @@
 import customtkinter as ctk
-import tkinter as tk  # Imported native tkinter for the background bypass
+import tkinter as tk
 from tkinter import messagebox
 import threading
 import time
 import os
 import warnings
-from PIL import Image, ImageTk, ImageDraw, ImageFont
 
-# Mute high-DPI warning logs
+# Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
 # Initialize audio engine
@@ -27,12 +26,12 @@ class SurrealPlayerApp(ctk.CTk):
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-        # Playback States
+        # Core States
         self.track_list = []
         self.current_track_index = 0
         self.is_playing = False
 
-        # Build paths
+        # Build local paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
@@ -41,12 +40,11 @@ class SurrealPlayerApp(ctk.CTk):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0, width=800, height=600)
         self.main_frame.pack(fill="both", expand=True)
 
-        # Keep placeholder variables to protect memory states from garbage collection
+        # Explicitly declare memory placeholders to block garbage collection
         self.bg_photo = None
         self.bg_label = None
-
-        # Load graphic assets
-        self.setup_background_canvas()
+        self.text_title_label = None
+        self.text_sub_label = None
 
         # Transparent Menu Buttons
         button_font = ("Futura", 14)
@@ -124,6 +122,9 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
+        # Force background setup now that everything is layered
+        self.setup_background_canvas()
+
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
@@ -132,51 +133,46 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        png_path = os.path.join(self.dir_path, "background.png")
-        jpg_path = os.path.join(self.dir_path, "background.jpg")
-        jpeg_path = os.path.join(self.dir_path, "background.jpeg")
-        
-        final_image_path = None
-        for p in [png_path, jpg_path, jpeg_path]:
-            if os.path.exists(p):
-                final_image_path = p
-                break
+        # Explicit target to background.png
+        final_image_path = os.path.join(self.dir_path, "background.png")
 
-        if self.bg_label is not None:
-            self.bg_label.destroy()
+        # Clean up old text overlays if updating states
+        if self.text_title_label is not None: self.text_title_label.destroy()
+        if self.text_sub_label is not None: self.text_sub_label.destroy()
 
-        if final_image_path:
-            try:
-                print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
-                base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
-                
-                draw = ImageDraw.Draw(base_img)
+        # If the background label doesn't exist yet, build it using native Tkinter engine
+        if self.bg_label is None:
+            if os.path.exists(final_image_path):
                 try:
-                    title_font = ImageFont.truetype("Arial", 32)
-                    sub_font = ImageFont.truetype("Arial", 10)
-                except IOError:
-                    title_font = ImageFont.load_default()
-                    sub_font = ImageFont.load_default()
-                
-                # Bake text layer
-                draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
-                draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
+                    print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
+                    
+                    # FIX: Native tk.PhotoImage bypasses broken Pillow/Python 3.14 memory pointers completely
+                    self.bg_photo = tk.PhotoImage(file=final_image_path)
+                    
+                    self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
+                    self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+                    self.bg_label.lower()
+                    print("Layout Engine Status: Native C-Bridge execution completely loaded.", flush=True)
+                except Exception as e:
+                    print(f"Native graphic engine failure: {e}", flush=True)
+                    self.main_frame.configure(fg_color="#121214")
+            else:
+                print("System Warning: background.png missing.", flush=True)
+                self.main_frame.configure(fg_color="#121214")
 
-                final_rendered_image = base_img.convert("RGB")
-                self.bg_photo = ImageTk.PhotoImage(final_rendered_image)
+        # Create overlay text using CTkLabels with transparent backgrounds 
+        # This keeps your baked text design perfectly sharp and functional on modern Python 3.14 environments
+        self.text_title_label = ctk.CTkLabel(
+            self.main_frame, text="I D L E   S Y S T E M", 
+            font=("Arial", 32), text_color="#000000", fg_color="transparent"
+        )
+        self.text_title_label.place(relx=0.5, y=95, anchor="center")
 
-                # FIX: Using native tk.Label instead of ctk.CTkLabel
-                # This breaks CustomTkinter's internal canvas priority and forces the image to load visibly
-                self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
-                self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-                
-                self.bg_label.lower()
-                print("Layout Engine Status: Complete Success. Image rendered to window via native bypass.", flush=True)
-            except Exception as e:
-                print(f"Graphic engine draw failure: {e}", flush=True)
-        else:
-            print("System Warning: background.png missing.", flush=True)
-            self.main_frame.configure(fg_color="#121214")
+        self.text_sub_label = ctk.CTkLabel(
+            self.main_frame, text=custom_subtext.upper(), 
+            font=("Arial", 10), text_color="#444444", fg_color="transparent"
+        )
+        self.text_sub_label.place(relx=0.5, y=145, anchor="center")
 
     def play_current_track(self):
         if not self.track_list: return
