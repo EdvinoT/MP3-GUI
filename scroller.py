@@ -5,10 +5,10 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and overlay a bulletproof translucent frame layer.
+        the ACCESS SONGS button and project a translucent vertical track lane.
         """
         self.app = main_app_instance
-        self.archive_screen = None  # Holds our dedicated screen frame layer
+        self.archive_screen = None  
 
         # Overwrite the default button command in main.py to trigger our view creator
         self.app.btn_access.configure(command=self.open_full_page_scroller)
@@ -18,9 +18,9 @@ class TrackScroller:
         self.app.load_local_tracks = self.wrapped_load_local_tracks
 
     def open_full_page_scroller(self):
-        """Spawns a clean screen frame container directly over the background image layout."""
+        """Spawns a vertical lane straight down the center over the background image layout."""
         if self.archive_screen is not None:
-            return  # Prevent stacking multiple screens if double-clicked
+            return  
 
         # 1. Hide the main operational menu buttons (Leaves lower play deck controls untouched)
         self.app.btn_access.place_forget()
@@ -28,29 +28,28 @@ class TrackScroller:
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
 
-        # 2. Spawn a dedicated frame layer pinned perfectly inside the app window boundaries
-        # CHANGED: We use a custom translucent color code '#101014' with a lower alpha matching system
-        # This acts as your clear, clean bounding glass container box.
+        # 2. FIXED: Changed fg_color to "transparent" so the frame itself doesn't block the background.
+        # We place it from rely=0.0 (top) to relheight=0.82 (stops right above the music player deck).
+        # We set relx=0.25 and relwidth=0.5 so it centers perfectly as a vertical channel.
         self.archive_screen = ctk.CTkFrame(
             self.app, 
-            fg_color="#101014", 
+            fg_color="transparent", 
             corner_radius=0, 
-            border_width=1, 
-            border_color="#1F1F24"
+            border_width=0
         )
-        self.archive_screen.place(relx=0.05, rely=0.12, relwidth=0.9, relheight=0.7)
+        self.archive_screen.place(relx=0.25, rely=0.0, relwidth=0.5, relheight=0.82)
 
-        # 3. Create a header layer inside our new frame box for the Back button control
+        # 3. Create a header layer inside our new lane for the Back button control
         nav_frame = ctk.CTkFrame(self.archive_screen, height=50, fg_color="transparent")
-        nav_frame.pack(fill="x", side="top", padx=10, pady=5)
+        nav_frame.pack(fill="x", side="top", pady=(15, 5))
 
         btn_back = ctk.CTkButton(
-            nav_frame, text="◀  BACK TO MENU", font=("Futura", 12),
-            width=140, height=35, corner_radius=0,
+            nav_frame, text="◀  BACK TO MENU", font=("Futura", 11),
+            width=120, height=30, corner_radius=4,
             fg_color="#000000", text_color="#DDDDDD", hover_color="#151515",
             command=self.close_full_page_scroller
         )
-        btn_back.pack(side="left", pady=5)
+        btn_back.pack(side="left", padx=10)
 
         # 4. Spawn the scrolling text framework right below the navigation panel row
         self.scroll_frame = ctk.CTkScrollableFrame(
@@ -59,7 +58,7 @@ class TrackScroller:
             corner_radius=0, 
             border_width=0
         )
-        self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        self.scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
         # Render the track buttons instantly
         self.refresh_scroll_list()
@@ -67,7 +66,6 @@ class TrackScroller:
     def close_full_page_scroller(self):
         """Destroys the archive screen layer completely, leaving zero residual boxes."""
         if self.archive_screen is not None:
-            # This completely vanishes the frame and everything inside it from your system graphics card memory
             self.archive_screen.destroy()
             self.archive_screen = None
             self.scroll_frame = None
@@ -88,7 +86,7 @@ class TrackScroller:
             self.refresh_scroll_list()
 
     def refresh_scroll_list(self):
-        """Clears and rebuilds wide text row tracks inside our scrolling window container."""
+        """Clears and rebuilds text row tracks inside our scrolling window container."""
         if self.scroll_frame is None:
             return
 
@@ -106,16 +104,19 @@ class TrackScroller:
         for index, track_name in enumerate(self.app.track_list):
             clean_display_title = track_name.replace(".mp3", "")
 
+            # FIXED: We use a very low opacity dark color ("#121217") for the buttons.
+            # Because the buttons are stacked closely, they build a beautiful translucent column 
+            # where you can still see the artwork on the far left and far right of the app!
             track_btn = ctk.CTkButton(
                 self.scroll_frame, 
                 text=f"  [{index + 1:02d}]    {clean_display_title}", 
-                font=("Arial", 13), 
+                font=("Arial", 12), 
                 anchor="w",
-                height=45, 
-                fg_color="transparent", 
+                height=40, 
+                fg_color="#121217", 
                 text_color="#CCCCCC",
-                hover_color="#1A1A22", 
-                corner_radius=0,
+                hover_color="#22222A", 
+                corner_radius=4,
                 border_width=0,
                 command=lambda idx=index: self.select_track_from_scroller(idx)
             )
