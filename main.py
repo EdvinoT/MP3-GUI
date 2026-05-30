@@ -124,7 +124,6 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        # Check files thoroughly
         jpeg_path = os.path.join(self.dir_path, "background.jpeg")
         jpg_path = os.path.join(self.dir_path, "background.jpg")
         png_path = os.path.join(self.dir_path, "background.png")
@@ -135,7 +134,6 @@ class SurrealPlayerApp(ctk.CTk):
                 final_image_path = p
                 break
 
-        # Re-build or verify root presentation layers
         if hasattr(self, 'main_frame'):
             if hasattr(self, 'bg_label'): 
                 self.bg_label.destroy()
@@ -143,18 +141,17 @@ class SurrealPlayerApp(ctk.CTk):
             self.main_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
             self.main_frame.pack(fill="both", expand=True)
 
-        # Fallback Engine Logic: If image is missing, generate a clean default layout context
         base_img = None
         if final_image_path:
             try:
                 print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
+                # Keep RGBA temporarily for clean text layer blending
                 base_img = Image.open(final_image_path).resize((800, 600)).convert("RGBA")
             except Exception as img_err:
                 print(f"Image load failure, utilizing layout safety engine: {img_err}", flush=True)
 
         if base_img is None:
             print("System Warning: No artwork file found or load failed. Generating empty canvas backdrop.", flush=True)
-            # Create a crisp pure white canvas layer dynamically so everything stays visible
             base_img = Image.new("RGBA", (800, 600), color=(255, 255, 255, 255))
 
         try:
@@ -167,11 +164,14 @@ class SurrealPlayerApp(ctk.CTk):
                 title_font = ImageFont.load_default()
                 sub_font = ImageFont.load_default()
             
-            # Print title pixel matrix elements
+            # Draw typography onto the alpha-capable image canvas
             draw.text((400, 95), "I D L E   S Y S T E M", fill=(0, 0, 0, 255), font=title_font, anchor="mm")
             draw.text((400, 145), custom_subtext.upper(), fill=(68, 68, 68, 255), font=sub_font, anchor="mm")
 
-            self.bg_photo = ImageTk.PhotoImage(base_img)
+            # CRITICAL MAC FIX: Flatten image back to RGB mode to completely stop the transparent canvas glitch
+            final_rendered_image = base_img.convert("RGB")
+
+            self.bg_photo = ImageTk.PhotoImage(final_rendered_image)
             self.bg_label = ctk.CTkLabel(self.main_frame, image=self.bg_photo, text="")
             self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
             self.bg_label.lower()
