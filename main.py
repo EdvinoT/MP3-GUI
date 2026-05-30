@@ -5,6 +5,7 @@ import threading
 import time
 import os
 import warnings
+from PIL import Image
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -122,7 +123,7 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Force background setup now that everything is layered
+        # Initialize background elements
         self.setup_background_canvas()
 
     def load_local_tracks(self):
@@ -133,35 +134,40 @@ class SurrealPlayerApp(ctk.CTk):
         print(f"Audio Tracks Loaded: {len(self.track_list)} targets inside /tracks folder", flush=True)
 
     def setup_background_canvas(self, custom_subtext="▪ ONLINE ▪"):
-        # Explicit target to background.png
         final_image_path = os.path.join(self.dir_path, "background.png")
 
-        # Clean up old text overlays if updating states
+        # Clean up old text overlays if updating music track text state
         if self.text_title_label is not None: self.text_title_label.destroy()
         if self.text_sub_label is not None: self.text_sub_label.destroy()
 
-        # If the background label doesn't exist yet, build it using native Tkinter engine
         if self.bg_label is None:
             if os.path.exists(final_image_path):
                 try:
                     print(f"Targeting Image Asset Found: {final_image_path}", flush=True)
                     
-                    # FIX: Native tk.PhotoImage bypasses broken Pillow/Python 3.14 memory pointers completely
-                    self.bg_photo = tk.PhotoImage(file=final_image_path)
+                    # 1. Use Pillow to parse whatever weird PNG color formatting version is inside the file
+                    pil_img = Image.open(final_image_path).resize((800, 600)).convert("RGB")
                     
+                    # 2. Re-encode the image to an uncompressed baseline PPM/PGI string block format
+                    # This format is read directly by your operating system's native C window engine
+                    ppm_data = f"P6\n800 600\n255\n".encode() + pil_img.tobytes()
+                    
+                    # 3. Create native tk.PhotoImage directly using the data string
+                    self.bg_photo = tk.PhotoImage(width=800, height=600, data=ppm_data, format="PPM")
+                    
+                    # Draw background frame layout container context
                     self.bg_label = tk.Label(self.main_frame, image=self.bg_photo, bd=0, highlightthickness=0)
                     self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
                     self.bg_label.lower()
-                    print("Layout Engine Status: Native C-Bridge execution completely loaded.", flush=True)
+                    print("Layout Engine Status: Complete raw binary pixel bridge injected safely.", flush=True)
                 except Exception as e:
-                    print(f"Native graphic engine failure: {e}", flush=True)
+                    print(f"Native graphic encoding engine failure: {e}", flush=True)
                     self.main_frame.configure(fg_color="#121214")
             else:
-                print("System Warning: background.png missing.", flush=True)
+                print("System Warning: background.png completely missing from project directory.", flush=True)
                 self.main_frame.configure(fg_color="#121214")
 
-        # Create overlay text using CTkLabels with transparent backgrounds 
-        # This keeps your baked text design perfectly sharp and functional on modern Python 3.14 environments
+        # Layer sharp CTk text labels over our solid raw pixel backdrop
         self.text_title_label = ctk.CTkLabel(
             self.main_frame, text="I D L E   S Y S T E M", 
             font=("Arial", 32), text_color="#000000", fg_color="transparent"
