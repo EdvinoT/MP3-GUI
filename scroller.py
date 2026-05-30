@@ -6,12 +6,12 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and project a tinted glass lane with readable text.
+        the ACCESS SONGS button and project a widened, frosted light-glass lane.
         """
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 10  
+        self.visible_count = 13  # Increased count since font size is smaller now!
         
         self.canvas_item_ids = []
 
@@ -30,7 +30,7 @@ class TrackScroller:
             self.close_full_page_scroller()
 
     def open_full_page_scroller(self):
-        """Hides menu widgets, tints the center background, and draws clear text."""
+        """Hides menu widgets, generates a wide light-tint frosted glass overlay, and draws text."""
         self.is_open = True
         self.scroll_offset = 0
         
@@ -41,39 +41,38 @@ class TrackScroller:
         self.app.btn_off.place_forget()
         self.app.playback_frame.place_forget()
 
-        # 2. GENERATE GLASS TINT EFFECT: Draw a semi-transparent dark pane over the center of the canvas
+        # 2. GENERATE LIGHT FROSTED GLASS TINT: Draw a semi-transparent light grey panel over the canvas
         if self.app.pil_bg_image:
             w = self.app.bg_canvas.winfo_width()
             h = self.app.bg_canvas.winfo_height()
             if w <= 1: w, h = 800, 600
             
-            # Create a manipulatable copy of the original background image
             base_img = self.app.pil_bg_image.resize((w, h), Image.Resampling.LANCZOS).convert("RGBA")
             overlay = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
             
-            # Draw a sleek dark vertical column down the center (from 20% to 80% width)
-            # (12, 12, 16) is a smoky dark tint, and 160 is the alpha transparency level
+            # FIXED: Widened the panel layout (now covers 10% width to 90% width)
+            # FIXED: Changed tint to a bright light grey (235, 235, 240) with a highly transparent glass alpha (95)
             draw.rectangle(
-                [int(w * 0.20), 0, int(w * 0.80), h], 
-                fill=(12, 12, 16, 160),
-                outline=(255, 255, 255, 20),
+                [int(w * 0.10), 0, int(w * 0.90), h], 
+                fill=(235, 235, 240, 95),
+                outline=(255, 255, 255, 40),
                 width=1
             )
             
-            # Apply the glass layer onto your wallpaper image
+            # Layer the bright frost directly over your white wallpaper asset
             final_tinted_image = Image.alpha_composite(base_img, overlay)
             self.app.bg_photo = ImageTk.PhotoImage(final_tinted_image)
             self.app.bg_canvas.delete("all")
             self.app.bg_canvas.create_image(0, 0, image=self.app.bg_photo, anchor="nw")
 
-        # 3. Bind navigation input listeners
+        # 3. Bind input controllers
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)
         self.app.bind("<Button-5>", self.on_mouse_scroll)
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
 
-        # Render text list rows
+        # Render rows
         self.refresh_scroll_list()
 
     def on_mouse_scroll(self, event):
@@ -90,21 +89,18 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def close_full_page_scroller(self):
-        """Clears text, removes the tint, and restores the original dashboard."""
+        """Clears text elements, wipes the light tint layer out, and returns to home core layout."""
         self.is_open = False
 
-        # Unbind events completely
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
         self.app.bg_canvas.unbind("<Button-1>")
 
         self.clear_canvas_items()
-
-        # Hard reloads your original clean background image (wipes out the central dark lane)
         self.app.setup_background_canvas()
 
-        # Bring back main menu buttons and controls
+        # Re-place default menus
         self.app.btn_access.place(relx=0.5, rely=0.38, anchor="center")
         self.app.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
         self.app.btn_add.place(relx=0.5, rely=0.58, anchor="center")
@@ -114,19 +110,19 @@ class TrackScroller:
         self.app.update_idletasks()
 
     def wrapped_load_local_tracks(self):
-        """Runs original track loader, updating canvas items dynamically if active."""
+        """Runs original track loader system, refreshing text vectors dynamically if active."""
         self.original_load_tracks()
         if self.is_open:
             self.refresh_scroll_list()
 
     def clear_canvas_items(self):
-        """Wipes custom drawn elements cleanly from the display layout context."""
+        """Wipes custom track layout text assets cleanly from display architecture."""
         for item_id in self.canvas_item_ids:
             self.app.bg_canvas.delete(item_id)
         self.canvas_item_ids.clear()
 
     def refresh_scroll_list(self):
-        """Draws high-contrast song track numbers and names over the tinted column."""
+        """Draws clean, compact dark slate track text strings directly onto the frosted glass layer."""
         if not self.is_open:
             return
 
@@ -135,28 +131,27 @@ class TrackScroller:
         w = self.app.bg_canvas.winfo_width()
         if w <= 1: w = 800
 
-        # --- BACK BUTTON DESIGN ---
-        # Positioned inside the glass column zone for maximum visual safety
+        # --- BACK LINK COORDINATES (Shifted left to line up with new wide margins) ---
         back_id = self.app.bg_canvas.create_text(
-            int(w * 0.23), 40, text="◀  BACK TO MENU", 
-            font=("Futura", 11, "bold"), fill="#FFFFFF", anchor="w"
+            int(w * 0.13), 35, text="◀  BACK TO MENU", 
+            font=("Futura", 10, "bold"), fill="#222226", anchor="w"
         )
         self.canvas_item_ids.append(back_id)
         self.app.bg_canvas.itemconfig(back_id, tags=("back_btn",))
 
         if not self.app.track_list:
             empty_id = self.app.bg_canvas.create_text(
-                w // 2, 250, text="Empty Directory Bank",
-                font=("Arial", 13), fill="#88888F", anchor="center"
+                w // 2, 250, text="Empty Local Audio Catalog",
+                font=("Arial", 11), fill="#55555A", anchor="center"
             )
             self.canvas_item_ids.append(empty_id)
             return
 
-        # --- RENDER TRACK TEXTS ---
+        # --- COMPACT TEXT RENDER SYSTEM ---
         visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
         
-        start_y = 100  
-        line_height = 45
+        start_y = 85  
+        line_height = 36 # Tighter row padding to allow more compact track lines on screen
 
         for index, track_name in enumerate(visible_tracks):
             actual_track_index = index + self.scroll_offset
@@ -165,11 +160,11 @@ class TrackScroller:
             y_pos = start_y + (index * line_height)
             display_string = f"  [{actual_track_index + 1:02d}]    {clean_display_title}"
 
-            # CHANGED: fill="#EAEAEA" (light bright off-white) contrast sets perfectly 
-            # over the dark translucent center column while keeping things minimal!
+            # FIXED: Smaller clean text sizing (font size 10)
+            # FIXED: Dark Charcoal Slate color code ("#222226") to remain completely legible over light glass frost
             track_id = self.app.bg_canvas.create_text(
-                int(w * 0.23), y_pos, text=display_string,
-                font=("Arial", 12), fill="#EAEAEA", anchor="w"
+                int(w * 0.13), y_pos, text=display_string,
+                font=("Arial", 10), fill="#222226", anchor="w"
             )
             self.canvas_item_ids.append(track_id)
             self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
