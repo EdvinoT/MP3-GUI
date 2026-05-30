@@ -5,9 +5,8 @@ import os
 class TrackScroller:
     def __init__(self, main_app_instance):
         """
-        Takes the main app instance so this separate module can hijack
-        the ACCESS SONGS button and project a widened, frosted light-glass lane
-        with custom step-animated background row selection highlights.
+        Takes the main app instance to project a widened frosted glass lane.
+        Features liquid-smooth alpha row fade animations and clean track dividers.
         """
         self.app = main_app_instance
         self.is_open = False  
@@ -18,11 +17,11 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # NEW ANIMATION TRACKING VARIABLES
-        self.animation_job = None      # Stores the active .after() loop ID
-        self.animation_step = 0        # Tracks the current frame of the fade
-        # HEX shades from very transparent light gray to less transparent light gray
-        self.fade_colors = ["#EFEFF4", "#EAEAEF", "#E5E5EA", "#E2E2E8"]
+        # ANIMATION STATE TRACKING
+        self.animation_job = None      
+        self.current_alpha = 0         # Starting opacity (0 = completely invisible)
+        self.target_alpha = 40         # Maximum target highlight opacity (out of 255)
+        self.active_row_coords = None  # Caches bounds of the row currently fading in
 
         # Overwrite the default button command in main.py to trigger our canvas view
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
@@ -103,7 +102,7 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
-        """Detects if the cursor is hovering over an asset to trigger fade animations and blips."""
+        """Detects if the cursor is hovering over a track to trigger smooth alpha fading loops."""
         if not self.is_open:
             return
 
@@ -115,7 +114,7 @@ class TrackScroller:
             item_id = current_item[0]
             tags = self.app.bg_canvas.gettags(item_id)
             
-            # If hovering over the BACK button, clear song highlights and color it red
+            # Handle Back Button Hover
             if "back_btn" in tags:
                 self.clear_hover_strip()
                 self.app.bg_canvas.itemconfig(item_id, fill="#FF5555")
@@ -123,58 +122,75 @@ class TrackScroller:
             else:
                 self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
 
-            # If hovering over a song track item
+            # Handle Song Row Hover
             if "track_item" in tags:
                 for tag in tags:
                     if tag.startswith("track_") and tag != "track_item":
                         track_idx = int(tag.split("_")[1])
                         
-                        # Only trigger if we moved to a completely different row
                         if self.currently_hovered_idx != track_idx:
                             self.currently_hovered_idx = track_idx
                             
                             if hasattr(self.app, 'play_ui_sound'):
                                 self.app.play_ui_sound("scroll")
                             
-                            # Clean up previous background element and kill old animation loops
                             self.clear_hover_strip()
                             
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
                                 _, y1, _, y2 = bbox
-                                padding = 6
+                                padding = 8  # Expanded to look like full, substantial structural rows
                                 
-                                # CHANGED: Spawn the base strip at the initial entry color frame index (0)
-                                self.hover_strip_id = self.app.bg_canvas.create_rectangle(
-                                    int(w * 0.11), y1 - padding, int(w * 0.89), y2 + padding,
-                                    fill=self.fade_colors[0], outline="", tags=("hover_strip",)
-                                )
-                                self.app.bg_canvas.tag_lower(self.hover_strip_id, item_id)
+                                # Store the absolute row bounding dimensions for our background layer builder
+                                self.active_row_coords = (int(w * 0.10) + 1, y1 - padding, int(w * 0.90) - 1, y2 + padding)
                                 
-                                # Start the step-fade tracking routine loop
-                                self.animation_step = 0
-                                self.run_fade_step(item_id)
+                                # Reset true alpha values and trigger the linear interpolation renderer
+                                self.current_alpha = 0
+                                self.run_smooth_fade(item_id)
                         return
 
-        # If cursor leaves interactive items completely, wipe everything out
+        # If the cursor escapes out to blank canvas space, clear everything back out
         self.clear_hover_strip()
         self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
 
-    def run_fade_step(self, text_item_id):
-        """Increments the background color shade step-by-step to make it smoothly less transparent."""
-        if not self.is_open or not self.hover_strip_id:
+    def run_smooth_fade(self, text_item_id):
+        """Gradually increments the layer's raw alpha channel value for a seamless glass fade."""
+        if not self.is_open or self.active_row_coords is None:
             return
             
-        if self.animation_step < len(self.fade_colors) - 1:
-            self.animation_step += 1
-            # Apply the next slightly darker/less transparent hex color frame
-            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill=self.fade_colors[self.animation_step])
+        if self.current_alpha < self.target_alpha:
+            # Step speed size: increments by 4 alpha levels every 8ms for 60FPS fluid look
+            self.current_alpha = min(self.target_alpha, self.current_alpha + 4)
             
-            # Schedule the next visual color frame update in 12 milliseconds
-            self.animation_job = self.app.after(12, lambda: self.run_fade_step(text_item_id))
+            # Generate a temporary image clip matching the canvas size to render true alpha translucency
+            w = self.app.bg_canvas.winfo_width()
+            h = self.app.bg_canvas.winfo_height()
+            if w <= 1: w, h = 800, 600
+            
+            # Create a completely transparent scratch canvas layer
+            fade_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(fade_layer)
+            
+            # Draw a full pure white rectangle bar with the progressive alpha channel transparency value
+            x1, y1, x2, y2 = self.active_row_coords
+            draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline="")
+            
+            # Convert to TK format and update the unique background item on the canvas
+            self.hover_strip_photo = ImageTk.PhotoImage(fade_layer)
+            
+            if self.hover_strip_id:
+                self.app.bg_canvas.itemconfig(self.hover_strip_id, image=self.hover_strip_photo)
+            else:
+                self.hover_strip_id = self.app.bg_canvas.create_image(0, 0, image=self.hover_strip_photo, anchor="nw")
+                
+            # Keep the background graphics underneath the song title text
+            self.app.bg_canvas.tag_lower(self.hover_strip_id, text_item_id)
+            
+            # Loop next frame refresh step
+            self.animation_job = self.app.after(8, lambda: self.run_smooth_fade(text_item_id))
 
     def clear_hover_strip(self):
-        """Removes the highlight strip from the canvas and safely stops any running animation jobs."""
+        """Halts the alpha clock loop engine and deletes the custom background highlight image layer."""
         if self.animation_job:
             self.app.after_cancel(self.animation_job)
             self.animation_job = None
@@ -182,7 +198,10 @@ class TrackScroller:
         if self.hover_strip_id:
             self.app.bg_canvas.delete(self.hover_strip_id)
             self.hover_strip_id = None
+            
         self.currently_hovered_idx = None
+        self.active_row_coords = None
+        self.hover_strip_photo = None
 
     def close_full_page_scroller(self):
         """Clears text elements, wipes the light tint layer out, and returns to home core layout."""
@@ -223,7 +242,7 @@ class TrackScroller:
         self.canvas_item_ids.clear()
 
     def refresh_scroll_list(self):
-        """Draws clean, compact dark slate track text strings directly onto the frosted glass layer."""
+        """Draws clean track text rows separated by thin, clean, low-opacity divider lines."""
         if not self.is_open:
             return
 
@@ -261,12 +280,22 @@ class TrackScroller:
             y_pos = start_y + (index * line_height)
             display_string = f"  [{actual_track_index + 1:02d}]    {clean_display_title}"
 
+            # 1. DRAW TEXT ITEM
             track_id = self.app.bg_canvas.create_text(
                 int(w * 0.13), y_pos, text=display_string,
                 font=("Arial", 10), fill="#222226", anchor="w"
             )
             self.canvas_item_ids.append(track_id)
             self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
+
+            # 2. FIXED: ADDED A VERY THIN SEPARATOR LINE BETWEEN EACH TRACK ROW
+            # Draws a clean white line with low visibility across the bottom border edge of the text row lane
+            line_y = y_pos + 17  
+            divider_id = self.app.bg_canvas.create_line(
+                int(w * 0.10), line_y, int(w * 0.90), line_y,
+                fill="#FFFFFF", width=1
+            )
+            self.canvas_item_ids.append(divider_id)
 
     def on_canvas_click(self, event):
         """Processes precise pointer clicks on floating text list links."""
