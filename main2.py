@@ -129,10 +129,11 @@ class HandheldPlayerApp(ctk.CTk):
         self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
         self.controls_subframe.pack(side="top")
 
+        # FIXED: hover_color matches background so no box wrapper triggers on hover
         self.btn_prev = ctk.CTkButton(
             self.controls_subframe, text="❬❬", font=control_font, 
             width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="transparent",
+            hover_color="#101012",
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
         self.btn_prev.pack(side="left", padx=12)
@@ -140,7 +141,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_play = ctk.CTkButton(
             self.controls_subframe, text="▶", font=control_font, 
             width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="transparent",
+            hover_color="#101012",
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
         self.btn_play.pack(side="left", padx=12)
@@ -148,7 +149,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_next = ctk.CTkButton(
             self.controls_subframe, text="❭❭", font=control_font, 
             width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="transparent",
+            hover_color="#101012",
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
         self.btn_next.pack(side="left", padx=12)
