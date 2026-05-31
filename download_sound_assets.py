@@ -22,8 +22,6 @@ def download_premium_sound(url, destination_filename):
         print(f"Could not download asset: {e}")
 
 # Stable, permanent open-source UI audio paths from Wikimedia Commons
-# click: A clean, serious physical button snap
-# scroll: A swift, sharp mechanical device click
 CLICK_URL = "https://upload.wikimedia.org/wikipedia/commons/4/40/Mops_click.ogg"
 SCROLL_URL = "https://upload.wikimedia.org/wikipedia/commons/c/ce/Xenon_Click.ogg"
 
