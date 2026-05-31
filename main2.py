@@ -45,6 +45,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
+        self.current_track_length = 0  # Dynamic length tracking
         
         self.shuffle_enabled = False
         self.original_order = []    
@@ -102,27 +103,38 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
+        # Main Playback Container
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
+        self.playback_frame.place(relx=0.5, rely=0.84, anchor="center")
+
+        # PROGRESS BAR (Noticeable design targeting White/Blue themes)
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#333333", height=6, width=220)
+        self.progress_container.pack(side="top", pady=(0, 10))
+        self.progress_container.pack_propagate(False)
+
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=6, width=0)
+        self.progress_bar.pack(side="left")
 
         control_font = ("Arial", 14)
+        self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
+        self.controls_subframe.pack(side="top")
 
         self.btn_prev = ctk.CTkButton(
-            self.playback_frame, text="◀◀", font=control_font, 
+            self.controls_subframe, text="◀◀", font=control_font, 
             width=60, height=35, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
         self.btn_prev.pack(side="left", padx=10)
 
         self.btn_play = ctk.CTkButton(
-            self.playback_frame, text="▶", font=control_font, 
+            self.controls_subframe, text="▶", font=control_font, 
             width=80, height=35, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
         self.btn_play.pack(side="left", padx=10)
 
         self.btn_next = ctk.CTkButton(
-            self.playback_frame, text="▶▶", font=control_font, 
+            self.controls_subframe, text="▶▶", font=control_font, 
             width=60, height=35, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
@@ -140,6 +152,9 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
+
+        # Begin running dynamic progress and state check loops
+        self._update_playback_loop()
 
     def load_ui_sounds(self):
         try:
@@ -253,6 +268,11 @@ class HandheldPlayerApp(ctk.CTk):
         track_path = os.path.join(self.tracks_dir, track_name)
         try:
             pygame.mixer.music.load(track_path)
+            
+            # Fetch audio track file length via Pygame Sound property metadata
+            sound_object = pygame.mixer.Sound(track_path)
+            self.current_track_length = sound_object.get_length()
+            
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
@@ -282,9 +302,9 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_play.configure(text="▶")
             self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
 
-    # FIXED: Added live status update triggers on track skips
     def next_track(self):
         if not self.track_list: return
+        self.progress_bar.configure(width=0)  # Reset line animation
         self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
@@ -294,12 +314,32 @@ class HandheldPlayerApp(ctk.CTk):
 
     def prev_track(self):
         if not self.track_list: return
+        self.progress_bar.configure(width=0)  # Reset line animation
         self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
         else:
             track_name = self.track_list[self.current_track_index].replace(".mp3", "")
             self.update_status_text(f"{track_name}", color="#888888")
+
+    def _update_playback_loop(self):
+        """Asynchronous tracking routine monitoring current song duration increments."""
+        if self.is_playing and self.current_track_length > 0:
+            # pygame mixer track pos drops in milliseconds
+            current_ms = pygame.mixer.music.get_pos()
+            if current_ms != -1:
+                current_secs = current_ms / 1000.0
+                ratio = min(current_secs / self.current_track_length, 1.0)
+                
+                # Expand tracking graphic width out dynamically to 220 total pixels
+                calculated_width = int(ratio * 220)
+                self.progress_bar.configure(width=calculated_width)
+        elif not self.is_playing:
+            if pygame.mixer.music.get_pos() == -1:
+                self.progress_bar.configure(width=0)
+
+        # Re-trigger loop check execution step every 200 milliseconds
+        self.after(200, self._update_playback_loop)
 
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
