@@ -37,7 +37,6 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         super().place(**kwargs)
 
     def place_forget(self):
-        # DIRECT HIT: Ensure layout containers clear out instantly regardless of playback status
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -264,14 +263,15 @@ class HandheldPlayerApp(ctk.CTk):
         self.scroll_offset = 0
 
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
-        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text and "FLUSH" not in self.marquee_text:
-            self._animate_marquee_step()
-        else:
+        
+        # FIXED: Prevent module notifications or menu headers from scrolling inside the marquee engine
+        if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or len(clean_check) <= 16:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
+        else:
+            self._animate_marquee_step()
 
     def _animate_marquee_step(self):
-        # ALLOW SEAMLESS SCROLLING: Keep thread running globally across all menu frames
         padded_text = self.marquee_text + "         "
         display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
         
@@ -364,7 +364,7 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 mins, secs = divmod(time_remaining, 60)
-                self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
+                self.app.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
                 
                 if time_remaining <= 0:
                     self.next_track()
@@ -396,17 +396,13 @@ class HandheldPlayerApp(ctk.CTk):
             print(f"UI Sound Drop: {e}")
 
     def clear_telemetry_for_menu(self):
-        # Keeps marquee job active, just clears text representation instantly 
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
     def access_songs(self):
         self.play_ui_sound("click")
-        
-        # 1. Cleanly clear layout components instantly out of window layout matrices
+        self.clear_telemetry_for_menu()
         self.playback_frame.place_forget()
-        
-        # 2. Fire track scroller page layout
         if hasattr(self, 'track_scroller'):
             self.track_scroller.toggle_full_page_scroller()
 
