@@ -10,7 +10,7 @@ import warnings
 import io
 import scroller
 import random 
-import battery_telemetry  # Imported our custom clean module
+import battery  # Imported our custom clean module
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
