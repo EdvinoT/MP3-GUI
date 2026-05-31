@@ -37,6 +37,7 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         super().place(**kwargs)
 
     def place_forget(self):
+        # DIRECT HIT: Ensure layout containers clear out instantly regardless of playback status
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -171,7 +172,6 @@ class HandheldPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Explicit tracking reference link for scroller component instantiation
         self.track_scroller = scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
@@ -271,17 +271,15 @@ class HandheldPlayerApp(ctk.CTk):
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
     def _animate_marquee_step(self):
-        if self.btn_access.winfo_manager() != "":
-            padded_text = self.marquee_text + "         "
-            display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
-            
-            self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
-            self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
-            
-            self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
-            self.marquee_job = self.after(280, self._animate_marquee_step)
-        else:
-            self.marquee_job = None
+        # ALLOW SEAMLESS SCROLLING: Keep thread running globally across all menu frames
+        padded_text = self.marquee_text + "         "
+        display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
+        
+        self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
+        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
+        
+        self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
+        self.marquee_job = self.after(280, self._animate_marquee_step)
 
     def update_battery_display(self, text, color="#666666"):
         if self.btn_access.winfo_manager() != "":
@@ -398,26 +396,17 @@ class HandheldPlayerApp(ctk.CTk):
             print(f"UI Sound Drop: {e}")
 
     def clear_telemetry_for_menu(self):
-        if self.marquee_job is not None:
-            self.after_cancel(self.marquee_job)
-            self.marquee_job = None
+        # Keeps marquee job active, just clears text representation instantly 
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
-    # FIXED: Clears separate layout components cleanly and pauses audio engine safely before running scroller
     def access_songs(self):
         self.play_ui_sound("click")
         
-        # 1. Direct hardware pause call before toggling window layout visibility matrices
-        if self.is_playing:
-            self.toggle_play()
-            
-        self.clear_telemetry_for_menu()
-        
-        # 2. Command your original lifecycle container class to drop components out of layout view
+        # 1. Cleanly clear layout components instantly out of window layout matrices
         self.playback_frame.place_forget()
         
-        # 3. Fire the scroller engine explicitly via the tracking instance attribute link
+        # 2. Fire track scroller page layout
         if hasattr(self, 'track_scroller'):
             self.track_scroller.toggle_full_page_scroller()
 

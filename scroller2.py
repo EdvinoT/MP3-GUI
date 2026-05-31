@@ -22,8 +22,7 @@ class TrackScroller:
         self.ROW_START_Y = 110
         self.LINE_HEIGHT = 30
 
-        # Assign our handler tracker instance back to main loop reference safely
-        self.app.track_scroller = self
+        self.app.btn_access.configure(command=self.toggle_full_page_scroller)
 
         self.original_load_tracks = self.app.load_local_tracks
         self.app.load_local_tracks = self.wrapped_load_local_tracks
@@ -41,7 +40,6 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
         
-        # Completely clear all main player navigation widgets
         self.app.btn_access.place_forget()
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place_forget()
@@ -49,7 +47,7 @@ class TrackScroller:
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
         
-        # Force-clear the main playback controller frame structure
+        # Explicit lifecycle command to drop all bottom boxes simultaneously
         self.app.playback_frame.place_forget()
 
         self.clear_canvas_items()
@@ -59,6 +57,13 @@ class TrackScroller:
         self.app.bind("<Button-5>", self.on_mouse_scroll)
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
         self.app.bg_canvas.bind("<Motion>", self.on_canvas_hover)
+
+        # Update marquee header to reflect entering selection mode
+        if self.app.is_playing and self.app.track_list:
+            current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
+            self.app.update_status_text(f"▶ {current_track}", color="#FFB300")
+        else:
+            self.app.update_status_text("▪ SELECT TRACK MODULE ▪", color="#888888")
 
         self.refresh_scroll_list()
 
@@ -159,7 +164,6 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Restore original hardware desktop button layouts cleanly
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
@@ -167,12 +171,7 @@ class TrackScroller:
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_off.place(x=260, y=190)
         
-        # Restore the bottom playback bar wrapper layout
-        self.app.playback_frame.place(relx=0.5, y=268, anchor="center")
-        
-        # Reactivate canvas visibility layers for the numerical timer
-        if self.app.timer_text_id:
-            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="normal")
+        self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
         if self.app.is_playing and self.app.track_list:
             current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
@@ -201,15 +200,6 @@ class TrackScroller:
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
-
-        # FIX: Dynamically injects an updated subtitle title line inside the scroller frame
-        # keeping your active system text accurate without thread loop freezes
-        menu_title = "▪ SELECT TRACK MODULE ▪"
-        title_id = self.app.bg_canvas.create_text(
-            self.app.SCREEN_WIDTH // 2, 80, text=menu_title,
-            font=("Arial", 11), fill="#444444", anchor="center"
-        )
-        self.canvas_item_ids.append(title_id)
 
         if not self.app.track_list:
             empty_id = self.app.bg_canvas.create_text(
