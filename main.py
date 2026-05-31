@@ -38,12 +38,15 @@ class SurrealPlayerApp(ctk.CTk):
         # UI Sound Properties & Mixer Channels
         self.click_sound = None
         self.scroll_sound = None
+        self.shutdown_sound = None
+        
+        # Dedicated audio channel specifically for UI overlays (Channel 0)
         self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
         # Core States
         self.track_list = []
-        self.current_playlist = []  
+        self.current_playlist = []  # INITIALIZED FIRST: Prevents Tkinter AttributeErrors
         self.current_track_index = 0
         self.is_playing = False
 
@@ -51,6 +54,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         
+        # Now it is completely safe to scan the directory
         self.load_local_tracks()
 
         # Create canvas for background image
@@ -61,6 +65,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.pil_bg_image = None
         self.resized_bg_image = None
         
+        # Canvas item ID tracking variables for dynamic redraw events
         self.title_text_id = None
         self.sub_text_id = None
 
@@ -70,7 +75,7 @@ class SurrealPlayerApp(ctk.CTk):
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
-        # --- MAIN OPTIONS NAVIGATION BUTTONS ---
+        # --- MAIN OPTIONS NAVIGATION BUTTONS (WIRED WITH CLICK AUDIO) ---
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
@@ -103,11 +108,11 @@ class SurrealPlayerApp(ctk.CTk):
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
             hover_color="#201010", 
-            command=lambda: [self.play_ui_sound("click"), self.after(150, self.turn_off)]
+            command=self.turn_off  # Directly targets the comprehensive power-down engine
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # --- AUDIO DECK CONTROL CONTROLS ---
+        # --- AUDIO DECK CONTROLS (WIRED WITH CLICK AUDIO) ---
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -150,13 +155,14 @@ class SurrealPlayerApp(ctk.CTk):
 
         self.bind("<Configure>", self.on_window_resize)
         
+        # Schedule background setup after window is fully rendered
         self.after(100, self.setup_background_canvas)
         
         # Initialize the separate scroller module and plug it in
         scroller.TrackScroller(self)
 
     def load_ui_sounds(self):
-        """Safely caches professional audio clicks and scrolls from disk directory."""
+        """Safely caches professional audio clicks, scrolls, and shutdowns from disk directory."""
         try:
             if os.path.exists("click.ogg"):
                 self.click_sound = pygame.mixer.Sound("click.ogg")
@@ -167,6 +173,9 @@ class SurrealPlayerApp(ctk.CTk):
                 self.scroll_sound = pygame.mixer.Sound("scroll.ogg")
             elif os.path.exists("scroll.wav"):
                 self.scroll_sound = pygame.mixer.Sound("scroll.wav")
+
+            if os.path.exists("shutdown.wav"):
+                self.shutdown_sound = pygame.mixer.Sound("shutdown.wav")
                 
         except Exception as e:
             print(f"Notice: Could not cache audio feedback components: {e}")
@@ -178,6 +187,7 @@ class SurrealPlayerApp(ctk.CTk):
         valid_extensions = (".mp3",)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
+        
         self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
@@ -296,19 +306,52 @@ class SurrealPlayerApp(ctk.CTk):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
 
     def turn_off(self):
+        """Executes a serious, multi-stage tactical system decommissioning routine with audio."""
+        print("\n=== SYSTEM SHUTDOWN INITIATED ===")
+        
+        # Trigger the power-down sound sweep immediately
+        self.play_ui_sound("shutdown")
+        
+        # Phase 1: Halt music stream and change baseline driving registers
+        self.update_status_text("▪ DE-AUTHORIZING CORE DRIVES ▪")
+        self.update_idletasks() 
+        pygame.mixer.music.stop()
+        time.sleep(0.25)
+        
+        # Phase 2: Purge workspace arrays
+        print("[INFO] Severing local track environment hooks...")
+        self.update_status_text("▪ TERMINATING DIRECTORY CONTEXTS ▪")
+        self.update_idletasks()
+        self.track_list.clear()
+        self.current_playlist.clear()
+        time.sleep(0.25)
+        
+        # Phase 3: Hardware Mixer closeout
+        print("[INFO] Releasing hardware mixer channels...")
+        self.update_status_text("▪ MIXER DECOMMISSIONED ▪")
+        self.update_idletasks()
+        time.sleep(0.2)
+        
         pygame.mixer.quit()
+        
+        # Phase 4: Full terminal kill
+        print("=== SYSTEM OFFLINE ===\n")
         self.destroy()
 
     def play_ui_sound(self, sound_type):
         """Global utility method triggered by scroller.py or internal commands to execute interface audio cues."""
         try:
-            self.ui_channel.stop()  # Clear old hardware audio cache buffers immediately
+            self.ui_channel.stop()  # Clear hardware audio cache buffers immediately to prevent overlapping pops
+            
             if sound_type == "click" and self.click_sound is not None:
-                self.click_sound.set_volume(0.4)  
+                self.click_sound.set_volume(0.5)  
                 self.ui_channel.play(self.click_sound)
             elif sound_type == "scroll" and self.scroll_sound is not None:
-                self.scroll_sound.set_volume(0.12)  
+                self.scroll_sound.set_volume(0.15)  
                 self.ui_channel.play(self.scroll_sound)
+            elif sound_type == "shutdown" and hasattr(self, 'shutdown_sound') and self.shutdown_sound is not None:
+                self.shutdown_sound.set_volume(0.6)
+                self.ui_channel.play(self.shutdown_sound)
         except Exception as e:
             print(f"Audio system feedback error: {e}")
 

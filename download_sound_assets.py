@@ -3,7 +3,7 @@ import wave
 import math
 import struct
 
-def generate_premium_ui_assets(filename, duration_ms, volume=0.4, type="slash"):
+def generate_smooth_cinematic_assets(filename, duration_ms, volume=0.4, type="slash"):
     sample_rate = 44100
     num_samples = int(sample_rate * (duration_ms / 1000.0))
     
@@ -12,15 +12,16 @@ def generate_premium_ui_assets(filename, duration_ms, volume=0.4, type="slash"):
         wav_file.setsampwidth(2)
         wav_file.setframerate(sample_rate)
         
+        # Accumulator for tracking phase smoothly over shifting frequencies
+        phase = 0.0
+        
         for i in range(num_samples):
             t = float(i) / sample_rate
             progress = i / num_samples
             
-            # High-fidelity white noise generation for organic friction textures
             raw_noise = (((i * 9301 + 49297) % 233280) / 233280.0) * 2.0 - 1.0
             
             if type == "slash":
-                # Clean cinematic swipe / slash
                 freq = 220 * math.exp(-progress * 4.0)
                 angle = 2.0 * math.pi * freq * t
                 fundamental = math.sin(angle)
@@ -31,7 +32,6 @@ def generate_premium_ui_assets(filename, duration_ms, volume=0.4, type="slash"):
                 sample = (fundamental * 0.5 + soft_noise * 0.5) * fade_in
                 
             elif type == "scroll":
-                # Tactile notch scroll tick
                 freq = 140 
                 angle = 2.0 * math.pi * freq * t
                 fundamental = math.sin(angle)
@@ -39,17 +39,37 @@ def generate_premium_ui_assets(filename, duration_ms, volume=0.4, type="slash"):
                 fade_in = min(1.0, t / 0.002)
                 decay = math.exp(-t * 85) 
                 sample = (fundamental * 0.85 + snap) * fade_in
-
+                
             elif type == "shutdown":
-                # --- SERIOUS ELECTROMAGNETIC SYSTEM POWER-DOWN ---
-                # Drop from a deep 120Hz fundamental down to an sub-bass 30Hz
-                freq = 120 * math.exp(-progress * 3.5)
-                angle = 2.0 * math.pi * freq * t
-                fundamental = math.sin(angle)
+                # --- TACTILE INDUSTRIAL POWER DOWN ---
+                # Linearly drop frequency from a solid 140Hz down to a heavy 30Hz bass floor
+                current_freq = 140.0 - (110.0 * progress)
                 
-                # Add a low, industrial sub-harmonic overtone for heavy physical mass
-                sub_angle = 2.0 * math.pi * (freq * 0.5) * t
-                sub_bass = math.sin(sub_angle)
+                # Keep phase aligned smoothly across changing pitch to prevent internal pops
+                phase += (2.0 * math.pi * current_freq) / sample_rate
+                fundamental = math.sin(phase)
                 
-                # Smoothly fade out the high frequencies immediately, leaving only a deep mechanical vacuum tail
-                vacuum_noise = raw_noise * math.exp(-progress * 12.0) * 0
+                # Add a low mechanical hum texture
+                hum = math.sin(phase * 0.5) * 0.25
+                
+                # Slower fade out to mimic core generators winding down
+                decay = 1.0 - progress 
+                fade_in = min(1.0, t / 0.015) # Soft edge
+                
+                sample = (fundamental * 0.75 + hum) * fade_in
+                
+            final_wave = sample * volume * decay
+            final_wave = max(-0.8, min(0.8, final_wave))
+            
+            packed_sample = struct.pack('<h', int(final_wave * 32767))
+            wav_file.writeframesraw(packed_sample)
+
+print("Compounding smooth, low-fatigue cinematic audio assets...")
+
+generate_smooth_cinematic_assets("click.wav", duration_ms=250, volume=0.5, type="slash")
+generate_smooth_cinematic_assets("scroll.wav", duration_ms=40, volume=0.3, type="scroll")
+
+# Generate shutdown.wav (650ms long industrial engine power drain)
+generate_smooth_cinematic_assets("shutdown.wav", duration_ms=650, volume=0.6, type="shutdown")
+
+print("Successfully written local asset files!")
