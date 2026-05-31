@@ -2,6 +2,7 @@ import loader2
 import pygame
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
+from PIL import Image, ImageTk
 import os
 import warnings
 import random 
@@ -45,7 +46,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
         
-        # Safe Hardware Marquee Variables
+        # Safe Telemetry States
         self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
         self.marquee_color = "#888888"
@@ -55,9 +56,12 @@ class HandheldPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
+        # Core Base Canvas Layout
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
+        # Class-level reference keeps image out of Python garbage collection
+        self.bg_photo = None
         self.setup_background_canvas()
 
         button_font = ("Futura", 11)
@@ -65,11 +69,12 @@ class HandheldPlayerApp(ctk.CTk):
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF"
 
+        # FIXED TRIGGER MAPPINGS: Wipes text immediately when clicked
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=lambda: [self.play_ui_sound("click"), self.access_songs()]
+            command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.access_songs()]
         )
         self.btn_access.place(x=60, y=140)
 
@@ -77,7 +82,7 @@ class HandheldPlayerApp(ctk.CTk):
             self, text="PLAYLISTS", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=lambda: [self.play_ui_sound("click"), self.make_playlist()]
+            command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.make_playlist()]
         )
         self.btn_playlist.place(x=60, y=190)
 
@@ -85,7 +90,7 @@ class HandheldPlayerApp(ctk.CTk):
             self, text="ADD SONG", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=lambda: [self.play_ui_sound("click"), self.add_song()]
+            command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.add_song()]
         )
         self.btn_add.place(x=260, y=140)
 
@@ -158,43 +163,33 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
-        # Clear down conflicting canvas renderings immediately
-        self.bg_canvas.delete("all")
-
+        """Safely loads image backdrop without destroying class tracking memory."""
         png_path = os.path.join(self.dir_path, "background.png")
         if os.path.exists(png_path):
             try:
-                self.pil_bg_image = Image.open(png_path)
-                resized = self.pil_bg_image.resize((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), Image.Resampling.NEAREST)
+                pil_image = Image.open(png_path)
+                resized = pil_image.resize((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), Image.Resampling.NEAREST)
                 self.bg_photo = ImageTk.PhotoImage(resized)
-                self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
+                self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw", tags="bg_layer")
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Primary Title Header
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
-        # Subtitle Status Line Base Object
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text="",
             font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
         )
 
-        # Micro-Battery Line Base Object
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 110, text="",
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
-        # Restore telemetry display definitions immediately
-        if hasattr(self, 'battery_monitor'):
-            self.battery_monitor._force_immediate_refresh()
-
     def update_status_text(self, text, color="#888888"):
-        """Native hardware-accelerated ticker logic."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
@@ -203,24 +198,17 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_color = color
         self.scroll_offset = 0
 
-        # Trigger marquee loop if text is long
         if len(self.marquee_text) > 22 and "VOLTAGE" not in self.marquee_text:
             self._animate_marquee_step()
         else:
-            # Centered fall-back alignment
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
     def _animate_marquee_step(self):
-        """Native rolling ticker configuration."""
         if self.btn_access.winfo_manager() != "":
-            # Add spaces for a smooth loop layout gap
             padded_text = self.marquee_text + "         "
-            
-            # Slice characters sequentially based on shift configurations
             display_string = padded_text[self.scroll_offset:self.scroll_offset+22]
             if len(display_string) < 22:
-                # Wrap slice calculations cleanly back around the header string
                 display_string += padded_text[:22-len(display_string)]
 
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
@@ -232,7 +220,7 @@ class HandheldPlayerApp(ctk.CTk):
             self.marquee_job = None
 
     def update_battery_display(self, text, color="#666666"):
-        """Hard safety check to keep battery elements isolated to the main screen."""
+        """Instant physical toggle restriction checks."""
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -307,20 +295,17 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"UI Sound Drop: {e}")
 
-    # FORCE-WIPE LAYER ENGAGEMENT: Clears all trace elements instantly
     def clear_telemetry_for_menu(self):
+        """Instantly clears labels right when buttons are pressed."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
-    def access_songs(self):
-        self.clear_telemetry_for_menu()
-    def make_playlist(self):
-        self.clear_telemetry_for_menu()
-    def add_song(self):
-        self.clear_telemetry_for_menu()
+    def access_songs(self): pass
+    def make_playlist(self): pass
+    def add_song(self): pass
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
@@ -339,8 +324,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.playback_frame.place_forget()
         
         self.bg_canvas.delete("back_btn", "track_item") 
-        if not self.bg_canvas.find_withtag("main_title"):
-            self.setup_background_canvas()
 
         self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
 
