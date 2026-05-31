@@ -38,15 +38,12 @@ class SurrealPlayerApp(ctk.CTk):
         # UI Sound Properties & Mixer Channels
         self.click_sound = None
         self.scroll_sound = None
-        
-        # Dedicated audio channel specifically for UI overlays (Channel 0)
-        # This keeps click/scroll sounds completely separate from your main music stream
         self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
         # Core States
         self.track_list = []
-        self.current_playlist = []  # INITIALIZED FIRST: Prevents Tkinter AttributeErrors
+        self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
 
@@ -54,7 +51,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         
-        # Now it is completely safe to scan the directory
         self.load_local_tracks()
 
         # Create canvas for background image
@@ -65,7 +61,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.pil_bg_image = None
         self.resized_bg_image = None
         
-        # Canvas item ID tracking variables for dynamic redraw events
         self.title_text_id = None
         self.sub_text_id = None
 
@@ -75,11 +70,13 @@ class SurrealPlayerApp(ctk.CTk):
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
+        # --- MAIN OPTIONS NAVIGATION BUTTONS ---
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.access_songs
+            hover_color="#151515", 
+            command=lambda: [self.play_ui_sound("click"), self.access_songs()]
         )
         self.btn_access.place(relx=0.5, rely=0.38, anchor="center")
 
@@ -87,7 +84,8 @@ class SurrealPlayerApp(ctk.CTk):
             self, text="MAKE A PLAYLIST", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.make_playlist
+            hover_color="#151515", 
+            command=lambda: [self.play_ui_sound("click"), self.make_playlist()]
         )
         self.btn_playlist.place(relx=0.5, rely=0.48, anchor="center")
 
@@ -96,7 +94,7 @@ class SurrealPlayerApp(ctk.CTk):
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color=btn_text,
             hover_color="#151515", 
-            command=lambda: loader.SongLoader(self).open_add_song_menu()
+            command=lambda: [self.play_ui_sound("click"), loader.SongLoader(self).open_add_song_menu()]
         )
         self.btn_add.place(relx=0.5, rely=0.58, anchor="center")
 
@@ -104,11 +102,12 @@ class SurrealPlayerApp(ctk.CTk):
             self, text="TURN OFF", font=button_font, 
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
-            hover_color="#201010", command=self.turn_off
+            hover_color="#201010", 
+            command=lambda: [self.play_ui_sound("click"), self.after(150, self.turn_off)]
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # Audio Deck Controls
+        # --- AUDIO DECK CONTROL CONTROLS ---
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -118,7 +117,8 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="◀◀", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.prev_track
+            hover_color="#151515", 
+            command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
         self.btn_prev.pack(side="left", padx=15)
 
@@ -126,7 +126,8 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.toggle_play
+            hover_color="#151515", 
+            command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
         self.btn_play.pack(side="left", padx=15)
 
@@ -134,7 +135,8 @@ class SurrealPlayerApp(ctk.CTk):
             self.playback_frame, text="▶▶", font=control_font, 
             width=50, height=40, corner_radius=0, 
             fg_color="transparent", border_width=0, text_color=btn_text,
-            hover_color="#151515", command=self.next_track
+            hover_color="#151515", 
+            command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
         self.btn_next.pack(side="left", padx=15)
 
@@ -148,7 +150,6 @@ class SurrealPlayerApp(ctk.CTk):
 
         self.bind("<Configure>", self.on_window_resize)
         
-        # Schedule background setup after window is fully rendered
         self.after(100, self.setup_background_canvas)
         
         # Initialize the separate scroller module and plug it in
@@ -157,7 +158,6 @@ class SurrealPlayerApp(ctk.CTk):
     def load_ui_sounds(self):
         """Safely caches professional audio clicks and scrolls from disk directory."""
         try:
-            # Check for the premium downloaded .ogg assets first
             if os.path.exists("click.ogg"):
                 self.click_sound = pygame.mixer.Sound("click.ogg")
             elif os.path.exists("click.wav"):
@@ -175,11 +175,9 @@ class SurrealPlayerApp(ctk.CTk):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
         
-        # Strictly scan for .mp3 files as requested
         valid_extensions = (".mp3",)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
-        
         self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
@@ -292,7 +290,6 @@ class SurrealPlayerApp(ctk.CTk):
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
     def access_songs(self):
-        # Intentional empty pass behavior so our scroller.py hijack command overrides this entirely
         pass
 
     def make_playlist(self):
@@ -303,13 +300,14 @@ class SurrealPlayerApp(ctk.CTk):
         self.destroy()
 
     def play_ui_sound(self, sound_type):
-        """Global utility method triggered by scroller.py to execute interface audio cues."""
+        """Global utility method triggered by scroller.py or internal commands to execute interface audio cues."""
         try:
+            self.ui_channel.stop()  # Clear old hardware audio cache buffers immediately
             if sound_type == "click" and self.click_sound is not None:
-                self.click_sound.set_volume(0.5)  # Serious physical click weight
+                self.click_sound.set_volume(0.4)  
                 self.ui_channel.play(self.click_sound)
             elif sound_type == "scroll" and self.scroll_sound is not None:
-                self.scroll_sound.set_volume(0.15)  # Clean, quiet background ticks
+                self.scroll_sound.set_volume(0.12)  
                 self.ui_channel.play(self.scroll_sound)
         except Exception as e:
             print(f"Audio system feedback error: {e}")
