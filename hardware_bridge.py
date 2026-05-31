@@ -1,11 +1,11 @@
 import os
 import sys
 import threading
+import time
 
-# 1. Handle optional ALSA Audio for Hardware Volume Control
+# Optional ALSA Audio integration
 try:
     import alsaaudio
-    # 'Headphone' or 'Master' are standard audio channels on Raspberry Pi audio hats
     try:
         SYSTEM_MIXER = alsaaudio.Mixer('Headphone')
     except Exception:
@@ -16,7 +16,7 @@ try:
 except ImportError:
     SYSTEM_MIXER = None
 
-# 2. Handle optional Mutagen for clean ID3 track data mapping
+# Optional Mutagen integration
 try:
     from mutagen.mp3 import MP3
     from mutagen.easyid3 import EasyID3
@@ -24,7 +24,7 @@ except ImportError:
     MP3 = None
     EasyID3 = None
 
-# 3. Handle optional GPIO framework for physical tactical button hooks
+# Optional GPIO integration
 try:
     from gpiozero import Button
 except ImportError:
@@ -34,42 +34,45 @@ except ImportError:
 class HardwareBridge:
     def __init__(self, main_app_instance):
         """
-        Injects advanced Quality of Life hardware layers into the player engine
-        without cluttering the main script execution file blocks.
+        Comprehensive hardware abstraction layer managing visual telemetry,
+        power state preservation, and resource-saving background monitors.
         """
         self.app = main_app_instance
-        self.hardware_volume_pct = 80  # Default startup safety fallback volume
+        self.hardware_volume_pct = 80  # Default startup volume safety fallback
+        self.last_interaction_time = time.time()
+        self.screen_is_awake = True
         
-        print("\n=== COUPLING HARDWARE EXTENSION BRIDGE ===")
+        print("\n=== INITIALIZING FINAL HARDWARE DEPLOYMENT BRIDGE ===")
         self._initialize_volume_subsystem()
         self._patch_metadata_engine()
         self._bind_gpio_pins()
-        print("==========================================\n")
+        self._start_power_management_loops()
+        print("====================================================\n")
 
     def _initialize_volume_subsystem(self):
-        """Registers system volume telemetry fields onto the interface canvas."""
+        """Registers system volume display layers onto the main canvas."""
         if SYSTEM_MIXER:
             try:
                 self.hardware_volume_pct = SYSTEM_MIXER.getvolume()[0]
-                print(f"[ALSA] Coupled hardware mixer card channel. Native Vol: {self.hardware_volume_pct}%")
+                print(f"[ALSA] Master channel engaged. Volume: {self.hardware_volume_pct}%")
             except Exception as e:
-                print(f"[ALSA] Control link failed: {e}")
+                print(f"[ALSA] Mixer hook dropped: {e}")
         else:
-            print("[ALSA] Subsystem offline. Defaulting to software emulation presets.")
+            print("[ALSA] Subsystem offline. Emulating virtual audio controls.")
 
-        # Append visual Volume metadata coordinates directly to the canvas layers
         self.vol_text_id = self.app.bg_canvas.create_text(
             420, 25, text=f"VOL {self.hardware_volume_pct}%",
             font=("Arial", 9, "bold"), fill="#666666", anchor="e"
         )
         
-        # Bind keyboard shortcuts (+/- keys) so you can test volume on your PC right now!
+        # Test keys for computer-based testing (+ / - keys)
         self.app.bind("<plus>", lambda e: self.adjust_volume(5))
-        self.app.bind("<equal>", lambda e: self.adjust_volume(5)) # Standard shared key mapping
+        self.app.bind("<equal>", lambda e: self.adjust_volume(5))
         self.app.bind("<minus>", lambda e: self.adjust_volume(-5))
 
     def adjust_volume(self, delta):
-        """Changes system master volume up or down and prints to screen."""
+        """Alters volume levels and updates screen tracking layers."""
+        self.poke_activity_timer()
         self.hardware_volume_pct = max(0, min(100, self.hardware_volume_pct + delta))
         
         if SYSTEM_MIXER:
@@ -78,26 +81,19 @@ class HardwareBridge:
             except Exception as e:
                 print(f"[ALSA] Write failure: {e}")
         
-        # Update the text on your layout instantly
         self.app.bg_canvas.itemconfig(self.vol_text_id, text=f"VOL {self.hardware_volume_pct}%")
 
     def _patch_metadata_engine(self):
-        """Intercepts track loading requests to pull clean title tag data fields."""
+        """Wraps track playing routines to fetch clean ID3 metadata tags."""
         if MP3 and EasyID3:
-            print("[MUTAGEN] Deep indexing functional. Parsing structural ID3 tag assets.")
-            
-            # Wrap the original play method cleanly
+            print("[MUTAGEN] Metadata engine hooked. Active parsing enabled.")
             original_play_method = self.app.play_current_track
             
             def custom_metadata_play_wrapper():
-                # Fire standard core stream loader
                 original_play_method()
-                
-                # Instantly extract true track tags safely in the background
                 if self.app.track_list:
                     track_file = self.app.track_list[self.app.current_track_index]
                     track_path = os.path.join(self.app.tracks_dir, track_file)
-                    
                     try:
                         audio = MP3(track_path, ID3=EasyID3)
                         title = audio.get('title', [None])[0]
@@ -112,29 +108,91 @@ class HardwareBridge:
                             
                         self.app.update_status_text(display_tag, color="#FFB300")
                     except Exception:
-                        pass # Rollback fallback string handled gracefully by core
-                        
-            # Replace the runtime link
+                        pass
             self.app.play_current_track = custom_metadata_play_wrapper
         else:
-            print("[MUTAGEN] Libraries unindexed. Defaulting display profile to raw filenames.")
+            print("[MUTAGEN] Fallback active. Displaying raw file configurations.")
 
     def _bind_gpio_pins(self):
-        """Asynchronously maps physical button presses straight to the UI functions."""
+        """Wires hardware tactile button click triggers to internal functions."""
         if Button:
-            print("[GPIO] Board detected. Initializing asynchronous tactile wire pathways.")
+            print("[GPIO] Pins mapped. Listening for asynchronous hardware clicks.")
             try:
-                # Pinout allocation matches typical handheld chassis mapping guidelines
-                self.hw_btn_next = Button(17, bounce_time=0.05) # Pin 17 maps to physical track jump
-                self.hw_btn_prev = Button(27, bounce_time=0.05) # Pin 27 maps to back tracking
-                self.hw_btn_play = Button(22, bounce_time=0.05) # Pin 22 handles physical pause/unpause
+                # Mapping typical hardware button chassis nodes safely
+                self.hw_btn_next = Button(17, bounce_time=0.05)
+                self.hw_btn_prev = Button(27, bounce_time=0.05)
+                self.hw_btn_play = Button(22, bounce_time=0.05)
                 
-                # Point the physical wiring logic straight to your main app actions
-                self.hw_btn_next.when_pressed = self.app.next_track
-                self.hw_btn_prev.when_pressed = self.app.prev_track
-                self.hw_btn_play.when_pressed = self.app.toggle_play
-                
-            except Exception as gpio_err:
-                print(f"[GPIO] Setup blocked by board configuration limits: {gpio_err}")
+                # Intercept presses to wake the screen up if it went to sleep
+                self.hw_btn_next.when_pressed = lambda: [self.poke_activity_timer(), self.app.next_track()]
+                self.hw_btn_prev.when_pressed = lambda: [self.poke_activity_timer(), self.app.prev_track()]
+                self.hw_btn_play.when_pressed = lambda: [self.poke_activity_timer(), self.app.toggle_play()]
+            except Exception as e:
+                print(f"[GPIO] Wiring register bypassed: {e}")
         else:
-            print("[GPIO] Subsystem bypassed. Listening exclusively to interface canvas bindings.")
+            print("[GPIO] Standalone test setup. Control loops listening to keyboard assets.")
+
+    def poke_activity_timer(self):
+        """Resets the sleep countdown whenever the user interacts with the machine."""
+        self.last_interaction_time = time.time()
+        if not self.screen_is_awake:
+            self.set_backlight_state(awake=True)
+
+    def set_backlight_state(self, awake):
+        """Controls system backlighting to prevent burn-in or battery drainage."""
+        self.screen_is_awake = awake
+        if awake:
+            print("[POWER] System wake command processed. Screen backlight ON.")
+            # Linux kernel terminal command to safely power ON official Raspberry Pi displays
+            os.system("echo 0 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
+        else:
+            print("[POWER] Display timeout reached. Screen backlight OFF to preserve juice.")
+            # Linux kernel terminal command to safely power OFF official Raspberry Pi displays
+            os.system("echo 1 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
+
+    def _start_power_management_loops(self):
+        """Spawns separate daemon threads to safeguard hardware health parameters."""
+        # Bind screen clicks to reset the sleep timer
+        self.app.bind("<Button-1>", lambda e: self.poke_activity_timer())
+        
+        # Power management execution loop thread
+        def power_loop():
+            while self.app.running:
+                time.sleep(2)
+                
+                # A. Handle Auto-Sleep backlighting (60 second threshold limit)
+                if self.screen_is_awake and (time.time() - self.last_interaction_time > 60):
+                    # Only dim the panel if music is currently streaming out
+                    if self.app.is_playing:
+                        self.app.after(0, lambda: self.set_backlight_state(awake=False))
+                
+                # B. Handle Crucial Low-Voltage Protection Safeguards
+                if hasattr(self.app, 'battery_monitor'):
+                    pct = self.app.battery_monitor.current_battery_pct
+                    if pct <= 5 and pct > 0:
+                        print("[CRITICAL] Power cell depleted below safety levels! Running forced emergency safety park.")
+                        self.app.after(0, self._trigger_emergency_shutdown)
+                        break
+
+        p_thread = threading.Thread(target=power_loop)
+        p_thread.daemon = True
+        p_thread.start()
+
+    def _trigger_emergency_shutdown(self):
+        """Safely stops threads, flushes caches, and powers down the computer board."""
+        self.app.update_status_text("▪ VOLTAGE CRITICAL - SHUTTING DOWN ▪", color="#FF0000")
+        self.app.update()
+        time.sleep(2)
+        
+        # Shut down python app loops cleanly
+        self.app.running = False
+        try:
+            import pygame
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
+        except Exception:
+            pass
+            
+        # Tell Linux to safely unmount the SD Card files and completely cut the power line
+        os.system("sudo shutdown -h now")
+        sys.exit()
