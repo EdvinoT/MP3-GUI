@@ -57,6 +57,9 @@ class HandheldPlayerApp(ctk.CTk):
         self.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
         self.resizable(False, False)  
         
+        # MASTER STATE CONTROL: Stops background loops instantly on shutdown
+        self.running = True
+
         self.click_sound = None
         self.scroll_sound = None
         self.shutdown_sound = None
@@ -72,7 +75,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.shuffle_enabled = False
         self.original_order = []    
 
-        # ANTI-SKIPPING SYSTEM: Prevents track loop race conditions during track switches
         self.is_buffering_track = False
 
         self.marquee_text = "▪ ONLINE ▪"
@@ -296,7 +298,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▪ NO TRACKS FOUND ▪", color="#FF3333")
             return
         
-        # Enable buffering block to prevent the playback loop from auto-skipping
         self.is_buffering_track = True
         track_name = self.track_list[self.current_track_index]
         track_path = os.path.join(self.tracks_dir, track_name)
@@ -315,7 +316,6 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
             
-        # Release the buffer lock after 400ms when hardware audio channel settles
         self.after(400, self._clear_buffering_lock)
 
     def _clear_buffering_lock(self):
@@ -364,7 +364,10 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text(f"{track_name}", color="#888888")
 
     def _update_playback_loop(self):
-        # Skip updating if a song is currently handling a hardware channel swap
+        # FIXED SHUTDOWN CONFLICT: Kill the loop if app is shutting down
+        if not self.running:
+            return
+
         if self.is_buffering_track:
             self.after(200, self._update_playback_loop)
             return
@@ -372,9 +375,10 @@ class HandheldPlayerApp(ctk.CTk):
         if self.is_playing and self.current_track_length > 0:
             current_ms = pygame.mixer.music.get_pos()
             
-            # Verifies that Pygame is genuinely idle rather than just experiencing buffer delay
             if current_ms == -1 or (pygame.mixer.music.get_busy() == 0 and current_ms > 0):
-                self.next_track()
+                # Double check that we didn't just hit turn off mid-execution
+                if self.running:
+                    self.next_track()
             else:
                 current_secs = current_ms / 1000.0
                 ratio = min(current_secs / self.current_track_length, 1.0)
@@ -385,7 +389,7 @@ class HandheldPlayerApp(ctk.CTk):
                 mins, secs = divmod(time_remaining, 60)
                 self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
                 
-                if time_remaining <= 0:
+                if time_remaining <= 0 and self.running:
                     self.next_track()
                     
         elif not self.is_playing:
@@ -393,7 +397,8 @@ class HandheldPlayerApp(ctk.CTk):
                 self.progress_bar.configure(width=0)
                 self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
 
-        self.after(200, self._update_playback_loop)
+        if self.running:
+            self.after(200, self._update_playback_loop)
 
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
@@ -429,17 +434,23 @@ class HandheldPlayerApp(ctk.CTk):
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
+        # 1. SET MASTER FLAG TO FALSE IMMEDIATELY (Locks out playback checking)
+        self.running = False
+        self.is_playing = False
+
+        # 2. CLEAR ALL BACKGROUND JOBS AND FORWARD AUDIO CHANNELS
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
+        self.battery_monitor.stop()
+
         try:
             pygame.mixer.music.stop()
             pygame.mixer.music.unload()  
         except Exception as e:
             print(f"[AUDIO] Force stop failed: {e}")
 
-        if self.marquee_job is not None:
-            self.after_cancel(self.marquee_job)
-            self.marquee_job = None
-        self.battery_monitor.stop()
-
+        # 3. PURGE WIDGET PLACEMENTS FROM MEMORY GRID
         try:
             self.btn_access.place_forget()
             self.btn_shuffle.place_forget()
@@ -450,11 +461,13 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"[GUI] Clear widgets failed: {e}")
 
+        # 4. CHIRP AUDIO ON EMPTY BACKGROUND
         self.play_ui_sound("shutdown")
         
         self.update_idletasks()
         self.update()
 
+        # 5. DISPATCH TEXT RENDER STAGES
         if self.battery_monitor.current_battery_pct < 20:
             self.update_status_text("▪ VOLTAGE CRITICALLY LOW ▪", color="#880000")
             self.update()
@@ -492,3 +505,4 @@ class HandheldPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = HandheldPlayerApp()
     app.mainloop()
+    
