@@ -10,10 +10,8 @@ import random
 import scroller2  
 import battery2  
 
-# Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
-# Initialize hardware mixer with a safe fallback for the Pi Zero
 try:
     pygame.mixer.pre_init(44100, -16, 2, 2048)
     pygame.mixer.init()
@@ -31,7 +29,6 @@ class HandheldPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # 1. FIXED HANDHELD DIMENSIONS
         self.SCREEN_WIDTH = 480
         self.SCREEN_HEIGHT = 320
         
@@ -39,14 +36,12 @@ class HandheldPlayerApp(ctk.CTk):
         self.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
         self.resizable(False, False)  
         
-        # Audio UI Feedback Channels
         self.click_sound = None
         self.scroll_sound = None
         self.shutdown_sound = None
         self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
-        # Track Management
         self.track_list = []
         self.current_playlist = []
         self.current_track_index = 0
@@ -56,20 +51,16 @@ class HandheldPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # UI Canvas for Background & Text
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
-        # Load the background image statically
         self.setup_background_canvas()
 
-        # 2. COMPACT BUTTON LAYOUT
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF"
 
-        # Left Column Buttons
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -86,7 +77,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_playlist.place(x=60, y=190)
 
-        # Right Column Buttons
         self.btn_add = ctk.CTkButton(
             self, text="ADD SONG", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -104,7 +94,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # 3. LOWERED PLAYBACK CONTROLS
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -131,7 +120,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_next.pack(side="left", padx=10)
 
-        # Setup Hover/Touch Glow Mappings
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -140,7 +128,6 @@ class HandheldPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        # Initialize Engines & Modules
         scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
@@ -183,19 +170,26 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
+        # FIXED LOGIC: Maintain song readout text state if returned to main menu while track plays
         current_status = "▪ ONLINE ▪"
-        battery_status = "--%"
-        if hasattr(self, 'battery_monitor'):
-            current_status = self.battery_monitor.get_status_string()
-            battery_status = f"{self.battery_monitor.current_battery_pct}%"
+        status_color = "#888888"
+        if self.is_playing and self.track_list:
+            track_name = self.track_list[self.current_track_index].replace(".mp3", "")
+            display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
+            current_status = f"▶ {display_name}"
+            status_color = "#FFB300" # Cyberpunk Amber
+        elif hasattr(self, 'battery_monitor') and self.battery_monitor.current_battery_pct < 20:
+            current_status = "▪ VOLTAGE CRITICALY LOW ▪"
+            status_color = "#880000"
 
         # Subtitle Status Line
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text=current_status.upper(),
-            font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
+            font=("Arial", 11), fill=status_color, anchor="center", tags="status_sub"
         )
 
-        # Micro-Battery Line (Only displayed when Main Menu buttons are visible)
+        battery_status = f"{self.battery_monitor.current_battery_pct}%" if hasattr(self, 'battery_monitor') else "--%"
+        # Micro-Battery Line
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 110, text=battery_status,
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
@@ -205,11 +199,10 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("status_sub", text=text.upper(), fill=color)
 
     def update_battery_display(self, text, color="#666666"):
-        """Only prints the battery readouts if we are safely parked on the main menu view."""
+        """Only print metrics if the main menu interface layer is present."""
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
-            # Wipes readout when navigation menus overlay the core canvas layer
             self.bg_canvas.itemconfig("battery_sub", text="")
 
     def play_current_track(self):
@@ -228,7 +221,8 @@ class HandheldPlayerApp(ctk.CTk):
             display_name = clean_name if len(clean_name) < 24 else clean_name[:21] + "..."
             
             self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
-            self.update_status_text(f"▶ {display_name}", color="#00FF00")
+            # CHANGED: Swapped neon green for an elegant Cyberpunk Amber (#FFB300)
+            self.update_status_text(f"▶ {display_name}", color="#FFB300")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
 
@@ -245,7 +239,7 @@ class HandheldPlayerApp(ctk.CTk):
                 track_name = self.track_list[self.current_track_index].replace(".mp3", "")
                 display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
                 self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
-                self.update_status_text(f"▶ {display_name}", color="#00FF00")
+                self.update_status_text(f"▶ {display_name}", color="#FFB300")
             else:
                 self.play_current_track()
         else:
@@ -284,12 +278,15 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"UI Sound Drop: {e}")
 
-    def access_songs(self): pass
-    def make_playlist(self): pass
-    def add_song(self): pass
+    # FIXED NAV ENGINES: Wipes the battery text instantly to eliminate screen lag artifacting
+    def access_songs(self):
+        self.bg_canvas.itemconfig("battery_sub", text="")
+    def make_playlist(self):
+        self.bg_canvas.itemconfig("battery_sub", text="")
+    def add_song(self):
+        self.bg_canvas.itemconfig("battery_sub", text="")
 
     def turn_off(self):
-        """Closes hardware threads safely, enforcing strict voltage check layout priorities."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         self.battery_monitor.stop()
         self.play_ui_sound("shutdown")
@@ -305,19 +302,16 @@ class HandheldPlayerApp(ctk.CTk):
         if not self.bg_canvas.find_withtag("main_title"):
             self.setup_background_canvas()
 
-        # FIXED LOGIC: Title string stays locked as "S H U T D O W N"
         self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
 
-        # CRITICAL BATTERY THRESHOLD CHECK (< 20%)
         if self.battery_monitor.current_battery_pct < 20:
             shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
-            shutdown_color = "#880000"  # Dark Red Force Default
+            shutdown_color = "#880000"
             print("[CRITICAL] Low cell voltage. Overriding shutdown telemetry animation logs...")
             self.update_status_text(shutdown_ui_text, color=shutdown_color)
             self.update()
             self.after(800, self.final_destroy)
         else:
-            # Healthy Battery: Randomizes only the small script profile line
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
                 {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
