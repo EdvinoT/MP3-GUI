@@ -24,18 +24,19 @@ except ImportError:
     MP3 = None
     EasyID3 = None
 
-# Optional GPIO integration
+# Optional GPIO integration for buttons and the EC11 Rotary Encoder
 try:
-    from gpiozero import Button
+    from gpiozero import Button, RotaryEncoder
 except ImportError:
     Button = None
+    RotaryEncoder = None
 
 
 class HardwareBridge:
     def __init__(self, main_app_instance):
         """
         Comprehensive hardware abstraction layer managing visual telemetry,
-        power state preservation, and resource-saving background monitors.
+        iPod-style rotary navigation, and resource-saving background monitors.
         """
         self.app = main_app_instance
         self.hardware_volume_pct = 80  # Default startup volume safety fallback
@@ -45,7 +46,7 @@ class HardwareBridge:
         print("\n=== INITIALIZING FINAL HARDWARE DEPLOYMENT BRIDGE ===")
         self._initialize_volume_subsystem()
         self._patch_metadata_engine()
-        self._bind_gpio_pins()
+        self._bind_hardware_controls()
         self._start_power_management_loops()
         print("====================================================\n")
 
@@ -113,24 +114,27 @@ class HardwareBridge:
         else:
             print("[MUTAGEN] Fallback active. Displaying raw file configurations.")
 
-    def _bind_gpio_pins(self):
-        """Wires hardware tactile button click triggers to internal functions."""
-        if Button:
-            print("[GPIO] Pins mapped. Listening for asynchronous hardware clicks.")
+    def _bind_hardware_controls(self):
+        """Wires the physical iPod-style EC11 click-wheel encoder to internal functions."""
+        if RotaryEncoder and Button:
+            print("[HARDWARE] Activating iPod-style EC11 click-wheel encoder architecture...")
             try:
-                # Mapping typical hardware button chassis nodes safely
-                self.hw_btn_next = Button(17, bounce_time=0.05)
-                self.hw_btn_prev = Button(27, bounce_time=0.05)
-                self.hw_btn_play = Button(22, bounce_time=0.05)
+                # 1. Map the dial spinning mechanics (Data Pins 23 and 24)
+                # Turning right skips forward, turning left goes back
+                self.dial = RotaryEncoder(23, 24, bounce_time=0.01)
+                self.dial.when_rotated_clockwise = lambda: [self.poke_activity_timer(), self.app.next_track()]
+                self.dial.when_rotated_counter_clockwise = lambda: [self.poke_activity_timer(), self.app.prev_track()]
                 
-                # Intercept presses to wake the screen up if it went to sleep
-                self.hw_btn_next.when_pressed = lambda: [self.poke_activity_timer(), self.app.next_track()]
-                self.hw_btn_prev.when_pressed = lambda: [self.poke_activity_timer(), self.app.prev_track()]
-                self.hw_btn_play.when_pressed = lambda: [self.poke_activity_timer(), self.app.toggle_play()]
+                # 2. Map the physical shaft click action (Pin 22)
+                # Pressing down on the knob toggles Play/Pause
+                self.dial_button = Button(22, bounce_time=0.05)
+                self.dial_button.when_pressed = lambda: [self.poke_activity_timer(), self.app.toggle_play()]
+                
+                print("[GPIO] EC11 Pins registered (Dial: 23/24, Button: 22). Listening for input.")
             except Exception as e:
                 print(f"[GPIO] Wiring register bypassed: {e}")
         else:
-            print("[GPIO] Standalone test setup. Control loops listening to keyboard assets.")
+            print("[GPIO] Standalone test setup. Control loops listening exclusively to simulation assets.")
 
     def poke_activity_timer(self):
         """Resets the sleep countdown whenever the user interacts with the machine."""
@@ -143,11 +147,9 @@ class HardwareBridge:
         self.screen_is_awake = awake
         if awake:
             print("[POWER] System wake command processed. Screen backlight ON.")
-            # Linux kernel terminal command to safely power ON official Raspberry Pi displays
             os.system("echo 0 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
         else:
             print("[POWER] Display timeout reached. Screen backlight OFF to preserve juice.")
-            # Linux kernel terminal command to safely power OFF official Raspberry Pi displays
             os.system("echo 1 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
 
     def _start_power_management_loops(self):
