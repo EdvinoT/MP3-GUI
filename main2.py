@@ -24,6 +24,25 @@ except Exception as mixer_err:
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
 
+class PlaybackLifecycleController(ctk.CTkFrame):
+    def __init__(self, master, app_instance, **kwargs):
+        super().__init__(master, width=0, height=0, fg_color="transparent", **kwargs)
+        self.app = app_instance
+
+    def place(self, **kwargs):
+        self.app.progress_container.place(relx=0.5, y=252, anchor="center")
+        self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="normal")
+        super().place(**kwargs)
+
+    def place_forget(self):
+        self.app.progress_container.place_forget()
+        self.app.controls_dock.place_forget()
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
+        super().place_forget()
+
 
 class HandheldPlayerApp(ctk.CTk):
     def __init__(self):
@@ -105,22 +124,15 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # --- THE PLAYBACK MASTER FRAME CONTROLLER ---
-        # Moving the control blocks INSIDE this master frame ensures scroller2's hide command works perfectly.
-        self.playback_frame = ctk.CTkFrame(self, width=220, height=80, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, y=268, anchor="center")
-
-        # 1. PROGRESS CONTAINER (Centered inside playback_frame)
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
-        self.progress_container.place(relx=0.5, y=10, anchor="center") 
+        self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
+        self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
 
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 2. CONTROL BUTTONS DOCK (Centered inside playback_frame)
-        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
-        self.controls_dock.place(relx=0.5, y=42, anchor="center")
+        self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
+        self.controls_dock.place(relx=0.5, y=284, anchor="center")
         self.controls_dock.pack_propagate(False)
 
         control_font = ("Arial", 12, "bold")
@@ -148,6 +160,9 @@ class HandheldPlayerApp(ctk.CTk):
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
         self.btn_next.place(relx=0.8, rely=0.5, anchor="center")
+
+        self.playback_frame = PlaybackLifecycleController(self, self)
+        self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -234,7 +249,7 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
         self.timer_text_id = self.bg_canvas.create_text(
-            self.SCREEN_WIDTH // 2, 222, text="0:00",
+            self.SCREEN_WIDTH // 2, 232, text="0:00",
             font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
         )
 
@@ -255,15 +270,17 @@ class HandheldPlayerApp(ctk.CTk):
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
     def _animate_marquee_step(self):
-        # Allow marquee step processing even when main UI buttons are hidden
-        padded_text = self.marquee_text + "         "
-        display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
-        
-        self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
-        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
-        
-        self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
-        self.marquee_job = self.after(280, self._animate_marquee_step)
+        if self.btn_access.winfo_manager() != "":
+            padded_text = self.marquee_text + "         "
+            display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
+            
+            self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
+            self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
+            
+            self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
+            self.marquee_job = self.after(280, self._animate_marquee_step)
+        else:
+            self.marquee_job = None
 
     def update_battery_display(self, text, color="#666666"):
         if self.btn_access.winfo_manager() != "":
@@ -386,25 +403,17 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
+    # FIXED: Drops elements instantly from scroller interface and auto-pauses playing tracks
     def access_songs(self):
         self.play_ui_sound("click")
+        self.clear_telemetry_for_menu()
         
-        # 1. Force the audio mixer engine to pause directly before toggling UI structures
-        if self.is_playing:
-            pygame.mixer.music.pause()
-            self.is_playing = False
-            self.btn_play.configure(text="▶")
-
-        # 2. Hide the canvas timer item layer cleanly
-        if self.timer_text_id:
-            self.bg_canvas.itemconfig(self.timer_text_id, state="hidden")
-
-        # 3. Drop layout boxes
+        # 1. Cleanly clear the layout from view
         self.playback_frame.place_forget()
         
-        # 4. Trigger scroller instantiation wrapper logic safely
-        if hasattr(self, 'track_scroller'):
-            self.track_scroller.toggle_full_page_scroller()
+        # 2. Check engine playback state; force pause if music is currently streaming
+        if self.is_playing:
+            self.toggle_play()
 
     def add_song(self): pass
 
