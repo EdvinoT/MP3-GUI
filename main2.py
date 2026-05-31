@@ -410,28 +410,43 @@ class HandheldPlayerApp(ctk.CTk):
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
+        
+        # 1. KILL AUDIO IMMEDIATELY
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()  # Releases the file lock instantly
+        except Exception as e:
+            print(f"[AUDIO] Force stop failed: {e}")
+
+        # 2. KILL LOOPS AND BACKGROUND TASKS IMMEDIATELY
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
-
         self.battery_monitor.stop()
-        self.play_ui_sound("shutdown")
-        pygame.mixer.music.stop()
-        
-        # FIXED: Instantly throw widgets out of placement coordinates to protect against screen cut-offs
-        self.btn_access.place_forget()
-        self.btn_shuffle.place_forget()
-        self.btn_add.place_forget()
-        self.btn_off.place_forget()
-        
-        self.playback_frame.place_forget()
-        self.bg_canvas.delete("back_btn", "track_item") 
 
+        # 3. FORCE THE BUTTONS OFF THE COORDINATE GRID IMMEDIATELY
+        try:
+            self.btn_access.place_forget()
+            self.btn_shuffle.place_forget()
+            self.btn_add.place_forget()
+            self.btn_off.place_forget()
+            self.playback_frame.place_forget()
+            self.bg_canvas.delete("back_btn", "track_item") 
+        except Exception as e:
+            print(f"[GUI] Clear widgets failed: {e}")
+
+        # 4. PLAY THE SHUTDOWN AUDIO CHIRP ON A CLEAN CANVAS
+        self.play_ui_sound("shutdown")
+        
+        # 5. FORCE TKINTER TO REDRAW THE SCREEN RIGHT NOW (Prevents VS Code clipping)
+        self.update_idletasks()
+        self.update()
+
+        # 6. ROUTE THE TEXT ANIMATION SEQUENCES
         if self.battery_monitor.current_battery_pct < 20:
-            shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
-            self.update_status_text(shutdown_ui_text, color="#880000")
+            self.update_status_text("▪ VOLTAGE CRITICALLY LOW ▪", color="#880000")
             self.update()
-            self.after(1000, self.final_destroy)
+            self.after(1200, self.final_destroy)
         else:
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
@@ -445,8 +460,23 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
-            # Smooth transmission steps
-            self.after(1000, lambda: self.shutdown_step_two(chosen["ui"]))
+            # Move cleanly to step two after 1.2 seconds
+            self.after(1200, lambda: self.shutdown_step_two(chosen["ui"]))
+
+    def shutdown_step_two(self, secondary_text):
+        self.update_status_text(secondary_text, color="#BBBBBB")
+        self.update()
+        self.after(1200, self.final_destroy)
+
+    def final_destroy(self):
+        try:
+            self.track_list.clear()
+            self.current_playlist.clear()
+            pygame.mixer.quit()
+        except Exception:
+            pass
+        print("=== SYSTEM OFFLINE ===\n")
+        self.destroy()
 
     def shutdown_step_two(self, secondary_text):
         self.update_status_text(secondary_text, color="#BBBBBB")
