@@ -103,27 +103,29 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # --- NEW DISCRETE PLACEMENT STRATEGY (No Shared Frame Wrapping) ---
+        # Main Playback Container (Restored to anchor the custom player layout properly)
+        self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        # 1. FLOATING TIMER: Attached directly to the root window to ensure true transparency
+        # 1. FLOATING TIMER: Placed natively inside the layout with a forced transparent flag
         self.lbl_timer = ctk.CTkLabel(
-            self, text="0:00", 
+            self.playback_frame, text="0:00", 
             fg_color="transparent",
             font=("Courier New", 12, "bold"), text_color="#00A8FF"
         )
-        self.lbl_timer.place(relx=0.5, y=232, anchor="center")
+        self.lbl_timer.pack(side="top", pady=(0, 4))
 
-        # 2. BLACK PROGRESS BOX: Houses only the line animation
-        self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
-        self.progress_container.place(relx=0.5, y=250, anchor="center") 
+        # 2. LINE ANIMATION BOX: Isolated black container holding only the line animation frame
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
+        self.progress_container.pack(side="top", pady=(0, 14)) 
         self.progress_container.pack_propagate(False)
 
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 3. BLACK BUTTONS DOCK: Spaced cleanly below the progress line
-        self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
-        self.controls_dock.place(relx=0.5, y=282, anchor="center")
+        # 3. CONTROL BUTTONS DOCK: Separate dark horizontal frame block dedicated to control icons
+        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
+        self.controls_dock.pack(side="top")
         self.controls_dock.pack_propagate(False)
 
         control_font = ("Arial", 12, "bold")
@@ -403,11 +405,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_shuffle.place_forget()
         self.btn_add.place_forget()
         self.btn_off.place_forget()
-        
-        # Target specific discrete elements during clearout
-        self.lbl_timer.place_forget()
-        self.progress_container.place_forget()
-        self.controls_dock.place_forget()
+        self.playback_frame.place_forget()
         
         self.bg_canvas.delete("back_btn", "track_item") 
 
