@@ -307,8 +307,9 @@ class SurrealPlayerApp(ctk.CTk):
             # Healthy battery condition: Pick a random profile in light gray (#BBBBBB)
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
-                {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
+                {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
                 {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
+                {"log": "Terminating the Program...", "ui": "▪ CRITICAL HIT! ▪"}
             ]
             chosen = random.choice(shutdown_profiles)
             shutdown_ui_text = chosen["ui"]
