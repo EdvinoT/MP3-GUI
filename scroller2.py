@@ -11,13 +11,12 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 7  # Restored to original full visual slots
+        self.visible_count = 7  
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # RESTORED: Original coordinate framework mappings
         self.LANE_X1 = 30
         self.LANE_X2 = 450
         self.ROW_START_Y = 110
@@ -55,7 +54,6 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # Input event fallbacks
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)  
         self.app.bind("<Button-5>", self.on_mouse_scroll)  
@@ -73,6 +71,10 @@ class TrackScroller:
 
         self.refresh_scroll_list()
 
+        # FORCE INSTANT REDRAW TO CLEAR BATTERY ON OPEN
+        if hasattr(self.app, 'battery_monitor'):
+            self.app.battery_monitor._execute_telemetry_render()
+
     def force_scroll_direction(self, direction):
         if not self.app.track_list: return
         old_offset = self.scroll_offset
@@ -80,7 +82,6 @@ class TrackScroller:
         if direction == -1:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif direction == 1:
-            # Unlimited length tracking
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
             
@@ -186,6 +187,10 @@ class TrackScroller:
         else:
             self.app.update_status_text("▪ ONLINE ▪", color="#888888")
 
+        # INSTANT SNAP FIX: Force battery refresh before frame updates
+        if hasattr(self.app, 'battery_monitor'):
+            self.app.battery_monitor._execute_telemetry_render()
+
         self.app.update_idletasks()
 
     def wrapped_load_local_tracks(self):
@@ -202,14 +207,12 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Restored Original Layout Header Font Size & Placements
         back_id = self.app.bg_canvas.create_text(
             45, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
-        # COMPACT CORNER SYMBOLS: Minimalist layout footprint inside upper menu line
         scr_up_id = self.app.bg_canvas.create_text(
             395, 80, text="▲",
             font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
@@ -236,13 +239,11 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                # RESTORED: Original text length boundaries
                 if len(clean_display_title) > 32:
                     clean_display_title = clean_display_title[:29] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
-                # RESTORED: Original font size (11)
                 track_id = self.app.bg_canvas.create_text(
                     50, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
@@ -254,7 +255,6 @@ class TrackScroller:
                 )
                 self.canvas_item_ids.append(track_id)
 
-            # RESTORED: Original line-divider spacing calculations
             line_y = y_pos + 14  
             divider_id = self.app.bg_canvas.create_line(
                 self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1

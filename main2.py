@@ -287,7 +287,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_job = self.after(280, self._animate_marquee_step)
 
     def update_battery_display(self, text, color="#666666"):
-        # FIXED DISPLAY LIFECYCLE: Strict structural check to block drawing over scroller lanes
         if hasattr(self, 'track_scroller') and self.track_scroller.is_open:
             self.bg_canvas.itemconfig("battery_sub", text="")
             return
@@ -430,6 +429,10 @@ class HandheldPlayerApp(ctk.CTk):
         self.clear_telemetry_for_menu()
         if hasattr(self, 'track_scroller'):
             self.track_scroller.toggle_full_page_scroller()
+        
+        # INSTANT SNAP FIX: Repaint state immediately on button press
+        if hasattr(self, 'battery_monitor'):
+            self.battery_monitor._execute_telemetry_render()
 
     def add_song(self): pass
 

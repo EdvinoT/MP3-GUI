@@ -32,10 +32,9 @@ class BatteryTelemetry:
             if self.current_battery_pct < 20:
                 display_string += " [!] LOW VOLTAGE"
             
-            # 1. FIXED SCROLLER MENU LEAK: Stop writing telemetry strings if track layout is open
             if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
                 self.app.update_battery_display("", color=battery_color)
-                return  # Safely abort rendering to protect the scroll track lines
+                return  
 
             if self.app.btn_access.winfo_manager() != "":
                 self.app.update_battery_display(display_string, color=battery_color)
@@ -52,6 +51,9 @@ class BatteryTelemetry:
                         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
             else:
                 self.app.update_battery_display("", color=battery_color)
+            
+            # FORCE APPLICATION FRAME TO RE-RENDER IMMEDIATELY
+            self.app.update()
                 
         except Exception as e:
             print(f"[Telemetry Render Sync] Canvas bypass: {e}")
