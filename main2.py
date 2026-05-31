@@ -57,7 +57,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
         self.resizable(False, False)  
         
-        # MASTER STATE CONTROL: Stops background loops instantly on shutdown
         self.running = True
 
         self.click_sound = None
@@ -72,8 +71,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.is_playing = False
         self.current_track_length = 0  
         
-        self.shuffle_enabled = False  # Critical base line
-        self.original_order = []
+        self.shuffle_enabled = False
+        self.original_order = []    
 
         self.is_buffering_track = False
 
@@ -288,6 +287,11 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_job = self.after(280, self._animate_marquee_step)
 
     def update_battery_display(self, text, color="#666666"):
+        # FIXED DISPLAY LIFECYCLE: Strict structural check to block drawing over scroller lanes
+        if hasattr(self, 'track_scroller') and self.track_scroller.is_open:
+            self.bg_canvas.itemconfig("battery_sub", text="")
+            return
+            
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -364,7 +368,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text(f"{track_name}", color="#888888")
 
     def _update_playback_loop(self):
-        # FIXED SHUTDOWN CONFLICT: Kill the loop if app is shutting down
         if not self.running:
             return
 
@@ -376,7 +379,6 @@ class HandheldPlayerApp(ctk.CTk):
             current_ms = pygame.mixer.music.get_pos()
             
             if current_ms == -1 or (pygame.mixer.music.get_busy() == 0 and current_ms > 0):
-                # Double check that we didn't just hit turn off mid-execution
                 if self.running:
                     self.next_track()
             else:
@@ -434,11 +436,9 @@ class HandheldPlayerApp(ctk.CTk):
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # 1. SET MASTER FLAG TO FALSE IMMEDIATELY (Locks out playback checking)
         self.running = False
         self.is_playing = False
 
-        # 2. CLEAR ALL BACKGROUND JOBS AND FORWARD AUDIO CHANNELS
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
@@ -450,7 +450,6 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"[AUDIO] Force stop failed: {e}")
 
-        # 3. PURGE WIDGET PLACEMENTS FROM MEMORY GRID
         try:
             self.btn_access.place_forget()
             self.btn_shuffle.place_forget()
@@ -461,13 +460,11 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"[GUI] Clear widgets failed: {e}")
 
-        # 4. CHIRP AUDIO ON EMPTY BACKGROUND
         self.play_ui_sound("shutdown")
         
         self.update_idletasks()
         self.update()
 
-        # 5. DISPATCH TEXT RENDER STAGES
         if self.battery_monitor.current_battery_pct < 20:
             self.update_status_text("▪ VOLTAGE CRITICALLY LOW ▪", color="#880000")
             self.update()
