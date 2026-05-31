@@ -1,3 +1,4 @@
+import pygame
 import loader
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
@@ -13,7 +14,6 @@ import scroller
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
 # Initialize audio engine with fixed buffer configurations for MP3 streams on macOS
-import pygame
 try:
     pygame.mixer.pre_init(44100, -16, 2, 2048)
     pygame.mixer.init()
@@ -35,9 +35,13 @@ class SurrealPlayerApp(ctk.CTk):
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-        # UI Sound Properties
+        # UI Sound Properties & Mixer Channels
         self.click_sound = None
         self.scroll_sound = None
+        
+        # Dedicated audio channel specifically for UI overlays (Channel 0)
+        # This keeps click/scroll sounds completely separate from your main music stream
+        self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
         # Core States
@@ -151,12 +155,19 @@ class SurrealPlayerApp(ctk.CTk):
         scroller.TrackScroller(self)
 
     def load_ui_sounds(self):
-        """Safely caches interface audio clicks and scrolls from disk directory."""
+        """Safely caches professional audio clicks and scrolls from disk directory."""
         try:
-            if os.path.exists("click.wav"):
+            # Check for the premium downloaded .ogg assets first
+            if os.path.exists("click.ogg"):
+                self.click_sound = pygame.mixer.Sound("click.ogg")
+            elif os.path.exists("click.wav"):
                 self.click_sound = pygame.mixer.Sound("click.wav")
-            if os.path.exists("scroll.wav"):
+
+            if os.path.exists("scroll.ogg"):
+                self.scroll_sound = pygame.mixer.Sound("scroll.ogg")
+            elif os.path.exists("scroll.wav"):
                 self.scroll_sound = pygame.mixer.Sound("scroll.wav")
+                
         except Exception as e:
             print(f"Notice: Could not cache audio feedback components: {e}")
 
@@ -295,9 +306,11 @@ class SurrealPlayerApp(ctk.CTk):
         """Global utility method triggered by scroller.py to execute interface audio cues."""
         try:
             if sound_type == "click" and self.click_sound is not None:
-                self.click_sound.play()
+                self.click_sound.set_volume(0.5)  # Serious physical click weight
+                self.ui_channel.play(self.click_sound)
             elif sound_type == "scroll" and self.scroll_sound is not None:
-                self.scroll_sound.play()
+                self.scroll_sound.set_volume(0.15)  # Clean, quiet background ticks
+                self.ui_channel.play(self.scroll_sound)
         except Exception as e:
             print(f"Audio system feedback error: {e}")
 
