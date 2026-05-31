@@ -159,7 +159,7 @@ class SurrealPlayerApp(ctk.CTk):
         scroller.TrackScroller(self)
 
         # --- PLUG IN AND DEPLOY SEPARATED TELEMETRY MODULE ---
-        self.battery_monitor = battery_telemetry.BatteryTelemetry(self)
+        self.battery_monitor = battery.BatteryTelemetry(self)
         self.battery_monitor.start()
 
     def load_ui_sounds(self):
