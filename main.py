@@ -308,9 +308,9 @@ class SurrealPlayerApp(ctk.CTk):
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
                 {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
-                {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
+                {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"},
                 {"log": "Terminating the Program...", "ui": "▪ CRITICAL HIT! ▪"}
-            ]
+                ]
             chosen = random.choice(shutdown_profiles)
             shutdown_ui_text = chosen["ui"]
             shutdown_color = "#BBBBBB"
