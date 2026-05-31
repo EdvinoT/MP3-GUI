@@ -42,10 +42,14 @@ class HandheldPlayerApp(ctk.CTk):
         self.load_ui_sounds()
 
         self.track_list = []
-        self.current_playlist = []
+        self.current_playlist = []  # Acts as our active playback queue
         self.current_track_index = 0
         self.is_playing = False
         
+        # New Shuffle States
+        self.shuffle_enabled = False
+        self.original_order = []    # Keeps track of alphabetical order so we can revert
+
         # Marquee Engine States
         self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
@@ -75,13 +79,14 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_access.place(x=60, y=140)
 
-        self.btn_playlist = ctk.CTkButton(
-            self, text="PLAYLISTS", font=button_font, 
+        # REPLACED PLAYLIST BUTTON WITH SHUFFLE TOGGLE
+        self.btn_shuffle = ctk.CTkButton(
+            self, text="SHUFFLE: OFF", font=button_font, 
             width=160, height=35, corner_radius=4, 
-            fg_color=btn_bg, text_color=btn_text,
-            command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.make_playlist()]
+            fg_color=btn_bg, text_color="#888888",
+            command=self.toggle_shuffle
         )
-        self.btn_playlist.place(x=60, y=190)
+        self.btn_shuffle.place(x=60, y=190)
 
         self.btn_add = ctk.CTkButton(
             self, text="ADD SONG", font=button_font, 
@@ -127,7 +132,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_next.pack(side="left", padx=10)
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
         self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
@@ -157,7 +161,40 @@ class HandheldPlayerApp(ctk.CTk):
             os.makedirs(self.tracks_dir)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(".mp3")]
         self.track_list.sort()
-        self.current_playlist = list(self.track_list)
+        self.original_order = list(self.track_list)
+        
+        # If shuffle was already active when tracks loaded, scramble them
+        if getattr(self, 'shuffle_enabled', False):
+            random.shuffle(self.track_list)
+        else:
+            self.track_list = list(self.original_order)
+
+    def toggle_shuffle(self):
+        """Switches playback sequence structure between linear and scrambled tracking."""
+        self.play_ui_sound("click")
+        if not self.track_list:
+            messagebox.showinfo("Playback", "No tracks available to shuffle.")
+            return
+
+        # Capture whatever track is currently loaded so we don't lose our place
+        current_track_name = self.track_list[self.current_track_index] if self.track_list else None
+
+        self.shuffle_enabled = not self.shuffle_enabled
+
+        if self.shuffle_enabled:
+            # Scramble the active queue
+            random.shuffle(self.track_list)
+            self.btn_shuffle.configure(text="SHUFFLE: ON", text_color="#FFB300")
+            self.update_status_text("▪ SHUFFLE ENABLED ▪", color="#FFB300")
+        else:
+            # Revert queue back to alphabetical order
+            self.track_list = list(self.original_order)
+            self.btn_shuffle.configure(text="SHUFFLE: OFF", text_color="#888888")
+            self.update_status_text("▪ LINEAR TRACKING ▪", color="#888888")
+
+        # Re-index to ensure the currently playing song doesn't suddenly jump tracks mid-play
+        if current_track_name in self.track_list:
+            self.current_track_index = self.track_list.index(current_track_name)
 
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
@@ -170,13 +207,11 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # PERMANENT HEADER: This string tag is never altered by any class functions anymore
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
-        # Subheading Element Layer Setup
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text="▪ ONLINE ▪",
             font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
@@ -188,45 +223,21 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
     def update_status_text(self, text, color="#888888"):
-        """Safely updates text configurations and handles layout lengths cleanly."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
 
-        # Standardize the text input right away
         self.marquee_text = text.upper().strip()
         self.marquee_color = color
         self.scroll_offset = 0
 
-        # CLEANUP CHECK: Strip out symbols and prefixes to measure the actual song name length
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
-        
-        # If the actual song name is long, start the rolling scroller
-        if len(clean_check) > 12 and "VOLTAGE" not in self.marquee_text:
+        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text and "FLUSH" not in self.marquee_text:
             self._animate_marquee_step()
         else:
-            # If it's short, just keep it perfectly centered on the screen
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
-    def _animate_marquee_step(self):
-        """Clean rolling loop animation frame slicer for long song names."""
-        # Check if we are currently on the main menu view
-        if self.btn_access.winfo_manager() != "":
-            # Add a clear space buffer so the text loops cleanly instead of cutting off
-            padded_text = self.marquee_text + "      ▪      "
-            
-            # Pull a fixed window of characters to display on the screen
-            display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
-            
-            self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
-            self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
-            
-            # Increment scroll frame offset
-            self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
-            self.marquee_job = self.after(280, self._animate_marquee_step)
-        else:
-            self.marquee_job = None
     def _animate_marquee_step(self):
         if self.btn_access.winfo_manager() != "":
             padded_text = self.marquee_text + "         "
@@ -320,7 +331,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("status_sub", text="")
 
     def access_songs(self): pass
-    def make_playlist(self): pass
     def add_song(self): pass
 
     def return_to_main_menu(self):
@@ -338,15 +348,13 @@ class HandheldPlayerApp(ctk.CTk):
         pygame.mixer.music.stop()
         
         self.btn_access.place_forget()
-        self.btn_playlist.place_forget()
+        self.btn_shuffle.place_forget()
         self.btn_add.place_forget()
         self.btn_off.place_forget()
         self.playback_frame.place_forget()
         
         self.bg_canvas.delete("back_btn", "track_item") 
 
-        # FIXED LOGS: The Main Title is completely left alone.
-        # Shutdown sequence runs entirely on the active status text line now.
         if self.battery_monitor.current_battery_pct < 20:
             shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
             self.update_status_text(shutdown_ui_text, color="#880000")
