@@ -103,28 +103,28 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # Main Playback Container (Completely Transparent)
-        self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
+        # Main Playback Container (Forced transparent, completely invisible wrapper background)
+        self.playback_frame = ctk.CTkFrame(self, fg_color="transparent", bg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        # 1. FLOATING TIMER: Native transparent layout, absolutely no dark box wrapper
+        # 1. FLOATING TIMER: 100% transparent background over your main canvas
         self.lbl_timer = ctk.CTkLabel(
             self.playback_frame, text="0:00", 
-            fg_color="transparent",
+            fg_color="transparent", bg_color="transparent",
             font=("Courier New", 12, "bold"), text_color="#00A8FF"
         )
         self.lbl_timer.pack(side="top", pady=(0, 4))
 
-        # 2. LINE ANIMATION BOX: Closed container solely hosting the progress line tracking
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
+        # 2. LINE ANIMATION BOX: This specific container carries the black box background frame
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", bg_color="transparent", height=8, width=200, corner_radius=2)
         self.progress_container.pack(side="top", pady=(0, 14)) 
         self.progress_container.pack_propagate(False)
 
-        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", bg_color="transparent", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 3. CONTROL BUTTONS DOCK: Separated dark horizontal box dedicated to hardware style icons
-        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
+        # 3. CONTROL BUTTONS DOCK: Separate clean black horizontal container box for the buttons
+        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", bg_color="transparent", height=36, width=170, corner_radius=4)
         self.controls_dock.pack(side="top")
         self.controls_dock.pack_propagate(False)
 
@@ -167,7 +167,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
 
-        # Initialize internal monitoring loops
         self._update_playback_loop()
 
     def load_ui_sounds(self):
