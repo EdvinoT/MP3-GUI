@@ -19,12 +19,6 @@ class BatteryTelemetry:
         else:
             return 100 
 
-    def _process_telemetry_cycle(self):
-        # Only decrease battery percentage if this function is triggered by the automatic 4-second loop
-        # (This prevents rapid battery draining when clicking back and forth through menus)
-        # We handle that check inside the loop calling block directly.
-        pass
-
     def _execute_telemetry_render(self):
         if self.current_battery_pct < 20:
             battery_color = "#880000"  
@@ -46,27 +40,25 @@ class BatteryTelemetry:
                 elif self.app.is_playing and self.app.track_list:
                     track_name = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
                     target_text = f"▶ {track_name}"
-                    # Guard prevents restarting the marquee loop if the song name is identical
                     if self.app.marquee_text != target_text.upper():
                         self.app.update_status_text(target_text, color="#FFB300")
                 else:
+                    # FIXED: Fallback forces "ONLINE" directly to the visual layer if idle
                     if self.app.marquee_text != "▪ ONLINE ▪":
                         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
             else:
                 self.app.update_battery_display("", color=battery_color)
                 
         except Exception as e:
-            print(f"[Telemetry Render Warning] skipped: {e}")
+            print(f"[Telemetry Render Sync] Canvas bypass: {e}")
 
     def _process_telemetry_cycle(self):
-        """Forced instant manual execution layer."""
         self._execute_telemetry_render()
 
     def _execute_ui_pulse_loop(self):
         if not self.is_running:
             return
 
-        # Advance battery drain sequence
         self.current_battery_pct = self._read_hardware_voltage()
         self._execute_telemetry_render()
 

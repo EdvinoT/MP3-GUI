@@ -46,8 +46,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
         
-        # Marquee Engine Variables
-        self.marquee_text = ""
+        # Marquee Engine States
+        self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
         self.marquee_color = "#888888"
         self.scroll_offset = 0
@@ -170,13 +170,15 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
+        # PERMANENT HEADER: This string tag is never altered by any class functions anymore
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
+        # Subheading Element Layer Setup
         self.bg_canvas.create_text(
-            self.SCREEN_WIDTH // 2, 85, text="",
+            self.SCREEN_WIDTH // 2, 85, text="▪ ONLINE ▪",
             font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
         )
 
@@ -186,7 +188,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
     def update_status_text(self, text, color="#888888"):
-        """Safely updates text configurations and handles layout lengths."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
@@ -195,21 +196,16 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_color = color
         self.scroll_offset = 0
 
-        # FIXED ENGINE CHECK: Strip spacing flags out before calculating marquee lengths
         clean_check = self.marquee_text.replace("▶ ", "").strip()
-        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text:
+        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text and "FLUSH" not in self.marquee_text:
             self._animate_marquee_step()
         else:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
     def _animate_marquee_step(self):
-        """Clean rolling loop animation frame slicer."""
         if self.btn_access.winfo_manager() != "":
-            # Append trailing spaces for a visual delay buffer
             padded_text = self.marquee_text + "         "
-            
-            # Extract a fixed sliding window of characters
             display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
             
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
@@ -239,7 +235,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_play.configure(text="❚❚") 
             
             clean_name = track_name.replace(".mp3", "")
-            self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
             self.update_status_text(f"▶ {clean_name}", color="#FFB300")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
@@ -255,7 +250,6 @@ class HandheldPlayerApp(ctk.CTk):
                 self.btn_play.configure(text="❚❚")
                 
                 track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-                self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
                 self.update_status_text(f"▶ {track_name}", color="#FFB300")
             else:
                 self.play_current_track()
@@ -263,7 +257,6 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
-            self.bg_canvas.itemconfig("main_title", text="P A U S E D", fill="#000000")
             self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
 
     def next_track(self):
@@ -306,9 +299,7 @@ class HandheldPlayerApp(ctk.CTk):
     def make_playlist(self): pass
     def add_song(self): pass
 
-    # CRITICAL NEW INTERACTION LAYER: Instantly forces text rebuild loops when leaving sub-menus
     def return_to_main_menu(self):
-        """Call this from your scroller/loader script back buttons to avoid the 4-second delay."""
         if hasattr(self, 'battery_monitor'):
             self.battery_monitor._process_telemetry_cycle()
 
@@ -330,12 +321,11 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.bg_canvas.delete("back_btn", "track_item") 
 
-        self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
-
+        # FIXED LOGS: The Main Title is completely left alone.
+        # Shutdown sequence runs entirely on the active status text line now.
         if self.battery_monitor.current_battery_pct < 20:
             shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
-            shutdown_color = "#880000"
-            self.update_status_text(shutdown_ui_text, color=shutdown_color)
+            self.update_status_text(shutdown_ui_text, color="#880000")
             self.update()
             self.after(800, self.final_destroy)
         else:
@@ -351,12 +341,12 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
-            self.after(600, lambda: self.shutdown_step_two(chosen["ui"]))
+            self.after(800, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):
         self.update_status_text(secondary_text, color="#BBBBBB")
         self.update()
-        self.after(600, self.final_destroy)
+        self.after(800, self.final_destroy)
 
     def final_destroy(self):
         self.track_list.clear()
