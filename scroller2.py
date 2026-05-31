@@ -84,7 +84,7 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
-        """Detects if the cursor is hovering over a track row lane to trigger a flat highlight."""
+        """Detects if the cursor is hovering over a track row lane to trigger a fast snap animation."""
         if not self.is_open:
             return
 
@@ -114,7 +114,8 @@ class TrackScroller:
                             if bbox:
                                 _, y1, _, y2 = bbox
                                 padding = 4  
-                                self.draw_flat_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
+                                # Trigger the hardware-safe 2-step animation loop
+                                self.animate_snap_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
                         return
         else:
             canvas_y = event.y
@@ -134,11 +135,37 @@ class TrackScroller:
                             if bbox:
                                 _, y1, _, y2 = bbox
                                 padding = 4
-                                self.draw_flat_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
+                                self.animate_snap_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
                             return
             else:
                 self.clear_hover_strip()
 
+    def animate_snap_highlight(self, x1, y1, x2, y2):
+        """
+        Animate a quick 2-frame background snap.
+        Starts with a subtle flash color, then settles immediately to dark gray.
+        This provides visual feedback using zero sustained CPU power.
+        """
+        if not self.is_open:
+            return
+
+        # Frame 1: Instant high-contrast accent pop color (light gray)
+        self.hover_strip_id = self.app.bg_canvas.create_rectangle(
+            x1, y1, x2, y2, fill="#3A3A3F", outline=""
+        )
+        self.app.bg_canvas.tag_lower(self.hover_strip_id)
+        
+        for item_id in self.canvas_item_ids:
+            self.app.bg_canvas.tag_raise(item_id)
+
+        # Frame 2: Settle to final background color after 40 milliseconds
+        # This creates a responsive "clicky" UI feel without a continuous math loop
+        self.app.after(40, lambda: self.settle_highlight_color())
+
+    def settle_highlight_color(self):
+        """Settles the animation frame down to the final low-contrast row background."""
+        if self.hover_strip_id and self.is_open:
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#212124")
     def draw_flat_highlight(self, x1, y1, x2, y2):
         """Renders an instant solid focus background block behind the text row."""
         if not self.is_open:
