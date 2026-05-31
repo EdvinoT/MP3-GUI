@@ -11,7 +11,7 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 6 
+        self.visible_count = 7  # FIXED: Locks rendering list length to exactly 7 to mask everything down to Y=320
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
@@ -74,7 +74,6 @@ class TrackScroller:
         if not self.app.track_list: return
         old_offset = self.scroll_offset
 
-        # Processes standard wheel systems and alternative Linux triggers
         if event.num == 4 or event.delta > 0:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5 or event.delta < 0:
@@ -159,7 +158,6 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
-        # Safely detach wheel tracking listeners when changing views
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
@@ -217,22 +215,30 @@ class TrackScroller:
             self.canvas_item_ids.append(empty_id)
             return
 
-        visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
-
-        for index, track_name in enumerate(visible_tracks):
+        # FIXED SCROLLER: Always force loop 7 times so lines go down to the absolute bottom of the GUI
+        for index in range(self.visible_count):
             actual_track_index = index + self.scroll_offset
-            clean_display_title = track_name.replace(".mp3", "")
-            if len(clean_display_title) > 32:
-                clean_display_title = clean_display_title[:29] + "..."
-                
             y_pos = self.ROW_START_Y + (index * self.LINE_HEIGHT)
-            display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
+            
+            if actual_track_index < len(self.app.track_list):
+                track_name = self.app.track_list[actual_track_index]
+                clean_display_title = track_name.replace(".mp3", "")
+                if len(clean_display_title) > 32:
+                    clean_display_title = clean_display_title[:29] + "..."
+                    
+                display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
-            track_id = self.app.bg_canvas.create_text(
-                50, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
-            )
-            self.canvas_item_ids.append(track_id)
-            self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
+                track_id = self.app.bg_canvas.create_text(
+                    50, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                )
+                self.canvas_item_ids.append(track_id)
+                self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
+            else:
+                # Creates an invisible text layer to cleanly maintain coverage structures even with a tiny tracklist
+                track_id = self.app.bg_canvas.create_text(
+                    50, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                )
+                self.canvas_item_ids.append(track_id)
 
             line_y = y_pos + 14  
             divider_id = self.app.bg_canvas.create_line(

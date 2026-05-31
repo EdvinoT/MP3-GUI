@@ -418,20 +418,20 @@ class HandheldPlayerApp(ctk.CTk):
         self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()
         
+        # FIXED: Instantly throw widgets out of placement coordinates to protect against screen cut-offs
         self.btn_access.place_forget()
         self.btn_shuffle.place_forget()
         self.btn_add.place_forget()
         self.btn_off.place_forget()
         
         self.playback_frame.place_forget()
-        
         self.bg_canvas.delete("back_btn", "track_item") 
 
         if self.battery_monitor.current_battery_pct < 20:
             shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
             self.update_status_text(shutdown_ui_text, color="#880000")
             self.update()
-            self.after(800, self.final_destroy)
+            self.after(1000, self.final_destroy)
         else:
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
@@ -445,13 +445,13 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
-            # Non-abrupt schedule: Transition gracefully instead of instant destruction
-            self.after(800, lambda: self.shutdown_step_two(chosen["ui"]))
+            # Smooth transmission steps
+            self.after(1000, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):
         self.update_status_text(secondary_text, color="#BBBBBB")
         self.update()
-        self.after(800, self.final_destroy)
+        self.after(1000, self.final_destroy)
 
     def final_destroy(self):
         self.track_list.clear()
