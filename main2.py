@@ -68,7 +68,7 @@ class HandheldPlayerApp(ctk.CTk):
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
         btn_text = "#DDDDDD" 
-        btn_hover = "#00A8FF"  # Blue hover accent to match line tracker
+        btn_hover = "#00A8FF"  
 
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
@@ -103,11 +103,11 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # Main Playback Container (Completely transparent)
+        # Main Playback Container (Completely Transparent)
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        # Niche Transparent Countdown Timer (Sits floating above the box)
+        # 1. FLOATING TIMER: Native transparent layout, absolutely no dark box wrapper
         self.lbl_timer = ctk.CTkLabel(
             self.playback_frame, text="0:00", 
             fg_color="transparent",
@@ -115,44 +115,44 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.lbl_timer.pack(side="top", pady=(0, 4))
 
-        # ONLY THIS BLACK WRAPPER BOX STAYS: Progress Bar Base Container
+        # 2. LINE ANIMATION BOX: Closed container solely hosting the progress line tracking
         self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
-        self.progress_container.pack(side="top", pady=(0, 16)) 
+        self.progress_container.pack(side="top", pady=(0, 14)) 
         self.progress_container.pack_propagate(False)
 
-        # Progress Bar Moving Line Animation
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # Minimalist Icon Controls Row (No surrounding button wrapper boxes)
-        control_font = ("Arial", 14, "bold")
-        self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
-        self.controls_subframe.pack(side="top")
+        # 3. CONTROL BUTTONS DOCK: Separated dark horizontal box dedicated to hardware style icons
+        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
+        self.controls_dock.pack(side="top")
+        self.controls_dock.pack_propagate(False)
 
-        # FIXED: hover_color matches background so no box wrapper triggers on hover
+        control_font = ("Arial", 12, "bold")
+
         self.btn_prev = ctk.CTkButton(
-            self.controls_subframe, text="❬❬", font=control_font, 
-            width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="#101012",
+            self.controls_dock, text="❬❬", font=control_font, 
+            width=35, height=24, fg_color="transparent", text_color=btn_text,
+            hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
-        self.btn_prev.pack(side="left", padx=12)
+        self.btn_prev.place(relx=0.2, rely=0.5, anchor="center")
 
         self.btn_play = ctk.CTkButton(
-            self.controls_subframe, text="▶", font=control_font, 
-            width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="#101012",
+            self.controls_dock, text="▶", font=control_font, 
+            width=40, height=24, fg_color="transparent", text_color=btn_text,
+            hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
-        self.btn_play.pack(side="left", padx=12)
+        self.btn_play.place(relx=0.5, rely=0.5, anchor="center")
 
         self.btn_next = ctk.CTkButton(
-            self.controls_subframe, text="❭❭", font=control_font, 
-            width=35, height=25, fg_color="transparent", text_color=btn_text,
-            hover_color="#101012",
+            self.controls_dock, text="❭❭", font=control_font, 
+            width=35, height=24, fg_color="transparent", text_color=btn_text,
+            hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
-        self.btn_next.pack(side="left", padx=12)
+        self.btn_next.place(relx=0.8, rely=0.5, anchor="center")
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -341,7 +341,6 @@ class HandheldPlayerApp(ctk.CTk):
         if self.is_playing and self.current_track_length > 0:
             current_ms = pygame.mixer.music.get_pos()
             
-            # Auto-advance tracking logic when timer drops to 0 or track completes
             if current_ms == -1 or (pygame.mixer.music.get_busy() == 0 and current_ms > 0):
                 self.next_track()
             else:
