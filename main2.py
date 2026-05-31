@@ -135,17 +135,18 @@ class HandheldPlayerApp(ctk.CTk):
         if os.path.exists(png_path):
             try:
                 self.pil_bg_image = Image.open(png_path)
-                # For best performance, make sure background.png is already 480x320 on your PC!
                 resized = self.pil_bg_image.resize((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), Image.Resampling.NEAREST)
                 self.bg_photo = ImageTk.PhotoImage(resized)
                 self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw")
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Header text optimized for small viewing distances
+        # CHANGES APPLIED HERE:
+        # Title changed to black (#000000), text adjusted to "I D L E   S Y S T E M" 
+        # and font configured to use a skinnier, crisp sans-serif presentation.
         self.title_text_id = self.bg_canvas.create_text(
-            self.SCREEN_WIDTH // 2, 45, text="SURREAL SYSTEM",
-            font=("Futura", 22, "bold"), fill="#FFFFFF", anchor="center"
+            self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
+            font=("Helvetica Light", 20), fill="#000000", anchor="center"
         )
         
         self.sub_text_id = self.bg_canvas.create_text(
@@ -167,7 +168,6 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
-            # Display truncated track name so it doesn't run off the small screen
             display_name = track_name if len(track_name) < 20 else track_name[:17] + "..."
             self.update_status_text(f"Playing: {display_name}", color="#00FF00")
         except Exception:
