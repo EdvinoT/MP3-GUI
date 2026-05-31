@@ -46,7 +46,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
         
-        # Safe Telemetry States
+        # Marquee Memory Triggers
         self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
         self.marquee_color = "#888888"
@@ -56,11 +56,9 @@ class HandheldPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
-        # Core Base Canvas Layout
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
-        # Class-level reference keeps image out of Python garbage collection
         self.bg_photo = None
         self.setup_background_canvas()
 
@@ -69,7 +67,6 @@ class HandheldPlayerApp(ctk.CTk):
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF"
 
-        # FIXED TRIGGER MAPPINGS: Wipes text immediately when clicked
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -163,7 +160,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
-        """Safely loads image backdrop without destroying class tracking memory."""
         png_path = os.path.join(self.dir_path, "background.png")
         if os.path.exists(png_path):
             try:
@@ -220,7 +216,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.marquee_job = None
 
     def update_battery_display(self, text, color="#666666"):
-        """Instant physical toggle restriction checks."""
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -295,11 +290,12 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"UI Sound Drop: {e}")
 
+    # FIXED LAYOUT FIX: Wipes labels instantly on navigation clicks without breaking the subheading layer
     def clear_telemetry_for_menu(self):
-        """Instantly clears labels right when buttons are pressed."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
+        self.marquee_text = ""
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
