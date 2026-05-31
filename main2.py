@@ -72,6 +72,9 @@ class HandheldPlayerApp(ctk.CTk):
         self.shuffle_enabled = False
         self.original_order = []    
 
+        # ANTI-SKIPPING SYSTEM: Prevents track loop race conditions during track switches
+        self.is_buffering_track = False
+
         self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
         self.marquee_color = "#888888"
@@ -292,11 +295,14 @@ class HandheldPlayerApp(ctk.CTk):
         if not self.track_list:
             self.update_status_text("▪ NO TRACKS FOUND ▪", color="#FF3333")
             return
+        
+        # Enable buffering block to prevent the playback loop from auto-skipping
+        self.is_buffering_track = True
         track_name = self.track_list[self.current_track_index]
         track_path = os.path.join(self.tracks_dir, track_name)
+        
         try:
             pygame.mixer.music.load(track_path)
-            
             sound_object = pygame.mixer.Sound(track_path)
             self.current_track_length = sound_object.get_length()
             
@@ -308,6 +314,12 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text(f"▶ {clean_name}", color="#FFB300")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
+            
+        # Release the buffer lock after 400ms when hardware audio channel settles
+        self.after(400, self._clear_buffering_lock)
+
+    def _clear_buffering_lock(self):
+        self.is_buffering_track = False
 
     def toggle_play(self):
         if not self.track_list:
@@ -352,9 +364,15 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text(f"{track_name}", color="#888888")
 
     def _update_playback_loop(self):
+        # Skip updating if a song is currently handling a hardware channel swap
+        if self.is_buffering_track:
+            self.after(200, self._update_playback_loop)
+            return
+
         if self.is_playing and self.current_track_length > 0:
             current_ms = pygame.mixer.music.get_pos()
             
+            # Verifies that Pygame is genuinely idle rather than just experiencing buffer delay
             if current_ms == -1 or (pygame.mixer.music.get_busy() == 0 and current_ms > 0):
                 self.next_track()
             else:
@@ -411,20 +429,17 @@ class HandheldPlayerApp(ctk.CTk):
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # 1. KILL AUDIO IMMEDIATELY
         try:
             pygame.mixer.music.stop()
-            pygame.mixer.music.unload()  # Releases the file lock instantly
+            pygame.mixer.music.unload()  
         except Exception as e:
             print(f"[AUDIO] Force stop failed: {e}")
 
-        # 2. KILL LOOPS AND BACKGROUND TASKS IMMEDIATELY
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
         self.battery_monitor.stop()
 
-        # 3. FORCE THE BUTTONS OFF THE COORDINATE GRID IMMEDIATELY
         try:
             self.btn_access.place_forget()
             self.btn_shuffle.place_forget()
@@ -435,14 +450,11 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"[GUI] Clear widgets failed: {e}")
 
-        # 4. PLAY THE SHUTDOWN AUDIO CHIRP ON A CLEAN CANVAS
         self.play_ui_sound("shutdown")
         
-        # 5. FORCE TKINTER TO REDRAW THE SCREEN RIGHT NOW (Prevents VS Code clipping)
         self.update_idletasks()
         self.update()
 
-        # 6. ROUTE THE TEXT ANIMATION SEQUENCES
         if self.battery_monitor.current_battery_pct < 20:
             self.update_status_text("▪ VOLTAGE CRITICALLY LOW ▪", color="#880000")
             self.update()
@@ -460,7 +472,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
-            # Move cleanly to step two after 1.2 seconds
             self.after(1200, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):
@@ -475,18 +486,6 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.quit()
         except Exception:
             pass
-        print("=== SYSTEM OFFLINE ===\n")
-        self.destroy()
-
-    def shutdown_step_two(self, secondary_text):
-        self.update_status_text(secondary_text, color="#BBBBBB")
-        self.update()
-        self.after(1000, self.final_destroy)
-
-    def final_destroy(self):
-        self.track_list.clear()
-        self.current_playlist.clear()
-        pygame.mixer.quit()
         print("=== SYSTEM OFFLINE ===\n")
         self.destroy()
 
