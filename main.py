@@ -67,6 +67,7 @@ class SurrealPlayerApp(ctk.CTk):
         
         self.title_text_id = None
         self.sub_text_id = None
+        self.battery_text_id = None  # New dedicated canvas layer
 
         # Minimalist Options UI Layout
         button_font = ("Futura", 14)
@@ -218,14 +219,22 @@ class SurrealPlayerApp(ctk.CTk):
                     font=("Futura", 32), fill="#000000", anchor="center"
                 )
                 
-                # Check if telemetry object exists to draw percentage correctly at launch
                 current_status = "▪ ONLINE ▪"
+                battery_status = "BATTERY LIFE: --%"
                 if hasattr(self, 'battery_monitor'):
                     current_status = self.battery_monitor.get_status_string()
+                    battery_status = f"BATTERY LIFE: {self.battery_monitor.current_battery_pct}%"
 
+                # Row 1: The standard clean song title display layer
                 self.sub_text_id = self.bg_canvas.create_text(
                     w // 2, 145, text=current_status.upper(),
                     font=("Arial", 11), fill="#666666", anchor="center"
+                )
+
+                # Row 2: Brand new separate layer sitting clearly below the text row
+                self.battery_text_id = self.bg_canvas.create_text(
+                    w // 2, 175, text=battery_status.upper(),
+                    font=("Arial", 10, "bold"), fill="#666666", anchor="center"
                 )
                 
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
@@ -245,6 +254,11 @@ class SurrealPlayerApp(ctk.CTk):
     def update_status_text(self, custom_subtext, color="#666666"):
         if self.sub_text_id is not None:
             self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper(), fill=color)
+
+    def update_battery_display(self, text, color="#666666"):
+        """Dedicated interface method updating only the bottom battery sub-row."""
+        if self.battery_text_id is not None:
+            self.bg_canvas.itemconfig(self.battery_text_id, text=text.upper(), fill=color)
 
     def play_current_track(self):
         if not self.track_list:
@@ -308,7 +322,6 @@ class SurrealPlayerApp(ctk.CTk):
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # Cease detached threads immediately using our object's kill function
         self.battery_monitor.stop()
         
         shutdown_profiles = [
