@@ -47,6 +47,12 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
         
+        # Marquee Animation Engine States
+        self.raw_status_text = "▪ ONLINE ▪"
+        self.marquee_text = ""
+        self.marquee_job = None
+        self.marquee_color = "#888888"
+
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
@@ -164,42 +170,71 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Primary Title Header
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
-        # FIXED LOGIC: Maintain song readout text state if returned to main menu while track plays
-        current_status = "▪ ONLINE ▪"
         status_color = "#888888"
         if self.is_playing and self.track_list:
             track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-            display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
-            current_status = f"▶ {display_name}"
-            status_color = "#FFB300" # Cyberpunk Amber
+            self.raw_status_text = f"▶ {track_name}"
+            status_color = "#FFB300" 
         elif hasattr(self, 'battery_monitor') and self.battery_monitor.current_battery_pct < 20:
-            current_status = "▪ VOLTAGE CRITICALY LOW ▪"
+            self.raw_status_text = "▪ VOLTAGE CRITICALY LOW ▪"
             status_color = "#880000"
+        else:
+            self.raw_status_text = "▪ ONLINE ▪"
 
-        # Subtitle Status Line
         self.bg_canvas.create_text(
-            self.SCREEN_WIDTH // 2, 85, text=current_status.upper(),
+            self.SCREEN_WIDTH // 2, 85, text="",
             font=("Arial", 11), fill=status_color, anchor="center", tags="status_sub"
         )
 
+        # Kickstart marquee mapping framework
+        self.update_status_text(self.raw_status_text, color=status_color)
+
         battery_status = f"{self.battery_monitor.current_battery_pct}%" if hasattr(self, 'battery_monitor') else "--%"
-        # Micro-Battery Line
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 110, text=battery_status,
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
     def update_status_text(self, text, color="#888888"):
-        self.bg_canvas.itemconfig("status_sub", text=text.upper(), fill=color)
+        """Intercepts static text and routes it through a rolling ticker if it is too long."""
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
+
+        self.raw_status_text = text.upper()
+        self.marquee_color = color
+
+        # Ticker triggers if track text is long (greater than 20 characters)
+        if len(self.raw_status_text) > 20 and "VOLTAGE" not in self.raw_status_text:
+            # Append trailing spaces to buffer the roll loop cleanly
+            self.marquee_text = self.raw_status_text + "       "
+            self._animate_marquee_step()
+        else:
+            # Falls back to static alignment centered text automatically
+            self.bg_canvas.itemconfig("status_sub", text=self.raw_status_text, fill=self.marquee_color)
+
+    def _animate_marquee_step(self):
+        """Shifts string frames leftward to display full song names smoothly."""
+        # Main menu visibility validation check
+        if self.btn_access.winfo_manager() != "":
+            # Take a 20-character sliding window of the text
+            display_window = self.marquee_text[:20]
+            self.bg_canvas.itemconfig("status_sub", text=display_window, fill=self.marquee_color)
+            
+            # Roll text frame leftward
+            self.marquee_text = self.marquee_text[1:] + self.marquee_text[0]
+            
+            # Re-fire shift tick every 280ms (Perfect speed for small displays)
+            self.marquee_job = self.after(280, self._animate_marquee_step)
+        else:
+            self.marquee_job = None
 
     def update_battery_display(self, text, color="#666666"):
-        """Only print metrics if the main menu interface layer is present."""
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -218,11 +253,8 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_play.configure(text="❚❚") 
             
             clean_name = track_name.replace(".mp3", "")
-            display_name = clean_name if len(clean_name) < 24 else clean_name[:21] + "..."
-            
             self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
-            # CHANGED: Swapped neon green for an elegant Cyberpunk Amber (#FFB300)
-            self.update_status_text(f"▶ {display_name}", color="#FFB300")
+            self.update_status_text(f"▶ {clean_name}", color="#FFB300")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
 
@@ -237,9 +269,8 @@ class HandheldPlayerApp(ctk.CTk):
                 self.btn_play.configure(text="❚❚")
                 
                 track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-                display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
                 self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
-                self.update_status_text(f"▶ {display_name}", color="#FFB300")
+                self.update_status_text(f"▶ {track_name}", color="#FFB300")
             else:
                 self.play_current_track()
         else:
@@ -278,16 +309,30 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"UI Sound Drop: {e}")
 
-    # FIXED NAV ENGINES: Wipes the battery text instantly to eliminate screen lag artifacting
     def access_songs(self):
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
         self.bg_canvas.itemconfig("battery_sub", text="")
+        
     def make_playlist(self):
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
         self.bg_canvas.itemconfig("battery_sub", text="")
+        
     def add_song(self):
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
         self.bg_canvas.itemconfig("battery_sub", text="")
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
+        if self.marquee_job is not None:
+            self.after_cancel(self.marquee_job)
+            self.marquee_job = None
+
         self.battery_monitor.stop()
         self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()

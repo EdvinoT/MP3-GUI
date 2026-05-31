@@ -21,8 +21,7 @@ class BatteryTelemetry:
         if hasattr(self.app, 'is_playing') and self.app.is_playing:
             if self.app.track_list:
                 track_name = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
-                display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
-                return f"▶ {display_name}"
+                return f"▶ {track_name}"
         return "▪ ONLINE ▪"
 
     def _read_hardware_voltage(self):
@@ -51,16 +50,19 @@ class BatteryTelemetry:
             
             self.app.update_battery_display(display_string, color=battery_color)
             
-            # FIXED MONITOR LOGIC: Updates main menu screen with song name dynamically as background cycles
+            # Let the battery pulse cleanly feed metadata to the new marquee engine
             if self.app.btn_access.winfo_manager() != "":
-                if self.current_battery_pct < 20:
+                if self.app.current_battery_pct < 20:
                     self.app.update_status_text("▪ VOLTAGE CRITICALY LOW ▪", color="#880000")
                 elif self.app.is_playing and self.app.track_list:
                     track_name = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
-                    display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
-                    self.app.update_status_text(f"▶ {display_name}", color="#FFB300") # Muted Amber Text Update
+                    target_text = f"▶ {track_name}"
+                    # Only update if the base text actually changed to protect layout render loops
+                    if self.app.raw_status_text != target_text.upper():
+                        self.app.update_status_text(target_text, color="#FFB300")
                 elif not self.app.is_playing:
-                    self.app.update_status_text("▪ ONLINE ▪", color="#888888")
+                    if self.app.raw_status_text != "▪ ONLINE ▪":
+                        self.app.update_status_text("▪ ONLINE ▪", color="#888888")
                 
         except Exception as e:
             print(f"[Battery Monitor] Canvas refresh skipped: {e}")
