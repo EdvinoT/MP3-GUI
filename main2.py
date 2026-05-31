@@ -30,6 +30,9 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         self.app = app_instance
 
     def place(self, **kwargs):
+        # Only bring elements back if the scroller menu isn't currently active
+        if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
+            return
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
         if self.app.timer_text_id:
@@ -37,6 +40,7 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         super().place(**kwargs)
 
     def place_forget(self):
+        # Explicitly tear down all decoupled bottom components from the window layout matrix
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -264,7 +268,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
         
-        # FIXED: Prevent module notifications or menu headers from scrolling inside the marquee engine
+        # Keep static module labels or short titles centered, but let long song titles scroll freely
         if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or len(clean_check) <= 16:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
@@ -364,7 +368,7 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 mins, secs = divmod(time_remaining, 60)
-                self.app.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
+                self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
                 
                 if time_remaining <= 0:
                     self.next_track()
