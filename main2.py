@@ -7,7 +7,7 @@ import os
 import warnings
 import io
 import random 
-import scroller2  # UPDATED TO IMPORT SCROLLER2
+import scroller2  
 
 # Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -36,12 +36,8 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.title("Surreal MP3")
         self.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
-        self.resizable(False, False)  # Disables desktop resizing layout bugs
+        self.resizable(False, False)  
         
-        # Uncomment the line below when running on the actual handheld 
-        # to hide the desktop mouse/window borders for a native app feel:
-        # self.overrideredirect(True) 
-
         # Track Management
         self.track_list = []
         self.current_track_index = 0
@@ -58,7 +54,7 @@ class HandheldPlayerApp(ctk.CTk):
         # Load the background image statically (no heavy CPU resizing)
         self.setup_background_canvas()
 
-        # 2. COMPACT BUTTON LAYOUT (Scaled down to fit an iPhone-sized footprint)
+        # 2. COMPACT BUTTON LAYOUT
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
         btn_text = "#DDDDDD" 
@@ -98,7 +94,7 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # 3. LOWERED PLAYBACK CONTROLS (Easily reachable with a thumb)
+        # 3. LOWERED PLAYBACK CONTROLS
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -125,7 +121,7 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_next.pack(side="left", padx=10)
 
-        # Load the handheld optimized track scroller module engine
+        # Load modules
         scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
@@ -147,12 +143,13 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Black, clean, thin-styled font variant for "IDLE SYSTEM"
+        # Primary Title Header
         self.title_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center"
         )
         
+        # Dynamic Status / Track Readout Line
         self.sub_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text="▪ ONLINE ▪",
             font=("Arial", 11), fill="#888888", anchor="center"
@@ -164,7 +161,7 @@ class HandheldPlayerApp(ctk.CTk):
 
     def play_current_track(self):
         if not self.track_list:
-            self.update_status_text("▪ NO TRACKS FOUND ▪")
+            self.update_status_text("▪ NO TRACKS FOUND ▪", color="#FF3333")
             return
         track_name = self.track_list[self.current_track_index]
         track_path = os.path.join(self.tracks_dir, track_name)
@@ -173,8 +170,13 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
-            display_name = track_name if len(track_name) < 20 else track_name[:17] + "..."
-            self.update_status_text(f"Playing: {display_name}", color="#00FF00")
+            
+            # Clean track title representation for the header block
+            clean_name = track_name.replace(".mp3", "")
+            display_name = clean_name if len(clean_name) < 24 else clean_name[:21] + "..."
+            
+            self.bg_canvas.itemconfig(self.title_text_id, text="N O W   P L A Y I N G", fill="#000000")
+            self.update_status_text(f"▶ {display_name}", color="#00FF00")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
 
@@ -187,12 +189,19 @@ class HandheldPlayerApp(ctk.CTk):
                 pygame.mixer.music.unpause()
                 self.is_playing = True
                 self.btn_play.configure(text="❚❚")
+                
+                track_name = self.track_list[self.current_track_index].replace(".mp3", "")
+                display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
+                self.bg_canvas.itemconfig(self.title_text_id, text="N O W   P L A Y I N G", fill="#000000")
+                self.update_status_text(f"▶ {display_name}", color="#00FF00")
             else:
                 self.play_current_track()
         else:
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
+            self.bg_canvas.itemconfig(self.title_text_id, text="P A U S E D", fill="#000000")
+            self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
 
     def next_track(self):
         if not self.track_list: return
@@ -209,9 +218,37 @@ class HandheldPlayerApp(ctk.CTk):
     def add_song(self): pass
 
     def turn_off(self):
+        """Executes a sequenced terminal-style shutdown script layout on the canvas screen."""
+        # 1. Kill active hardware tasks safely
         pygame.mixer.music.stop()
         pygame.mixer.quit()
-        self.destroy()
+        
+        # 2. Dismiss physical button panels to isolate background text blocks
+        self.btn_access.place_forget()
+        self.btn_playlist.place_forget()
+        self.btn_add.place_forget()
+        self.btn_off.place_forget()
+        self.playback_frame.place_forget()
+        
+        # 3. Restyle headers into terminal feedback logs
+        self.bg_canvas.itemconfig(self.title_text_id, text="S H U T D O W N", fill="#FF5555")
+        self.update_status_text("▶ TERMINATING SYSTEM PROCESSES...", color="#FFAAAA")
+        self.update_idletasks()
+        
+        # Low-overhead delay steps to allow the user to read logs without locked frame rendering
+        self.after(400, lambda: self.shutdown_step_two())
+
+    def shutdown_step_two(self):
+        """Appends the secondary line update to the hardware console prompt."""
+        self.update_status_text("▶ UNMOUNTING CORE AUDIO ENGINE...", color="#FFAAAA")
+        self.update_idletasks()
+        self.after(400, lambda: self.shutdown_step_three())
+
+    def shutdown_step_three(self):
+        """Displays final structural status before terminating application loop lifecycle."""
+        self.update_status_text("▶ POWER CORES OFFLINE.", color="#FF3333")
+        self.update_idletasks()
+        self.after(500, lambda: self.destroy())
 
 if __name__ == "__main__":
     app = HandheldPlayerApp()
