@@ -30,7 +30,6 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         self.app = app_instance
 
     def place(self, **kwargs):
-        # Only bring elements back if the scroller menu isn't currently active
         if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
             return
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
@@ -40,7 +39,6 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         super().place(**kwargs)
 
     def place_forget(self):
-        # Explicitly tear down all decoupled bottom components from the window layout matrix
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -268,7 +266,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
         
-        # Keep static module labels or short titles centered, but let long song titles scroll freely
+        # Check if text is a module header or short system alert to keep it stationary
         if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or len(clean_check) <= 16:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
@@ -406,7 +404,6 @@ class HandheldPlayerApp(ctk.CTk):
     def access_songs(self):
         self.play_ui_sound("click")
         self.clear_telemetry_for_menu()
-        self.playback_frame.place_forget()
         if hasattr(self, 'track_scroller'):
             self.track_scroller.toggle_full_page_scroller()
 

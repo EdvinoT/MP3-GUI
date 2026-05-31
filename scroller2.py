@@ -11,12 +11,13 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 6 
+        
+        # Expanded row count to look correct as items extend down the screen
+        self.visible_count = 7  
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
-        self.menu_blocker_id = None
         
         self.LANE_X1 = 30
         self.LANE_X2 = 450
@@ -48,13 +49,10 @@ class TrackScroller:
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
         
-        self.clear_canvas_items()
+        # Enforce complete removal of the bottom button frame instantly
+        self.app.playback_frame.place_forget()
 
-        # FIXED: Create a solid visual blocker running all the way to Y=320 to cover layout elements safely
-        self.menu_blocker_id = self.app.bg_canvas.create_rectangle(
-            0, self.ROW_START_Y - 40, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT, 
-            fill="#101012", outline=""
-        )
+        self.clear_canvas_items()
 
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)
@@ -139,11 +137,6 @@ class TrackScroller:
         if not self.is_open: return
         self.hover_strip_id = self.app.bg_canvas.create_rectangle(x1, y1, x2, y2, fill="#3A3A3F", outline="")
         self.app.bg_canvas.tag_lower(self.hover_strip_id)
-        
-        # Keep everything correctly layered over the new bottom menu blocker block
-        if self.menu_blocker_id:
-            self.app.bg_canvas.tag_raise(self.hover_strip_id, self.menu_blocker_id)
-            
         for item_id in self.canvas_item_ids:
             self.app.bg_canvas.tag_raise(item_id)
         self.app.after(40, lambda: self.settle_highlight_color())
@@ -168,10 +161,6 @@ class TrackScroller:
         self.app.unbind("<Button-5>")
         self.app.bg_canvas.unbind("<Button-1>")
         self.app.bg_canvas.unbind("<Motion>")
-
-        if self.menu_blocker_id:
-            self.app.bg_canvas.delete(self.menu_blocker_id)
-            self.menu_blocker_id = None
 
         self.clear_hover_strip()
         self.clear_canvas_items()
@@ -243,12 +232,6 @@ class TrackScroller:
                 self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1
             )
             self.canvas_item_ids.append(divider_id)
-
-        # Layers canvas items cleanly on top of the blocker panel
-        if self.menu_blocker_id:
-            self.app.bg_canvas.tag_raise(back_id, self.menu_blocker_id)
-            for cid in self.canvas_item_ids:
-                self.app.bg_canvas.tag_raise(cid, self.menu_blocker_id)
 
     def on_canvas_click(self, event):
         clicked_item = self.app.bg_canvas.find_withtag("current")
