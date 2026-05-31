@@ -124,13 +124,13 @@ class TrackScroller:
                     if tag.startswith("track_") and tag != "track_item":
                         track_idx = int(tag.split("_")[1])
                         
+                        # FIX: Only disrupt the strip if we actually moved to a DIFFERENT row
                         if self.currently_hovered_idx != track_idx:
+                            self.clear_hover_strip()
                             self.currently_hovered_idx = track_idx
                             
                             if hasattr(self.app, 'play_ui_sound'):
                                 self.app.play_ui_sound("scroll")
-                            
-                            self.clear_hover_strip()
                             
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
@@ -149,12 +149,13 @@ class TrackScroller:
             
             if 0 <= estimated_row < visible_count:
                 track_idx = estimated_row + self.scroll_offset
+                # FIX: Only disrupt the strip if we actually moved to a DIFFERENT row
                 if self.currently_hovered_idx != track_idx:
+                    self.clear_hover_strip()
                     for item_id in self.canvas_item_ids:
                         tags = self.app.bg_canvas.gettags(item_id)
                         if f"track_{track_idx}" in tags:
                             self.currently_hovered_idx = track_idx
-                            self.clear_hover_strip()
                             
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
@@ -171,68 +172,58 @@ class TrackScroller:
         if not self.is_open or self.active_row_coords is None:
             return
 
-        # Define our start color (invisible blending with the glass lane) and target hover color
-        # Adjust these RGB values if you want a different tint!
         start_rgb = (235, 235, 240)  
         target_rgb = (210, 210, 215) 
 
-        # Initialization
         if not hasattr(self, 'fade_step'):
             self.fade_step = 0
             
-        max_steps = 8 # Total frames in the animation loop (lower = faster transition)
+        max_steps = 12 # Smooth transition frame resolution count
 
-        if self.fade_step <= max_steps:
-            # Linear interpolation math: figure out the color for this exact frame
-            t = self.fade_step / max_steps
-            r = int(start_rgb[0] + (target_rgb[0] - start_rgb[0]) * t)
-            g = int(start_rgb[1] + (target_rgb[1] - start_rgb[1]) * t)
-            b = int(start_rgb[2] + (target_rgb[2] - start_rgb[2]) * t)
-            
-            # Format cleanly into a standard Tkinter hexadecimal string (#RRGGBB)
-            current_hex = f"#{r:02x}{g:02x}{b:02x}"
+        # Compute current animation frame color
+        t = min(1.0, self.fade_step / max_steps)
+        r = int(start_rgb[0] + (target_rgb[0] - start_rgb[0]) * t)
+        g = int(start_rgb[1] + (target_rgb[1] - start_rgb[1]) * t)
+        b = int(start_rgb[2] + (target_rgb[2] - start_rgb[2]) * t)
+        current_hex = f"#{r:02x}{g:02x}{b:02x}"
 
-            x1, y1, x2, y2 = self.active_row_coords
+        x1, y1, x2, y2 = self.active_row_coords
 
-            # Draw or re-color the native canvas strip
-            if not self.hover_strip_id:
-                self.hover_strip_id = self.app.bg_canvas.create_rectangle(
-                    x1, y1, x2, y2, 
-                    fill=current_hex, 
-                    outline=""
-                )
-            else:
-                self.app.bg_canvas.itemconfig(self.hover_strip_id, fill=current_hex)
-                self.app.bg_canvas.coords(self.hover_strip_id, x1, y1, x2, y2)
+        # Render background block
+        if not self.hover_strip_id:
+            self.hover_strip_id = self.app.bg_canvas.create_rectangle(
+                x1, y1, x2, y2, 
+                fill=current_hex, 
+                outline=""
+            )
+        else:
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill=current_hex)
+            self.app.bg_canvas.coords(self.hover_strip_id, x1, y1, x2, y2)
 
-            # Restack structure: pull the strip up, then slam text/dividers over it
-            self.app.bg_canvas.tag_raise(self.hover_strip_id)
-            for item_id in self.canvas_item_ids:
-                self.app.bg_canvas.tag_raise(item_id)
+        # Restack layering order
+        self.app.bg_canvas.tag_raise(self.hover_strip_id)
+        for item_id in self.canvas_item_ids:
+            self.app.bg_canvas.tag_raise(item_id)
 
-            # Advance the animation frame clock
+        # Loop processing control
+        if self.fade_step < max_steps:
             self.fade_step += 1
             self.animation_job = self.app.after(15, lambda: self.run_smooth_fade(text_item_id))
 
     def clear_hover_strip(self):
         """Resets the frame clock mechanism and safely wipes the hover strip asset."""
         if hasattr(self, 'animation_job') and self.animation_job:
-            self.app.after_cancel(self.animation_job)
+            try:
+                self.app.after_cancel(self.animation_job)
+            except Exception:
+                pass
             self.animation_job = None
             
         if self.hover_strip_id:
             self.app.bg_canvas.delete(self.hover_strip_id)
             self.hover_strip_id = None
             
-        self.fade_step = 0  # CRITICAL: Reset color step clock
-        self.currently_hovered_idx = None
-        self.active_row_coords = None
-
-    def clear_hover_strip(self):
-        """Deletes the active background highlight row safely."""
-        if self.hover_strip_id:
-            self.app.bg_canvas.delete(self.hover_strip_id)
-            self.hover_strip_id = None
+        self.fade_step = 0  
         self.currently_hovered_idx = None
         self.active_row_coords = None
 
