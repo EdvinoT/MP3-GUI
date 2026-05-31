@@ -8,7 +8,7 @@ import warnings
 import io
 import random 
 import scroller2  
-import battery2  # UPDATED TO IMPORT BATTERY2
+import battery2  
 
 # Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -144,12 +144,10 @@ class HandheldPlayerApp(ctk.CTk):
         scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
-        # UPDATED: Targets the new battery2 module layout engine
         self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
 
     def load_ui_sounds(self):
-        """Pre-caches interactive micro-sounds into memory loops safely."""
         try:
             for ext in ["ogg", "wav"]:
                 if os.path.exists(f"click.{ext}"):
@@ -179,7 +177,7 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Primary Title Header - String tag targeted
+        # Primary Title Header
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
@@ -191,13 +189,13 @@ class HandheldPlayerApp(ctk.CTk):
             current_status = self.battery_monitor.get_status_string()
             battery_status = f"{self.battery_monitor.current_battery_pct}%"
 
-        # Subtitle Status Line - String tag targeted
+        # Subtitle Status Line
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text=current_status.upper(),
             font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
         )
 
-        # Micro-Battery Voltage Counter Line - String tag targeted
+        # Micro-Battery Line (Only displayed when Main Menu buttons are visible)
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 110, text=battery_status,
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
@@ -207,7 +205,12 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("status_sub", text=text.upper(), fill=color)
 
     def update_battery_display(self, text, color="#666666"):
-        self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
+        """Only prints the battery readouts if we are safely parked on the main menu view."""
+        if self.btn_access.winfo_manager() != "":
+            self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
+        else:
+            # Wipes readout when navigation menus overlay the core canvas layer
+            self.bg_canvas.itemconfig("battery_sub", text="")
 
     def play_current_track(self):
         if not self.track_list:
@@ -267,7 +270,6 @@ class HandheldPlayerApp(ctk.CTk):
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
     def play_ui_sound(self, sound_type):
-        """Fires localized transient microtones safely without interrupting running MP3 streams."""
         try:
             self.ui_channel.stop()  
             if sound_type == "click" and self.click_sound is not None:
@@ -287,7 +289,7 @@ class HandheldPlayerApp(ctk.CTk):
     def add_song(self): pass
 
     def turn_off(self):
-        """Closes system logs and unmounts thread hooks with real-time logging output."""
+        """Closes hardware threads safely, enforcing strict voltage check layout priorities."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         self.battery_monitor.stop()
         self.play_ui_sound("shutdown")
@@ -303,15 +305,19 @@ class HandheldPlayerApp(ctk.CTk):
         if not self.bg_canvas.find_withtag("main_title"):
             self.setup_background_canvas()
 
-        if self.battery_monitor.is_low_battery:
-            shutdown_ui_text = "▪ VOLTAGE DROP CRITICAL ▪"
-            shutdown_color = "#880000"
-            print("[INFO] Flushing core system stack registers...")
-            self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill=shutdown_color)
+        # FIXED LOGIC: Title string stays locked as "S H U T D O W N"
+        self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
+
+        # CRITICAL BATTERY THRESHOLD CHECK (< 20%)
+        if self.battery_monitor.current_battery_pct < 20:
+            shutdown_ui_text = "▪ VOLTAGE CRITICALY LOW ▪"
+            shutdown_color = "#880000"  # Dark Red Force Default
+            print("[CRITICAL] Low cell voltage. Overriding shutdown telemetry animation logs...")
             self.update_status_text(shutdown_ui_text, color=shutdown_color)
             self.update()
-            self.after(600, self.final_destroy)
+            self.after(800, self.final_destroy)
         else:
+            # Healthy Battery: Randomizes only the small script profile line
             shutdown_profiles = [
                 {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
                 {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
@@ -321,16 +327,15 @@ class HandheldPlayerApp(ctk.CTk):
             chosen = random.choice(shutdown_profiles)
             print(f"[INFO] {chosen['log']}")
             
-            self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
-            self.after(500, lambda: self.shutdown_step_two(chosen["ui"]))
+            self.after(600, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):
         self.update_status_text(secondary_text, color="#BBBBBB")
         self.update()
-        self.after(500, self.final_destroy)
+        self.after(600, self.final_destroy)
 
     def final_destroy(self):
         print("[INFO] Releasing hardware mixer channels...")
