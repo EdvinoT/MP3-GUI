@@ -8,7 +8,7 @@ import warnings
 import io
 import random 
 import scroller2  
-import battery  # INTEGRATED DESKTOP TELEMETRY COMPONENT
+import battery2  # UPDATED TO IMPORT BATTERY2
 
 # Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -144,7 +144,8 @@ class HandheldPlayerApp(ctk.CTk):
         scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
-        self.battery_monitor = battery.BatteryTelemetry(self)
+        # UPDATED: Targets the new battery2 module layout engine
+        self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
 
     def load_ui_sounds(self):
