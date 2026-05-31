@@ -1,3 +1,4 @@
+import loader2
 import pygame
 import customtkinter as ctk
 from tkinter import messagebox, Canvas
@@ -126,6 +127,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         # Load the handheld optimized track scroller module engine
         scroller2.TrackScroller(self)
+        loader2.SongLoader(self)
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
