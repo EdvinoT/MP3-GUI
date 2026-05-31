@@ -63,7 +63,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
         self.bg_photo = None
-        # This will initialize our background image and native canvas text IDs
         self.timer_text_id = None
         self.setup_background_canvas()
 
@@ -105,7 +104,11 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # 1. THE BLACK PROGRESS BOX (Stays intact, no container frame wrapper)
+        # --- COMPATIBILITY OBJECT ---
+        # This invisible object satisfies scroller2.py without creating a visual layout block
+        self.playback_frame = ctk.CTkFrame(self, width=0, height=0, fg_color="transparent")
+
+        # 1. PROGRESS CONTAINER (Thin Black Box)
         self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
@@ -113,7 +116,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 2. THE BLACK CONTROL DOCK BOX
+        # 2. CONTROL BUTTONS DOCK (Separated Bottom Black Box)
         self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
         self.controls_dock.place(relx=0.5, y=284, anchor="center")
         self.controls_dock.pack_propagate(False)
@@ -228,7 +231,7 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
-        # NATIVE CANVAS TIMER TEXT: Drawn cleanly directly on the image vector layer. 
+        # Native canvas text layer handles timer numbers seamlessly
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
             font=("Courier New", 12, "bold"), fill="#00A8FF", anchor="center", tags="playback_timer"
@@ -263,7 +266,7 @@ class HandheldPlayerApp(ctk.CTk):
         else:
             self.marquee_job = None
 
-    def update_battery_display((self, text, color="#666666")):
+    def update_battery_display(self, text, color="#666666"):
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -405,7 +408,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_container.place_forget()
         self.controls_dock.place_forget()
         
-        # Completely remove the timer text element from the canvas
         if self.timer_text_id:
             self.bg_canvas.delete(self.timer_text_id)
         
