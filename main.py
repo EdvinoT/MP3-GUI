@@ -308,8 +308,8 @@ class SurrealPlayerApp(ctk.CTk):
         # Pull standard text variations for localized terminal tracking
         shutdown_profiles = [
             {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
-            {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
-            {"log": "Flushing core system stack registers...", "ui": "▪ VOLTAGE DROP CRITICAL ▪"},
+            {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
+            {"log": "Flushing core system stack registers...", "ui": "▪ CRITICAL HIT! ▪"},
             {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
         ]
         chosen = random.choice(shutdown_profiles)
