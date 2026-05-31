@@ -68,7 +68,7 @@ class HandheldPlayerApp(ctk.CTk):
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
         btn_text = "#DDDDDD" 
-        btn_hover = "#FFFFFF"
+        btn_hover = "#00A8FF"  # Blue hover accent to match line tracker
 
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
@@ -103,52 +103,55 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # Main Playback Container
+        # Main Playback Container (Completely transparent)
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        # Niche Transparent Countdown Timer
+        # Niche Transparent Countdown Timer (Sits floating above the box)
         self.lbl_timer = ctk.CTkLabel(
             self.playback_frame, text="0:00", 
             fg_color="transparent",
-            font=("Courier New", 11, "bold"), text_color="#00A8FF"
+            font=("Courier New", 12, "bold"), text_color="#00A8FF"
         )
-        self.lbl_timer.pack(side="top", pady=(0, 2))
+        self.lbl_timer.pack(side="top", pady=(0, 4))
 
-        # Progress Bar Base Frame (Maintained black container layout)
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=6, width=200, corner_radius=2)
-        self.progress_container.pack(side="top", pady=(0, 18)) # Expanded spacing below the bar
+        # ONLY THIS BLACK WRAPPER BOX STAYS: Progress Bar Base Container
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
+        self.progress_container.pack(side="top", pady=(0, 16)) 
         self.progress_container.pack_propagate(False)
 
         # Progress Bar Moving Line Animation
-        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=6, width=0, corner_radius=2)
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # Minimalist Control Buttons Row
-        control_font = ("Arial", 11, "bold")
+        # Minimalist Icon Controls Row (No surrounding button wrapper boxes)
+        control_font = ("Arial", 14, "bold")
         self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
         self.controls_subframe.pack(side="top")
 
         self.btn_prev = ctk.CTkButton(
             self.controls_subframe, text="❬❬", font=control_font, 
-            width=45, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
+            width=35, height=25, fg_color="transparent", text_color=btn_text,
+            hover_color="transparent",
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
-        self.btn_prev.pack(side="left", padx=6)
+        self.btn_prev.pack(side="left", padx=12)
 
         self.btn_play = ctk.CTkButton(
             self.controls_subframe, text="▶", font=control_font, 
-            width=55, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
+            width=35, height=25, fg_color="transparent", text_color=btn_text,
+            hover_color="transparent",
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
-        self.btn_play.pack(side="left", padx=6)
+        self.btn_play.pack(side="left", padx=12)
 
         self.btn_next = ctk.CTkButton(
             self.controls_subframe, text="❭❭", font=control_font, 
-            width=45, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
+            width=35, height=25, fg_color="transparent", text_color=btn_text,
+            hover_color="transparent",
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
-        self.btn_next.pack(side="left", padx=6)
+        self.btn_next.pack(side="left", padx=12)
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -336,7 +339,11 @@ class HandheldPlayerApp(ctk.CTk):
     def _update_playback_loop(self):
         if self.is_playing and self.current_track_length > 0:
             current_ms = pygame.mixer.music.get_pos()
-            if current_ms != -1:
+            
+            # Auto-advance tracking logic when timer drops to 0 or track completes
+            if current_ms == -1 or (pygame.mixer.music.get_busy() == 0 and current_ms > 0):
+                self.next_track()
+            else:
                 current_secs = current_ms / 1000.0
                 ratio = min(current_secs / self.current_track_length, 1.0)
                 
@@ -345,6 +352,10 @@ class HandheldPlayerApp(ctk.CTk):
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 mins, secs = divmod(time_remaining, 60)
                 self.lbl_timer.configure(text=f"{mins}:{secs:02d}")
+                
+                if time_remaining <= 0:
+                    self.next_track()
+                    
         elif not self.is_playing:
             if pygame.mixer.music.get_pos() == -1:
                 self.progress_bar.configure(width=0)
