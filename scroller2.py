@@ -11,16 +11,17 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 7  # Visual grid slots per view page
+        self.visible_count = 7  # Restored to original full visual slots
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
+        # RESTORED: Original coordinate framework mappings
         self.LANE_X1 = 30
         self.LANE_X2 = 450
         self.ROW_START_Y = 110
-        self.LINE_HEIGHT = 22  # Compacted slightly to leave clean real estate for navigation elements
+        self.LINE_HEIGHT = 30
 
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
 
@@ -54,7 +55,7 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # Dynamic environment fallbacks
+        # Input event fallbacks
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)  
         self.app.bind("<Button-5>", self.on_mouse_scroll)  
@@ -73,14 +74,13 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def force_scroll_direction(self, direction):
-        """Uncapped navigation engine that steps accurately through any list size"""
         if not self.app.track_list: return
         old_offset = self.scroll_offset
         
         if direction == -1:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif direction == 1:
-            # UNLIMITED MATH: Allows scrolling all the way to the end of any file length
+            # Unlimited length tracking
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
             
@@ -115,8 +115,8 @@ class TrackScroller:
                 return
             else:
                 self.app.bg_canvas.itemconfig("back_btn", fill="#000000")
-                self.app.bg_canvas.itemconfig("ui_scroll_up", fill="#444444")
-                self.app.bg_canvas.itemconfig("ui_scroll_down", fill="#444444")
+                self.app.bg_canvas.itemconfig("ui_scroll_up", fill="#555555")
+                self.app.bg_canvas.itemconfig("ui_scroll_down", fill="#555555")
 
             if "track_item" in tags:
                 for tag in tags:
@@ -128,7 +128,7 @@ class TrackScroller:
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
                                 _, y1, _, y2 = bbox
-                                padding = 2  
+                                padding = 4  
                                 self.animate_snap_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
                         return
         else:
@@ -202,21 +202,21 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Menu Header Back Button
+        # Restored Original Layout Header Font Size & Placements
         back_id = self.app.bg_canvas.create_text(
             45, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
-        # DEDICATED MANUAL SCROLL NAVIGATION BUTTONS (Guaranteed Fix for VS Code / Touchscreens)
+        # COMPACT CORNER SYMBOLS: Minimalist layout footprint inside upper menu line
         scr_up_id = self.app.bg_canvas.create_text(
-            330, 80, text="▲ SCROLL UP",
-            font=("Futura", 9, "bold"), fill="#444444", anchor="w", tags=("ui_scroll_up",)
+            395, 80, text="▲",
+            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
         )
         scr_down_id = self.app.bg_canvas.create_text(
-            400, 80, text="▼ DOWN",
-            font=("Futura", 9, "bold"), fill="#444444", anchor="w", tags=("ui_scroll_down",)
+            435, 80, text="▼",
+            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_down",)
         )
         self.canvas_item_ids.extend([scr_up_id, scr_down_id])
 
@@ -235,23 +235,27 @@ class TrackScroller:
             if actual_track_index < len(self.app.track_list):
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
-                if len(clean_display_title) > 34:
-                    clean_display_title = clean_display_title[:31] + "..."
+                
+                # RESTORED: Original text length boundaries
+                if len(clean_display_title) > 32:
+                    clean_display_title = clean_display_title[:29] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
+                # RESTORED: Original font size (11)
                 track_id = self.app.bg_canvas.create_text(
-                    50, y_pos, text=display_string, font=("Arial", 10), fill="#000000", anchor="w"
+                    50, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    50, y_pos, text="", font=("Arial", 10), fill="#000000", anchor="w"
+                    50, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
-            line_y = y_pos + 10  
+            # RESTORED: Original line-divider spacing calculations
+            line_y = y_pos + 14  
             divider_id = self.app.bg_canvas.create_line(
                 self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1
             )
@@ -266,7 +270,6 @@ class TrackScroller:
             self.close_full_page_scroller()
             return
         
-        # Route explicit button click events
         if "ui_scroll_up" in tags:
             self.force_scroll_direction(-1)
             return
