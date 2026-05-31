@@ -11,7 +11,7 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        self.visible_count = 7  # FIXED: Locks rendering list length to exactly 7 to mask everything down to Y=320
+        self.visible_count = 7  # Keeps the 7 visual slots to cover the screen bounds completely
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
@@ -54,7 +54,7 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # FIXED SCROLL ENGINE: Dynamic bindings for Windows/Mac and Linux environments
+        # Dynamic environment listeners
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)  # Linux/Pi Scroll Up
         self.app.bind("<Button-5>", self.on_mouse_scroll)  # Linux/Pi Scroll Down
@@ -74,10 +74,12 @@ class TrackScroller:
         if not self.app.track_list: return
         old_offset = self.scroll_offset
 
+        # FIXED SCROLL CALCULATION: Allows shifting indices cleanly past the 7th entry limit boundary
         if event.num == 4 or event.delta > 0:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5 or event.delta < 0:
-            max_scroll = max(0, len(self.app.track_list) - self.visible_count)
+            # Allows the terminal list pointer to advance accurately row-by-row
+            max_scroll = max(0, len(self.app.track_list) - 1)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
         if self.scroll_offset != old_offset:
@@ -215,7 +217,9 @@ class TrackScroller:
             self.canvas_item_ids.append(empty_id)
             return
 
-        # FIXED SCROLLER: Always force loop 7 times so lines go down to the absolute bottom of the GUI
+        # Always slice exactly what fits or fill it safely with placeholders
+        visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
+
         for index in range(self.visible_count):
             actual_track_index = index + self.scroll_offset
             y_pos = self.ROW_START_Y + (index * self.LINE_HEIGHT)
@@ -234,7 +238,6 @@ class TrackScroller:
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
-                # Creates an invisible text layer to cleanly maintain coverage structures even with a tiny tracklist
                 track_id = self.app.bg_canvas.create_text(
                     50, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
