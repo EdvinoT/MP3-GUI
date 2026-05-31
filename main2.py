@@ -24,6 +24,30 @@ except Exception as mixer_err:
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
 
+# A clever custom controller frame that tells individual widgets to hide/show 
+# when scroller2.py calls place_forget() or place() on it.
+class PlaybackLifecycleController(ctk.CTkFrame):
+    def __init__(self, master, app_instance, **kwargs):
+        super().__init__(master, width=0, height=0, fg_color="transparent", **kwargs)
+        self.app = app_instance
+
+    def place(self, **kwargs):
+        # When restored/placed, reveal all separate playback pieces
+        self.app.progress_container.place(relx=0.5, y=252, anchor="center")
+        self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="normal")
+        super().place(**kwargs)
+
+    def place_forget(self):
+        # When scroller2 hiding triggers, cleanly sweep away the individual player elements
+        self.app.progress_container.place_forget()
+        self.app.controls_dock.place_forget()
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
+        super().place_forget()
+
+
 class HandheldPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -104,11 +128,7 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # --- COMPATIBILITY OBJECT ---
-        # This invisible object satisfies scroller2.py without creating a visual layout block
-        self.playback_frame = ctk.CTkFrame(self, width=0, height=0, fg_color="transparent")
-
-        # 1. PROGRESS CONTAINER (Thin Black Box)
+        # 1. PROGRESS CONTAINER (Thin Black Line Box)
         self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
@@ -146,6 +166,11 @@ class HandheldPlayerApp(ctk.CTk):
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
         self.btn_next.place(relx=0.8, rely=0.5, anchor="center")
+
+        # 3. INTER-MODULE CONTROLLER FRAME
+        # This empty master container directly routes layout status into scroller2.py updates
+        self.playback_frame = PlaybackLifecycleController(self, self)
+        self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -231,10 +256,10 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
-        # Native canvas text layer handles timer numbers seamlessly
+        # UPDATED: Timer color updated to a solid bold black ("#000000")
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
-            font=("Courier New", 12, "bold"), fill="#00A8FF", anchor="center", tags="playback_timer"
+            font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
         )
 
     def update_status_text(self, text, color="#888888"):
@@ -405,11 +430,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_add.place_forget()
         self.btn_off.place_forget()
         
-        self.progress_container.place_forget()
-        self.controls_dock.place_forget()
-        
-        if self.timer_text_id:
-            self.bg_canvas.delete(self.timer_text_id)
+        self.playback_frame.place_forget()
         
         self.bg_canvas.delete("back_btn", "track_item") 
 
