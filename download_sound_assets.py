@@ -2,9 +2,8 @@
 import wave
 import math
 import struct
-import os
 
-def generate_premium_ui_assets(filename, duration_ms, volume=0.5, type="slash"):
+def generate_smooth_cinematic_assets(filename, duration_ms, volume=0.4, type="slash"):
     sample_rate = 44100
     num_samples = int(sample_rate * (duration_ms / 1000.0))
     
@@ -17,51 +16,56 @@ def generate_premium_ui_assets(filename, duration_ms, volume=0.5, type="slash"):
             t = float(i) / sample_rate
             progress = i / num_samples
             
-            # High-fidelity white noise generation for organic friction textures
-            raw_noise = (int(i * 1234567) % 200 - 100) / 100.0
+            # Create a pseudo-random texture that alternates quickly to reduce piercing hiss
+            raw_noise = (((i * 9301 + 49297) % 233280) / 233280.0) * 2.0 - 1.0
             
             if type == "slash":
-                # --- SERIOUS METALLIC SLASH CLICK ---
-                # Rapid low-mid body drop from 380Hz to 60Hz
-                freq = 380 * math.exp(-progress * 6.0)
+                # --- SMOOTH CINEMATIC SWIPE / SLASH ---
+                # Lower the pitch sweep so it stays in a deep, serious register (220Hz down to 50Hz)
+                freq = 220 * math.exp(-progress * 4.0)
                 angle = 2.0 * math.pi * freq * t
                 fundamental = math.sin(angle)
                 
-                # High-passed air burst creates a razor-sharp mechanical slice texture
-                noise_envelope = math.cos(progress * (math.pi / 2))
-                textured_noise = raw_noise * noise_envelope * 0.75
+                # Low-pass filter effect: heavily dampens the high-pitched piercing noise as it plays
+                filter_damping = math.exp(-progress * 8.0)
+                soft_noise = raw_noise * filter_damping * 0.4
                 
-                # Blend the elements (Heavy physical punch + metallic friction air)
-                sample = (fundamental * 0.35) + (textured_noise * 0.65)
-                decay = math.exp(-t * 28)  # Lets the tail whisper off elegantly
+                # Fade-In (First 8ms): Smooths out the harsh initial pop
+                fade_in = min(1.0, t / 0.008)
+                
+                # Exponential Decay (Slower, natural tail so it NEVER cuts off halfway)
+                decay = math.exp(-t * 14) 
+                
+                sample = (fundamental * 0.5 + soft_noise * 0.5) * fade_in
                 
             else:
                 # --- TACTILE NOTCH SCROLL TICK ---
-                # Fixed deep 180Hz mechanical tone for a weighted, serious feel
-                freq = 180 
+                # A very low, round, satisfying wood-block/gear notch mechanical pulse
+                freq = 140 
                 angle = 2.0 * math.pi * freq * t
                 fundamental = math.sin(angle)
                 
-                # Crisp transient pop in the first 4 milliseconds mimics physical contact
-                snap = raw_noise * 0.45 if i < (sample_rate * 0.004) else 0.0
+                # Microscopic soft click at the start
+                snap = raw_noise * 0.15 if i < (sample_rate * 0.003) else 0.0
                 
-                sample = (fundamental * 0.65) + snap
-                decay = math.exp(-t * 95)  # Fast, sharp mechanical clamp
+                fade_in = min(1.0, t / 0.002)
+                decay = math.exp(-t * 85) 
                 
-            # Master clipping protection
+                sample = (fundamental * 0.85 + snap) * fade_in
+                
+            # Bring down master gain and clamp it safely to prevent ear fatigue
             final_wave = sample * volume * decay
-            final_wave = max(-1.0, min(1.0, final_wave))
+            final_wave = max(-0.8, min(0.8, final_wave))
             
-            # Convert float sample to 16-bit PCM binary data
             packed_sample = struct.pack('<h', int(final_wave * 32767))
             wav_file.writeframesraw(packed_sample)
 
-print("Locally compounding professional audio assets (bypassing networks)...")
+print("Compounding smooth, low-fatigue cinematic audio assets...")
 
-# Generate click.wav (140ms dramatic mechanical slice click)
-generate_premium_ui_assets("click.wav", duration_ms=140, volume=0.7, type="slash")
+# Generate click.wav: Bumps up to 250ms for a long, elegant cinematic air slash swipe
+generate_smooth_cinematic_assets("click.wav", duration_ms=250, volume=0.5, type="slash")
 
-# Generate scroll.wav (45ms explicit heavy gear detent tick)
-generate_premium_ui_assets("scroll.wav", duration_ms=45, volume=0.4, type="scroll")
+# Generate scroll.wav: 40ms deep matte mechanical wheel notch
+generate_smooth_cinematic_assets("scroll.wav", duration_ms=40, volume=0.3, type="scroll")
 
-print("Successfully written 'click.wav' and 'scroll.wav' locally!")
+print("Successfully written smoothed 'click.wav' and 'scroll.wav' locally!")
