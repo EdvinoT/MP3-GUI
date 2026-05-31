@@ -63,6 +63,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
         self.bg_photo = None
+        # This will initialize our background image and native canvas text IDs
+        self.timer_text_id = None
         self.setup_background_canvas()
 
         button_font = ("Futura", 11)
@@ -103,29 +105,17 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # Main Playback Container (Restored to anchor the custom player layout properly)
-        self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
-
-        # 1. FLOATING TIMER: Placed natively inside the layout with a forced transparent flag
-        self.lbl_timer = ctk.CTkLabel(
-            self.playback_frame, text="0:00", 
-            fg_color="transparent",
-            font=("Courier New", 12, "bold"), text_color="#00A8FF"
-        )
-        self.lbl_timer.pack(side="top", pady=(0, 4))
-
-        # 2. LINE ANIMATION BOX: Isolated black container holding only the line animation frame
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
-        self.progress_container.pack(side="top", pady=(0, 14)) 
+        # 1. THE BLACK PROGRESS BOX (Stays intact, no container frame wrapper)
+        self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
+        self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
 
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 3. CONTROL BUTTONS DOCK: Separate dark horizontal frame block dedicated to control icons
-        self.controls_dock = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
-        self.controls_dock.pack(side="top")
+        # 2. THE BLACK CONTROL DOCK BOX
+        self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
+        self.controls_dock.place(relx=0.5, y=284, anchor="center")
         self.controls_dock.pack_propagate(False)
 
         control_font = ("Arial", 12, "bold")
@@ -238,6 +228,12 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
+        # NATIVE CANVAS TIMER TEXT: Drawn cleanly directly on the image vector layer. 
+        self.timer_text_id = self.bg_canvas.create_text(
+            self.SCREEN_WIDTH // 2, 232, text="0:00",
+            font=("Courier New", 12, "bold"), fill="#00A8FF", anchor="center", tags="playback_timer"
+        )
+
     def update_status_text(self, text, color="#888888"):
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
@@ -267,7 +263,7 @@ class HandheldPlayerApp(ctk.CTk):
         else:
             self.marquee_job = None
 
-    def update_battery_display(self, text, color="#666666"):
+    def update_battery_display((self, text, color="#666666")):
         if self.btn_access.winfo_manager() != "":
             self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
         else:
@@ -317,7 +313,7 @@ class HandheldPlayerApp(ctk.CTk):
     def next_track(self):
         if not self.track_list: return
         self.progress_bar.configure(width=0)  
-        self.lbl_timer.configure(text="0:00")
+        self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
         self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
@@ -328,7 +324,7 @@ class HandheldPlayerApp(ctk.CTk):
     def prev_track(self):
         if not self.track_list: return
         self.progress_bar.configure(width=0)  
-        self.lbl_timer.configure(text="0:00")
+        self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
         self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
@@ -350,7 +346,7 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 mins, secs = divmod(time_remaining, 60)
-                self.lbl_timer.configure(text=f"{mins}:{secs:02d}")
+                self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
                 
                 if time_remaining <= 0:
                     self.next_track()
@@ -358,7 +354,7 @@ class HandheldPlayerApp(ctk.CTk):
         elif not self.is_playing:
             if pygame.mixer.music.get_pos() == -1:
                 self.progress_bar.configure(width=0)
-                self.lbl_timer.configure(text="0:00")
+                self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
 
         self.after(200, self._update_playback_loop)
 
@@ -405,7 +401,13 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_shuffle.place_forget()
         self.btn_add.place_forget()
         self.btn_off.place_forget()
-        self.playback_frame.place_forget()
+        
+        self.progress_container.place_forget()
+        self.controls_dock.place_forget()
+        
+        # Completely remove the timer text element from the canvas
+        if self.timer_text_id:
+            self.bg_canvas.delete(self.timer_text_id)
         
         self.bg_canvas.delete("back_btn", "track_item") 
 
