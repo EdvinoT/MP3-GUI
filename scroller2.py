@@ -54,10 +54,14 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # Dynamic environment listeners for Desktop and Pi hardware
+        # Listeners for Desktop and Pi hardware
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
-        self.app.bind("<Button-4>", self.on_mouse_scroll)  # Linux/Pi Scroll Up
-        self.app.bind("<Button-5>", self.on_mouse_scroll)  # Linux/Pi Scroll Down
+        self.app.bind("<Button-4>", self.on_mouse_scroll)  
+        self.app.bind("<Button-5>", self.on_mouse_scroll)  
+        
+        # VS Code Fail-safe: Keyboard Arrow Key bindings
+        self.app.bind("<Up>", lambda e: self.force_scroll_direction(-1))
+        self.app.bind("<Down>", lambda e: self.force_scroll_direction(1))
         
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
         self.app.bg_canvas.bind("<Motion>", self.on_canvas_hover)
@@ -70,20 +74,33 @@ class TrackScroller:
 
         self.refresh_scroll_list()
 
+    def force_scroll_direction(self, direction):
+        """VS Code keyboard fallback engine"""
+        if not self.app.track_list: return
+        old_offset = self.scroll_offset
+        
+        if direction == -1:
+            self.scroll_offset = max(0, self.scroll_offset - 1)
+        elif direction == 1:
+            max_scroll = max(0, len(self.app.track_list) - self.visible_count)
+            self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
+            
+        if self.scroll_offset != old_offset:
+            if hasattr(self.app, 'play_ui_sound'):
+                self.app.play_ui_sound("scroll")
+            self.refresh_scroll_list()
+
     def on_mouse_scroll(self, event):
         if not self.app.track_list: 
             return
         
         old_offset = self.scroll_offset
 
-        # 1. Handle Linux / Raspberry Pi hardware events
         if event.num == 4:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5:
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
-            
-        # 2. Handle Windows / macOS Desktop mouse wheels
         elif event.delta != 0:
             if event.delta > 0:
                 self.scroll_offset = max(0, self.scroll_offset - 1)
@@ -91,7 +108,6 @@ class TrackScroller:
                 max_scroll = max(0, len(self.app.track_list) - self.visible_count)
                 self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
-        # Only redraw if the position actually shifted
         if self.scroll_offset != old_offset:
             if hasattr(self.app, 'play_ui_sound'):
                 self.app.play_ui_sound("scroll")
@@ -108,6 +124,9 @@ class TrackScroller:
             if "back_btn" in tags:
                 self.clear_hover_strip()
                 self.app.bg_canvas.itemconfig(item_id, fill="#FF5555")
+                return
+            elif "scroll_up_zone" in tags or "scroll_down_zone" in tags:
+                self.clear_hover_strip()
                 return
             else:
                 self.app.bg_canvas.itemconfig("back_btn", fill="#000000")
@@ -173,6 +192,8 @@ class TrackScroller:
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
+        self.app.unbind("<Up>")
+        self.app.unbind("<Down>")
         self.app.bg_canvas.unbind("<Button-1>")
         self.app.bg_canvas.unbind("<Motion>")
 
@@ -218,6 +239,13 @@ class TrackScroller:
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
+
+        # Touchscreen/VS Code Fail-safe Click Zones:
+        # Left Margin click area = Scroll Up
+        up_zone = self.app.bg_canvas.create_rectangle(0, 100, 30, 320, fill="", outline="", tags="scroll_up_zone")
+        # Right Margin click area = Scroll Down
+        down_zone = self.app.bg_canvas.create_rectangle(450, 100, 480, 320, fill="", outline="", tags="scroll_down_zone")
+        self.canvas_item_ids.extend([up_zone, down_zone])
 
         if not self.app.track_list:
             empty_id = self.app.bg_canvas.create_text(
@@ -265,6 +293,14 @@ class TrackScroller:
         
         if "back_btn" in tags:
             self.close_full_page_scroller()
+            return
+        
+        # Process click zones if VS Code hides your mouse wheel wheel signals
+        if "scroll_up_zone" in tags:
+            self.force_scroll_direction(-1)
+            return
+        if "scroll_down_zone" in tags:
+            self.force_scroll_direction(1)
             return
             
         for tag in tags:
