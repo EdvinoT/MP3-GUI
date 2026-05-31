@@ -171,7 +171,8 @@ class HandheldPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
-        scroller2.TrackScroller(self)
+        # Explicit tracking reference link for scroller component instantiation
+        self.track_scroller = scroller2.TrackScroller(self)
         loader2.SongLoader(self)
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
@@ -403,17 +404,22 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
-    # FIXED: Drops elements instantly from scroller interface and auto-pauses playing tracks
+    # FIXED: Clears separate layout components cleanly and pauses audio engine safely before running scroller
     def access_songs(self):
         self.play_ui_sound("click")
-        self.clear_telemetry_for_menu()
         
-        # 1. Cleanly clear the layout from view
-        self.playback_frame.place_forget()
-        
-        # 2. Check engine playback state; force pause if music is currently streaming
+        # 1. Direct hardware pause call before toggling window layout visibility matrices
         if self.is_playing:
             self.toggle_play()
+            
+        self.clear_telemetry_for_menu()
+        
+        # 2. Command your original lifecycle container class to drop components out of layout view
+        self.playback_frame.place_forget()
+        
+        # 3. Fire the scroller engine explicitly via the tracking instance attribute link
+        if hasattr(self, 'track_scroller'):
+            self.track_scroller.toggle_full_page_scroller()
 
     def add_song(self): pass
 
