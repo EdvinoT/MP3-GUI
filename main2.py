@@ -70,7 +70,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.is_playing = False
         self.current_track_length = 0  
         
-        # NEW TRUE SHUFFLE STATES
         self.shuffle_enabled = False
         self.shuffle_queue = []    
         self.shuffle_queue_index = 0
@@ -201,23 +200,18 @@ class HandheldPlayerApp(ctk.CTk):
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
-        
-        # Keep master track list strictly sorted alphabetically
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(".mp3")]
         self.track_list.sort()
 
     def generate_true_shuffle_queue(self):
-        """Generates a mathematically absolute randomized indexing queue map."""
+        """Generates a completely randomized indexing queue map."""
         if not self.track_list: return
         
-        # Generate indices matching current song library count
         self.shuffle_queue = list(range(len(self.track_list)))
-        
-        # Seed and aggressively randomize the index distribution profile
         random.seed()
         random.shuffle(self.shuffle_queue)
         
-        # Ensure the currently active song stays locked at the front of the queue
+        # Keep the currently active song pinned at position 0 so order is unbroken
         if self.current_track_index in self.shuffle_queue:
             self.shuffle_queue.remove(self.current_track_index)
             self.shuffle_queue.insert(0, self.current_track_index)
@@ -233,9 +227,20 @@ class HandheldPlayerApp(ctk.CTk):
         self.shuffle_enabled = not self.shuffle_enabled
 
         if self.shuffle_enabled:
+            # FIXED: Pick a completely random start song index immediately if nothing is playing
+            if not self.is_playing:
+                self.current_track_index = random.randint(0, len(self.track_list) - 1)
+                
             self.generate_true_shuffle_queue()
             self.btn_shuffle.configure(text="SHUFFLE: ON", text_color="#FFB300")
             self.update_status_text("▪ SHUFFLE ENABLED ▪", color="#FFB300")
+            
+            # Instantly fire up the random pick if player was idle
+            if self.is_playing:
+                pass 
+            else:
+                track_name = self.track_list[self.current_track_index].replace(".mp3", "")
+                self.update_status_text(f"{track_name}", color="#888888")
         else:
             self.shuffle_queue.clear()
             self.btn_shuffle.configure(text="SHUFFLE: OFF", text_color="#888888")
@@ -362,7 +367,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_bar.configure(width=0)  
         self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
         
-        # REENGINEERED TRUE SHUFFLE NEXT TRACK ROUTER
         if self.shuffle_enabled and self.shuffle_queue:
             self.shuffle_queue_index = (self.shuffle_queue_index + 1) % len(self.shuffle_queue)
             self.current_track_index = self.shuffle_queue[self.shuffle_queue_index]
@@ -380,7 +384,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_bar.configure(width=0)  
         self.bg_canvas.itemconfig(self.timer_text_id, text="0:00")
         
-        # REENGINEERED TRUE SHUFFLE PREVIOUS TRACK ROUTER
         if self.shuffle_enabled and self.shuffle_queue:
             self.shuffle_queue_index = (self.shuffle_queue_index - 1) % len(self.shuffle_queue)
             self.current_track_index = self.shuffle_queue[self.shuffle_queue_index]
