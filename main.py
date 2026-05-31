@@ -57,6 +57,10 @@ class SurrealPlayerApp(ctk.CTk):
         self.bg_photo = None
         self.pil_bg_image = None
         self.resized_bg_image = None
+        self.canvas_image_id = None
+        self.title_text_id = None
+        self.sub_text_id = None
+        self.battery_text_id = None
         
         self.title_text_id = None
         self.sub_text_id = None
@@ -229,12 +233,18 @@ class SurrealPlayerApp(ctk.CTk):
             self._resize_after_id = self.after(50, self.setup_background_canvas)
 
     def update_status_text(self, custom_subtext, color="#BBBBBB"):
-        if self.sub_text_id is not None:
-            self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper(), fill=color)
+        try:
+            if hasattr(self, 'sub_text_id') and self.sub_text_id is not None and hasattr(self, 'bg_canvas'):
+                self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper(), fill=color)
+        except Exception as e:
+            pass  # Canvas might not be ready yet
 
     def update_battery_display(self, text, color="#BBBBBB"):
-        if self.battery_text_id is not None:
-            self.bg_canvas.itemconfig(self.battery_text_id, text=text, fill=color)
+        try:
+            if hasattr(self, 'battery_text_id') and self.battery_text_id is not None and hasattr(self, 'bg_canvas'):
+                self.bg_canvas.itemconfig(self.battery_text_id, text=text, fill=color)
+        except Exception as e:
+            pass  # Canvas might not be ready yet
 
     def play_current_track(self):
         if not self.track_list:
