@@ -143,6 +143,7 @@ class TrackScroller:
         """Renders an instant solid focus background block behind the text row."""
         if not self.is_open:
             return
+        # Using a dark-gray highlight theme block to remain friendly on high-contrast small screens
         self.hover_strip_id = self.app.bg_canvas.create_rectangle(
             x1, y1, x2, y2, fill="#252528", outline=""
         )
@@ -233,10 +234,10 @@ class TrackScroller:
             y_pos = self.ROW_START_Y + (index * self.LINE_HEIGHT)
             display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
-            # 1. DRAW COMPACT ROW TEXT
+            # 1. DRAW COMPACT ROW TEXT (Changed fill color to #000000)
             track_id = self.app.bg_canvas.create_text(
                 50, y_pos, text=display_string,
-                font=("Arial", 11), fill="#FFFFFF", anchor="w"
+                font=("Arial", 11), fill="#000000", anchor="w"
             )
             self.canvas_item_ids.append(track_id)
             self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
