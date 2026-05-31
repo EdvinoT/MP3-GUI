@@ -54,7 +54,7 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # Dynamic environment listeners
+        # Dynamic environment listeners for Desktop and Pi hardware
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
         self.app.bind("<Button-4>", self.on_mouse_scroll)  # Linux/Pi Scroll Up
         self.app.bind("<Button-5>", self.on_mouse_scroll)  # Linux/Pi Scroll Down
@@ -71,17 +71,27 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_mouse_scroll(self, event):
-        if not self.app.track_list: return
+        if not self.app.track_list: 
+            return
+        
         old_offset = self.scroll_offset
 
-        # FIXED SCROLL CALCULATION: Allows shifting indices cleanly past the 7th entry limit boundary
-        if event.num == 4 or event.delta > 0:
+        # 1. Handle Linux / Raspberry Pi hardware events
+        if event.num == 4:
             self.scroll_offset = max(0, self.scroll_offset - 1)
-        elif event.num == 5 or event.delta < 0:
-            # Allows the terminal list pointer to advance accurately row-by-row
-            max_scroll = max(0, len(self.app.track_list) - 1)
+        elif event.num == 5:
+            max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
+            
+        # 2. Handle Windows / macOS Desktop mouse wheels
+        elif event.delta != 0:
+            if event.delta > 0:
+                self.scroll_offset = max(0, self.scroll_offset - 1)
+            else:
+                max_scroll = max(0, len(self.app.track_list) - self.visible_count)
+                self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
+        # Only redraw if the position actually shifted
         if self.scroll_offset != old_offset:
             if hasattr(self.app, 'play_ui_sound'):
                 self.app.play_ui_sound("scroll")
@@ -217,7 +227,6 @@ class TrackScroller:
             self.canvas_item_ids.append(empty_id)
             return
 
-        # Always slice exactly what fits or fill it safely with placeholders
         visible_tracks = self.app.track_list[self.scroll_offset : self.scroll_offset + self.visible_count]
 
         for index in range(self.visible_count):
