@@ -72,8 +72,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.is_playing = False
         self.current_track_length = 0  
         
-        self.shuffle_enabled = False
-        self.original_order = []    
+        self.shuffle_enabled = False  # Critical base line
+        self.original_order = []
 
         self.is_buffering_track = False
 
@@ -505,4 +505,3 @@ class HandheldPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = HandheldPlayerApp()
     app.mainloop()
-    
