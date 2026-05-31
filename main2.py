@@ -266,7 +266,6 @@ class HandheldPlayerApp(ctk.CTk):
 
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
         
-        # Check if text is a module header or short system alert to keep it stationary
         if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or len(clean_check) <= 16:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
@@ -446,6 +445,7 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
             
+            # Non-abrupt schedule: Transition gracefully instead of instant destruction
             self.after(800, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):

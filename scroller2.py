@@ -11,9 +11,7 @@ class TrackScroller:
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
-        
-        # Expanded row count to look correct as items extend down the screen
-        self.visible_count = 7  
+        self.visible_count = 6 
         
         self.canvas_item_ids = []
         self.hover_strip_id = None    
@@ -49,14 +47,18 @@ class TrackScroller:
         self.app.btn_add.place_forget()
         self.app.btn_off.place_forget()
         
-        # Enforce complete removal of the bottom button frame instantly
-        self.app.playback_frame.place_forget()
+        self.app.progress_container.place_forget()
+        self.app.controls_dock.place_forget()
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
 
         self.clear_canvas_items()
 
+        # FIXED SCROLL ENGINE: Dynamic bindings for Windows/Mac and Linux environments
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
-        self.app.bind("<Button-4>", self.on_mouse_scroll)
-        self.app.bind("<Button-5>", self.on_mouse_scroll)
+        self.app.bind("<Button-4>", self.on_mouse_scroll)  # Linux/Pi Scroll Up
+        self.app.bind("<Button-5>", self.on_mouse_scroll)  # Linux/Pi Scroll Down
+        
         self.app.bg_canvas.bind("<Button-1>", self.on_canvas_click)
         self.app.bg_canvas.bind("<Motion>", self.on_canvas_hover)
 
@@ -72,16 +74,17 @@ class TrackScroller:
         if not self.app.track_list: return
         old_offset = self.scroll_offset
 
+        # Processes standard wheel systems and alternative Linux triggers
         if event.num == 4 or event.delta > 0:
             self.scroll_offset = max(0, self.scroll_offset - 1)
         elif event.num == 5 or event.delta < 0:
             max_scroll = max(0, len(self.app.track_list) - self.visible_count)
             self.scroll_offset = min(max_scroll, self.scroll_offset + 1)
 
-        if self.scroll_offset != old_offset and hasattr(self.app, 'play_ui_sound'):
-            self.app.play_ui_sound("scroll")
-
-        self.refresh_scroll_list()
+        if self.scroll_offset != old_offset:
+            if hasattr(self.app, 'play_ui_sound'):
+                self.app.play_ui_sound("scroll")
+            self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
         if not self.is_open: return
@@ -156,6 +159,7 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
+        # Safely detach wheel tracking listeners when changing views
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
@@ -172,7 +176,10 @@ class TrackScroller:
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_off.place(x=260, y=190)
         
-        self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
+        self.app.progress_container.place(relx=0.5, y=252, anchor="center")
+        self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="normal")
 
         if self.app.is_playing and self.app.track_list:
             current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
