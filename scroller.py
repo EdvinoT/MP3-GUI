@@ -6,7 +6,7 @@ class TrackScroller:
     def __init__(self, main_app_instance):
         """
         Takes the main app instance to project a widened frosted glass lane.
-        Features liquid-smooth alpha row fade animations and clean track dividers.
+        Features liquid-smooth native row highlights and clean track dividers.
         """
         self.app = main_app_instance
         self.is_open = False  
@@ -19,9 +19,7 @@ class TrackScroller:
         
         # ANIMATION STATE TRACKING
         self.animation_job = None      
-        self.current_alpha = 0         # Starting opacity (0 = completely invisible)
-        self.target_alpha = 40         # Maximum target highlight opacity (out of 255)
-        self.active_row_coords = None  # Caches bounds of the row currently fading in
+        self.active_row_coords = None  
 
         # Overwrite the default button command in main.py to trigger our canvas view
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
@@ -102,11 +100,10 @@ class TrackScroller:
         self.refresh_scroll_list()
 
     def on_canvas_hover(self, event):
-        """Detects if the cursor is hovering over a track row lane to trigger a smooth fade."""
+        """Detects if the cursor is hovering over a track row lane to trigger a highlight."""
         if not self.is_open:
             return
 
-        # Find what item is directly under the mouse
         current_item = self.app.bg_canvas.find_withtag("current")
         w = self.app.bg_canvas.winfo_width()
         if w <= 1: w = 800
@@ -115,7 +112,6 @@ class TrackScroller:
             item_id = current_item[0]
             tags = self.app.bg_canvas.gettags(item_id)
             
-            # Handle Back Button Hover
             if "back_btn" in tags:
                 self.clear_hover_strip()
                 self.app.bg_canvas.itemconfig(item_id, fill="#FF5555")
@@ -123,7 +119,6 @@ class TrackScroller:
             else:
                 self.app.bg_canvas.itemconfig("back_btn", fill="#222226")
 
-            # Handle Song Row Hover
             if "track_item" in tags:
                 for tag in tags:
                     if tag.startswith("track_") and tag != "track_item":
@@ -141,28 +136,20 @@ class TrackScroller:
                             if bbox:
                                 _, y1, _, y2 = bbox
                                 padding = 8  
-                                
-                                # Setup target bounds for our background strip
                                 self.active_row_coords = (int(w * 0.10) + 1, y1 - padding, int(w * 0.90) - 1, y2 + padding)
-                                
-                                # Start the animation alpha clock
-                                self.current_alpha = 0
                                 self.run_smooth_fade(item_id)
                         return
         else:
-            # FIX: If the mouse is between text items but still within the glass panel row space
             canvas_y = event.y
             start_y = 85
             line_height = 36
             
-            # Math conversion to see what row index the cursor y position belongs to
             estimated_row = (canvas_y - start_y + (line_height // 2)) // line_height
             visible_count = min(self.visible_count, len(self.app.track_list) - self.scroll_offset)
             
             if 0 <= estimated_row < visible_count:
                 track_idx = estimated_row + self.scroll_offset
                 if self.currently_hovered_idx != track_idx:
-                    # Find the corresponding text item ID for this row
                     for item_id in self.canvas_item_ids:
                         tags = self.app.bg_canvas.gettags(item_id)
                         if f"track_{track_idx}" in tags:
@@ -174,62 +161,43 @@ class TrackScroller:
                                 _, y1, _, y2 = bbox
                                 padding = 8
                                 self.active_row_coords = (int(w * 0.10) + 1, y1 - padding, int(w * 0.90) - 1, y2 + padding)
-                                self.current_alpha = 0
                                 self.run_smooth_fade(item_id)
                             return
             else:
                 self.clear_hover_strip()
 
     def run_smooth_fade(self, text_item_id):
-        """Gradually increments the layer's raw alpha channel value for a seamless glass fade."""
+        """Draws a crisp native background row highlight and pushes it cleanly behind the labels."""
         if not self.is_open or self.active_row_coords is None:
             return
             
-        if self.current_alpha < self.target_alpha:
-            self.current_alpha = min(self.target_alpha, self.current_alpha + 5)
+        x1, y1, x2, y2 = self.active_row_coords
+        
+        # Draw natively onto the canvas layout stack (using a sleek off-white tint)
+        if not self.hover_strip_id:
+            self.hover_strip_id = self.app.bg_canvas.create_rectangle(
+                x1, y1, x2, y2, 
+                fill="#EAEAEA", 
+                outline=""
+            )
+        else:
+            self.app.bg_canvas.coords(self.hover_strip_id, x1, y1, x2, y2)
             
-            # DIAGNOSTIC PRINT: Open your terminal to see if this is actively counting up!
-            print(f"Animating row. Current Alpha: {self.current_alpha}")
-            
-            # Use the main app window size for 100% accurate bounds
-            w = self.app.winfo_width()
-            h = self.app.winfo_height()
-            if w <= 1: w, h = 800, 600
-            
-            fade_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(fade_layer)
-            
-            x1, y1, x2, y2 = self.active_row_coords
-            draw.rectangle([x1, y1, x2, y2], fill=(255, 255, 255, self.current_alpha), outline=None)
-            
-            self.hover_strip_photo = ImageTk.PhotoImage(fade_layer)
-            
-            if self.hover_strip_id:
-                self.app.bg_canvas.itemconfig(self.hover_strip_id, image=self.hover_strip_photo)
-            else:
-                self.hover_strip_id = self.app.bg_canvas.create_image(0, 0, image=self.hover_strip_photo, anchor="nw")
-                
-            # Temporarily commented out to verify the box actually renders on top first
-            # self.app.bg_canvas.tag_lower(self.hover_strip_id)
-            
-            # Force Tkinter to refresh the canvas element visually
-            self.app.bg_canvas.update_idletasks()
-            
-            self.animation_job = self.app.after(10, lambda: self.run_smooth_fade(text_item_id))
+        # Re-stack order: guarantee text labels and dividers render above this highlight
+        self.app.bg_canvas.tag_lower(self.hover_strip_id)
+        
+        # Keep background wall at the absolute bottom
+        all_items = self.app.bg_canvas.find_all()
+        if len(all_items) > 0:
+            self.app.bg_canvas.tag_lower(all_items[0])
 
     def clear_hover_strip(self):
-        """Halts the alpha clock loop engine and deletes the custom background highlight image layer."""
-        if self.animation_job:
-            self.app.after_cancel(self.animation_job)
-            self.animation_job = None
-            
+        """Deletes the active background highlight row safely."""
         if self.hover_strip_id:
             self.app.bg_canvas.delete(self.hover_strip_id)
             self.hover_strip_id = None
-            
         self.currently_hovered_idx = None
         self.active_row_coords = None
-        self.hover_strip_photo = None
 
     def close_full_page_scroller(self):
         """Clears text elements, wipes the light tint layer out, and returns to home core layout."""
@@ -316,7 +284,7 @@ class TrackScroller:
             self.canvas_item_ids.append(track_id)
             self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
 
-            # 2. FIXED: ADDED A VERY THIN SEPARATOR LINE BETWEEN EACH TRACK ROW
+            # 2. SEPARATOR LINE BETWEEN EACH TRACK ROW
             line_y = y_pos + 17  
             divider_id = self.app.bg_canvas.create_line(
                 int(w * 0.10), line_y, int(w * 0.90), line_y,
