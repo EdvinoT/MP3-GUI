@@ -42,15 +42,13 @@ class HandheldPlayerApp(ctk.CTk):
         self.load_ui_sounds()
 
         self.track_list = []
-        self.current_playlist = []  # Acts as our active playback queue
+        self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
         
-        # New Shuffle States
         self.shuffle_enabled = False
-        self.original_order = []    # Keeps track of alphabetical order so we can revert
+        self.original_order = []    
 
-        # Marquee Engine States
         self.marquee_text = "▪ ONLINE ▪"
         self.marquee_job = None
         self.marquee_color = "#888888"
@@ -79,7 +77,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_access.place(x=60, y=140)
 
-        # REPLACED PLAYLIST BUTTON WITH SHUFFLE TOGGLE
         self.btn_shuffle = ctk.CTkButton(
             self, text="SHUFFLE: OFF", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -163,36 +160,27 @@ class HandheldPlayerApp(ctk.CTk):
         self.track_list.sort()
         self.original_order = list(self.track_list)
         
-        # If shuffle was already active when tracks loaded, scramble them
         if getattr(self, 'shuffle_enabled', False):
             random.shuffle(self.track_list)
-        else:
-            self.track_list = list(self.original_order)
 
     def toggle_shuffle(self):
-        """Switches playback sequence structure between linear and scrambled tracking."""
         self.play_ui_sound("click")
         if not self.track_list:
             messagebox.showinfo("Playback", "No tracks available to shuffle.")
             return
 
-        # Capture whatever track is currently loaded so we don't lose our place
         current_track_name = self.track_list[self.current_track_index] if self.track_list else None
-
         self.shuffle_enabled = not self.shuffle_enabled
 
         if self.shuffle_enabled:
-            # Scramble the active queue
             random.shuffle(self.track_list)
             self.btn_shuffle.configure(text="SHUFFLE: ON", text_color="#FFB300")
             self.update_status_text("▪ SHUFFLE ENABLED ▪", color="#FFB300")
         else:
-            # Revert queue back to alphabetical order
             self.track_list = list(self.original_order)
             self.btn_shuffle.configure(text="SHUFFLE: OFF", text_color="#888888")
             self.update_status_text("▪ LINEAR TRACKING ▪", color="#888888")
 
-        # Re-index to ensure the currently playing song doesn't suddenly jump tracks mid-play
         if current_track_name in self.track_list:
             self.current_track_index = self.track_list.index(current_track_name)
 
@@ -294,15 +282,24 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_play.configure(text="▶")
             self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
 
+    # FIXED: Added live status update triggers on track skips
     def next_track(self):
         if not self.track_list: return
         self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
-        self.play_current_track()
+        if self.is_playing:
+            self.play_current_track()
+        else:
+            track_name = self.track_list[self.current_track_index].replace(".mp3", "")
+            self.update_status_text(f"{track_name}", color="#888888")
 
     def prev_track(self):
         if not self.track_list: return
         self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
-        self.play_current_track()
+        if self.is_playing:
+            self.play_current_track()
+        else:
+            track_name = self.track_list[self.current_track_index].replace(".mp3", "")
+            self.update_status_text(f"{track_name}", color="#888888")
 
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
@@ -332,10 +329,6 @@ class HandheldPlayerApp(ctk.CTk):
 
     def access_songs(self): pass
     def add_song(self): pass
-
-    def return_to_main_menu(self):
-        if hasattr(self, 'battery_monitor'):
-            self.battery_monitor._process_telemetry_cycle()
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
