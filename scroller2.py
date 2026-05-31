@@ -71,7 +71,6 @@ class TrackScroller:
 
         self.refresh_scroll_list()
 
-        # FORCE INSTANT REDRAW TO CLEAR BATTERY ON OPEN
         if hasattr(self.app, 'battery_monitor'):
             self.app.battery_monitor._execute_telemetry_render()
 
@@ -187,7 +186,6 @@ class TrackScroller:
         else:
             self.app.update_status_text("▪ ONLINE ▪", color="#888888")
 
-        # INSTANT SNAP FIX: Force battery refresh before frame updates
         if hasattr(self.app, 'battery_monitor'):
             self.app.battery_monitor._execute_telemetry_render()
 
@@ -283,5 +281,10 @@ class TrackScroller:
                     self.app.play_ui_sound("click")
                 track_index = int(tag.split("_")[1])
                 self.app.current_track_index = track_index
+                
+                # SYNCHRONIZED RE-INDEX: Re-align true shuffle queue around manual pick
+                if self.app.shuffle_enabled:
+                    self.app.generate_true_shuffle_queue()
+                    
                 self.app.play_current_track()
                 break
