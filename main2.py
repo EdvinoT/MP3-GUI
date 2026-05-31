@@ -46,8 +46,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = 0
         self.is_playing = False
         
-        # Marquee Memory Triggers
-        self.marquee_text = "▪ ONLINE ▪"
+        # Marquee Engine Variables
+        self.marquee_text = ""
         self.marquee_job = None
         self.marquee_color = "#888888"
         self.scroll_offset = 0
@@ -186,6 +186,7 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
     def update_status_text(self, text, color="#888888"):
+        """Safely updates text configurations and handles layout lengths."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
@@ -194,24 +195,28 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_color = color
         self.scroll_offset = 0
 
-        if len(self.marquee_text) > 22 and "VOLTAGE" not in self.marquee_text:
+        # FIXED ENGINE CHECK: Strip spacing flags out before calculating marquee lengths
+        clean_check = self.marquee_text.replace("▶ ", "").strip()
+        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text:
             self._animate_marquee_step()
         else:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
     def _animate_marquee_step(self):
+        """Clean rolling loop animation frame slicer."""
         if self.btn_access.winfo_manager() != "":
+            # Append trailing spaces for a visual delay buffer
             padded_text = self.marquee_text + "         "
-            display_string = padded_text[self.scroll_offset:self.scroll_offset+22]
-            if len(display_string) < 22:
-                display_string += padded_text[:22-len(display_string)]
-
+            
+            # Extract a fixed sliding window of characters
+            display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
+            
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
             
             self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
-            self.marquee_job = self.after(320, self._animate_marquee_step)
+            self.marquee_job = self.after(280, self._animate_marquee_step)
         else:
             self.marquee_job = None
 
@@ -290,18 +295,22 @@ class HandheldPlayerApp(ctk.CTk):
         except Exception as e:
             print(f"UI Sound Drop: {e}")
 
-    # FIXED LAYOUT FIX: Wipes labels instantly on navigation clicks without breaking the subheading layer
     def clear_telemetry_for_menu(self):
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
-        self.marquee_text = ""
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
     def access_songs(self): pass
     def make_playlist(self): pass
     def add_song(self): pass
+
+    # CRITICAL NEW INTERACTION LAYER: Instantly forces text rebuild loops when leaving sub-menus
+    def return_to_main_menu(self):
+        """Call this from your scroller/loader script back buttons to avoid the 4-second delay."""
+        if hasattr(self, 'battery_monitor'):
+            self.battery_monitor._process_telemetry_cycle()
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
