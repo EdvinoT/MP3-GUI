@@ -9,7 +9,7 @@ import os
 import warnings
 import io
 import scroller
-import random  # Added for dynamic shutdown randomization
+import random 
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -302,66 +302,36 @@ class SurrealPlayerApp(ctk.CTk):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
 
     def turn_off(self):
-        """Executes a serious, randomized tactical shutdown sequence."""
+        """Instantly maps terminal outputs and drops layout window with zero scroll delay."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # Trigger the power-down audio sweep instantly
-        self.play_ui_sound("shutdown")
-        
-        # Array of highly grounded, industrial console sequence variants
+        # Pull standard text variations for localized terminal tracking
         shutdown_profiles = [
-            {
-                "log": "Purging internal audio caching frames...",
-                "step1": "▪ DE-AUTHORIZING CORE DRIVES ▪",
-                "step2": "▪ TERMINATING DIRECTORY CONTEXTS ▪",
-                "step3": "▪ MIXER DECOMMISSIONED ▪"
-            },
-            {
-                "log": "Collapsing local variable sectors cleanly...",
-                "step1": "▪ DISCONNECTING TRACK PATHWAYS ▪",
-                "step2": "▪ PURGING DESKTOP INTERFACES ▪",
-                "step3": "▪ HARDWARE MODULE DISENGAGED ▪"
-            },
-            {
-                "log": "Initiating high-security hardware memory flush...",
-                "step1": "▪ ENCRYPTION REGISTERS CLAMPED ▪",
-                "step2": "▪ DROPPING MEDIA ENVIRONMENTS ▪",
-                "step3": "▪ VOLTAGE CORE COMPROMISED ▪"
-            },
-            {
-                "log": "Severing thread allocation bounds...",
-                "step1": "▪ RELEASING SYSTEM POINTERS ▪",
-                "step2": "▪ STOPPING PIPELINE KERNELS ▪",
-                "step3": "▪ MAIN CONSOLE TERMINATED ▪"
-            }
+            {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
+            {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
+            {"log": "Flushing core system stack registers...", "ui": "▪ VOLTAGE DROP CRITICAL ▪"},
+            {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
         ]
-        
-        # Pick exactly one completely random sequence for this shutdown session
         chosen = random.choice(shutdown_profiles)
         
-        # Phase 1: Halt music stream and invoke first custom diagnostic prompt
-        self.update_status_text(chosen["step1"])
-        self.update_idletasks() 
+        # Fire the power sweep sound
+        self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()
-        time.sleep(0.25)
-        
-        # Phase 2: Purge core structures and display next custom status
+
+        # Update the visual status text and standard console logs instantly at the exact same moment
         print(f"[INFO] {chosen['log']}")
-        self.update_status_text(chosen["step2"])
-        self.update_idletasks()
+        print("[INFO] Releasing hardware mixer channels...")
+        self.update_status_text(chosen["ui"])
+        self.update_idletasks() # Force Tkinter GUI to draw the new state right now
+        
+        # Clear out core data tracks right away
         self.track_list.clear()
         self.current_playlist.clear()
-        time.sleep(0.25)
         
-        # Phase 3: Hardware Mixer closeout and final custom message
-        print("[INFO] Releasing hardware mixer channels...")
-        self.update_status_text(chosen["step3"])
-        self.update_idletasks()
-        time.sleep(0.2)
+        # Wait a static 380ms for the power down sweep to finish its audible vibration drop
+        time.sleep(0.38)
         
         pygame.mixer.quit()
-        
-        # Phase 4: Full window destroy
         print("=== SYSTEM OFFLINE ===\n")
         self.destroy()
 
