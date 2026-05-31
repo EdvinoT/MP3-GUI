@@ -1,0 +1,19 @@
+# MP3 Player - Raspberry Pi Zero W 2 Compact Version
+# Lightweight packages only for pocket-sized device
+
+# Core Audio
+pygame==2.1.3
+
+# Display (OLED I2C)
+Adafruit-SSD1306==1.6.2
+Adafruit-GPIO==1.0.3
+Pillow==10.0.0
+
+# GPIO Buttons (Pi only)
+RPi.GPIO==0.7.0
+
+# Optional: Bluetooth audio control
+pybluez==0.23  # For Bluetooth headphone pairing (optional)
+
+# System utilities
+psutil==5.9.0  # For battery monitoring (optional)

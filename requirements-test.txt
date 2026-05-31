@@ -1,0 +1,12 @@
+# MP3 Player - Testing Requirements (Mac/Linux)
+# Use this to test the code on your Mac before Pi assembly
+# Install with: pip install -r requirements-test.txt
+
+# Core audio playback
+pygame==2.1.3
+
+# Image handling
+Pillow==10.0.0
+
+# Optional: For better error messages
+colorama==0.4.6
