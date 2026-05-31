@@ -167,29 +167,29 @@ class TrackScroller:
                 self.clear_hover_strip()
 
     def run_smooth_fade(self, text_item_id):
-        """Draws a crisp native background row highlight and pushes it cleanly behind the labels."""
+        """Draws a native background row highlight sandwiched perfectly between the wallpaper and the text."""
         if not self.is_open or self.active_row_coords is None:
             return
             
         x1, y1, x2, y2 = self.active_row_coords
         
-        # Draw natively onto the canvas layout stack (using a sleek off-white tint)
+        # 1. Draw the native highlight rectangle if it doesn't exist
         if not self.hover_strip_id:
             self.hover_strip_id = self.app.bg_canvas.create_rectangle(
                 x1, y1, x2, y2, 
-                fill="#EAEAEA", 
+                fill="#DCDCDC",  # Slightly darker grey for high visibility testing
                 outline=""
             )
         else:
             self.app.bg_canvas.coords(self.hover_strip_id, x1, y1, x2, y2)
             
-        # Re-stack order: guarantee text labels and dividers render above this highlight
-        self.app.bg_canvas.tag_lower(self.hover_strip_id)
+        # 2. LAYER MANAGEMENT (The Sandbox Solution)
+        # Instead of slamming it to the absolute bottom, lift it to the top...
+        self.app.bg_canvas.tag_raise(self.hover_strip_id)
         
-        # Keep background wall at the absolute bottom
-        all_items = self.app.bg_canvas.find_all()
-        if len(all_items) > 0:
-            self.app.bg_canvas.tag_lower(all_items[0])
+        # ...then loop through all text and line links and force THEM on top of the highlight
+        for item_id in self.canvas_item_ids:
+            self.app.bg_canvas.tag_raise(item_id)
 
     def clear_hover_strip(self):
         """Deletes the active background highlight row safely."""
