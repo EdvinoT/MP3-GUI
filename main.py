@@ -10,12 +10,10 @@ import warnings
 import io
 import scroller
 import random 
-import battery  # Imported our custom clean module
+import battery  
 
-# Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
-# Initialize audio engine with fixed buffer configurations for MP3 streams on macOS
 try:
     pygame.mixer.pre_init(44100, -16, 2, 2048)
     pygame.mixer.init()
@@ -30,14 +28,12 @@ class SurrealPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Window Configurations
         self.title("Surreal Media Player")
         self.geometry("800x600")
         self.resizable(True, True) 
 
         print("\n=== SYSTEM HARDWARE DIAGNOSTICS ===", flush=True)
 
-        # UI Sound Properties & Mixer Channels
         self.click_sound = None
         self.scroll_sound = None
         self.shutdown_sound = None
@@ -45,19 +41,16 @@ class SurrealPlayerApp(ctk.CTk):
         self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
-        # Core States
         self.track_list = []
         self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
         
-        # Build absolute local paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         
         self.load_local_tracks()
 
-        # Create canvas for background image
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
 
@@ -67,15 +60,13 @@ class SurrealPlayerApp(ctk.CTk):
         
         self.title_text_id = None
         self.sub_text_id = None
-        self.battery_text_id = None  # New dedicated canvas layer
+        self.battery_text_id = None  
 
-        # Minimalist Options UI Layout
         button_font = ("Futura", 14)
         btn_bg = "#000000" 
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
-        # --- MAIN OPTIONS NAVIGATION BUTTONS ---
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
@@ -112,7 +103,6 @@ class SurrealPlayerApp(ctk.CTk):
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # --- AUDIO DECK CONTROLS ---
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -154,12 +144,9 @@ class SurrealPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
         self.bind("<Configure>", self.on_window_resize)
-        
         self.after(100, self.setup_background_canvas)
-        
         scroller.TrackScroller(self)
 
-        # --- PLUG IN AND DEPLOY SEPARATED TELEMETRY MODULE ---
         self.battery_monitor = battery.BatteryTelemetry(self)
         self.battery_monitor.start()
 
@@ -177,14 +164,12 @@ class SurrealPlayerApp(ctk.CTk):
 
             if os.path.exists("shutdown.wav"):
                 self.shutdown_sound = pygame.mixer.Sound("shutdown.wav")
-                
         except Exception as e:
             print(f"Notice: Could not cache audio feedback components: {e}")
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
-        
         valid_extensions = (".mp3",)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
@@ -192,7 +177,6 @@ class SurrealPlayerApp(ctk.CTk):
 
     def setup_background_canvas(self):
         png_path = os.path.join(self.dir_path, "background.png")
-        
         if os.path.exists(png_path):
             try:
                 if not self.pil_bg_image:
@@ -202,7 +186,6 @@ class SurrealPlayerApp(ctk.CTk):
                 
                 w = self.bg_canvas.winfo_width()
                 h = self.bg_canvas.winfo_height()
-                
                 if w <= 1: w = self.winfo_width()
                 if h <= 1: h = self.winfo_height()
                 if w <= 1: w = 800
@@ -220,30 +203,24 @@ class SurrealPlayerApp(ctk.CTk):
                 )
                 
                 current_status = "▪ ONLINE ▪"
-                battery_status = "BATTERY LIFE: --%"
+                battery_status = "--%"
                 if hasattr(self, 'battery_monitor'):
                     current_status = self.battery_monitor.get_status_string()
-                    battery_status = f"BATTERY LIFE: {self.battery_monitor.current_battery_pct}%"
+                    battery_status = f"{self.battery_monitor.current_battery_pct}%"
 
-                # Row 1: The standard clean song title display layer
                 self.sub_text_id = self.bg_canvas.create_text(
                     w // 2, 145, text=current_status.upper(),
-                    font=("Arial", 11), fill="#666666", anchor="center"
+                    font=("Arial", 11), fill="#BBBBBB", anchor="center"
                 )
 
-                # Row 2: Brand new separate layer sitting clearly below the text row
                 self.battery_text_id = self.bg_canvas.create_text(
-                    w // 2, 175, text=battery_status.upper(),
-                    font=("Arial", 10, "bold"), fill="#666666", anchor="center"
+                    w // 2, 175, text=battery_status,
+                    font=("Arial", 10, "bold"), fill="#BBBBBB", anchor="center"
                 )
                 
                 self.bg_canvas.config(scrollregion=self.bg_canvas.bbox("all"))
             except Exception as e:
                 print(f"Error loading background canvas: {e}", flush=True)
-        else:
-            self.bg_canvas.delete("all")
-            w = self.winfo_width()
-            self.title_text_id = self.bg_canvas.create_text(w // 2, 95, text="I D L E   S Y S T E M", font=("Futura", 32), fill="#FFFFFF")
 
     def on_window_resize(self, event):
         if event.widget == self:
@@ -251,23 +228,20 @@ class SurrealPlayerApp(ctk.CTk):
                 self.after_cancel(self._resize_after_id)
             self._resize_after_id = self.after(50, self.setup_background_canvas)
 
-    def update_status_text(self, custom_subtext, color="#666666"):
+    def update_status_text(self, custom_subtext, color="#BBBBBB"):
         if self.sub_text_id is not None:
             self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper(), fill=color)
 
-    def update_battery_display(self, text, color="#666666"):
-        """Dedicated interface method updating only the bottom battery sub-row."""
+    def update_battery_display(self, text, color="#BBBBBB"):
         if self.battery_text_id is not None:
-            self.bg_canvas.itemconfig(self.battery_text_id, text=text.upper(), fill=color)
+            self.bg_canvas.itemconfig(self.battery_text_id, text=text, fill=color)
 
     def play_current_track(self):
         if not self.track_list:
             self.update_status_text("▪ NO SONGS LOADED ▪")
             return
-
         track_name = self.track_list[self.current_track_index]
         track_path = os.path.join(self.tracks_dir, track_name)
-        
         try:
             pygame.mixer.music.load(track_path)
             pygame.mixer.music.play()
@@ -276,7 +250,6 @@ class SurrealPlayerApp(ctk.CTk):
             if not self.battery_monitor.is_low_battery:
                 self.update_status_text(self.battery_monitor.get_status_string())
         except Exception as e:
-            print(f"Stream execution error: {e}", flush=True)
             self.update_status_text("▪ STREAM ERROR ▪")
 
     def toggle_play(self):
@@ -313,37 +286,43 @@ class SurrealPlayerApp(ctk.CTk):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
 
-    def access_songs(self):
-        pass
-
-    def make_playlist(self):
-        messagebox.showinfo("Playlist", "Create a new playlist configuration.")
+    def access_songs(self): pass
+    def make_playlist(self): pass
 
     def turn_off(self):
+        """Shutdown logic utilizing safe, isolated conditional layout checks."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
-        
         self.battery_monitor.stop()
-        
-        shutdown_profiles = [
-            {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
-            {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
-            {"log": "Flushing core system stack registers...", "ui": "▪ VOLTAGE DROP CRITICAL ▪"},
-            {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
-        ]
-        chosen = random.choice(shutdown_profiles)
         
         self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()
 
-        print(f"[INFO] {chosen['log']}")
+        # CONDITIONAL STATEMENT FOR SHUTDOWN TEXT
+        if self.battery_monitor.is_low_battery:
+            # Low battery condition: Force dark red layout text
+            shutdown_ui_text = "▪ VOLTAGE DROP CRITICAL ▪"
+            shutdown_color = "#880000"
+            print("[INFO] Flushing core system stack registers...")
+        else:
+            # Healthy battery condition: Pick a random profile in light gray (#BBBBBB)
+            shutdown_profiles = [
+                {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
+                {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
+                {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
+            ]
+            chosen = random.choice(shutdown_profiles)
+            shutdown_ui_text = chosen["ui"]
+            shutdown_color = "#BBBBBB"
+            print(f"[INFO] {chosen['log']}")
+
         print("[INFO] Releasing hardware mixer channels...")
         
-        self.update_status_text(chosen["ui"], color="#FF4444")
+        # Apply configurations cleanly
+        self.update_status_text(shutdown_ui_text, color=shutdown_color)
         self.update_idletasks() 
         
         self.track_list.clear()
         self.current_playlist.clear()
-        
         time.sleep(0.38)
         
         pygame.mixer.quit()
