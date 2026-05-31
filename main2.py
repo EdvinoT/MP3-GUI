@@ -24,15 +24,12 @@ except Exception as mixer_err:
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
 
-# A clever custom controller frame that tells individual widgets to hide/show 
-# when scroller2.py calls place_forget() or place() on it.
 class PlaybackLifecycleController(ctk.CTkFrame):
     def __init__(self, master, app_instance, **kwargs):
         super().__init__(master, width=0, height=0, fg_color="transparent", **kwargs)
         self.app = app_instance
 
     def place(self, **kwargs):
-        # When restored/placed, reveal all separate playback pieces
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
         if self.app.timer_text_id:
@@ -40,7 +37,6 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         super().place(**kwargs)
 
     def place_forget(self):
-        # When scroller2 hiding triggers, cleanly sweep away the individual player elements
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -99,7 +95,7 @@ class HandheldPlayerApp(ctk.CTk):
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.access_songs()]
+            command=self.access_songs
         )
         self.btn_access.place(x=60, y=140)
 
@@ -128,7 +124,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_off.place(x=260, y=190)
 
-        # 1. PROGRESS CONTAINER (Thin Black Line Box)
         self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
@@ -136,7 +131,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # 2. CONTROL BUTTONS DOCK (Separated Bottom Black Box)
         self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
         self.controls_dock.place(relx=0.5, y=284, anchor="center")
         self.controls_dock.pack_propagate(False)
@@ -167,8 +161,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_next.place(relx=0.8, rely=0.5, anchor="center")
 
-        # 3. INTER-MODULE CONTROLLER FRAME
-        # This empty master container directly routes layout status into scroller2.py updates
         self.playback_frame = PlaybackLifecycleController(self, self)
         self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
@@ -256,7 +248,6 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
-        # UPDATED: Timer color updated to a solid bold black ("#000000")
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
             font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
@@ -412,7 +403,18 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas.itemconfig("battery_sub", text="")
         self.bg_canvas.itemconfig("status_sub", text="")
 
-    def access_songs(self): pass
+    # FIXED: Drops elements instantly from scroller interface and auto-pauses playing tracks
+    def access_songs(self):
+        self.play_ui_sound("click")
+        self.clear_telemetry_for_menu()
+        
+        # 1. Cleanly clear the layout from view
+        self.playback_frame.place_forget()
+        
+        # 2. Check engine playback state; force pause if music is currently streaming
+        if self.is_playing:
+            self.toggle_play()
+
     def add_song(self): pass
 
     def turn_off(self):
