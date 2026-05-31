@@ -10,6 +10,7 @@ import warnings
 import io
 import scroller
 import random 
+import battery_telemetry  # Imported our custom clean module
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -41,7 +42,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.scroll_sound = None
         self.shutdown_sound = None
         
-        # Dedicated audio channel specifically for UI overlays (Channel 0)
         self.ui_channel = pygame.mixer.Channel(0)
         self.load_ui_sounds()
 
@@ -50,7 +50,7 @@ class SurrealPlayerApp(ctk.CTk):
         self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
-
+        
         # Build absolute local paths
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
@@ -158,8 +158,11 @@ class SurrealPlayerApp(ctk.CTk):
         
         scroller.TrackScroller(self)
 
+        # --- PLUG IN AND DEPLOY SEPARATED TELEMETRY MODULE ---
+        self.battery_monitor = battery_telemetry.BatteryTelemetry(self)
+        self.battery_monitor.start()
+
     def load_ui_sounds(self):
-        """Safely caches professional audio clicks, scrolls, and shutdowns from disk directory."""
         try:
             if os.path.exists("click.ogg"):
                 self.click_sound = pygame.mixer.Sound("click.ogg")
@@ -215,10 +218,10 @@ class SurrealPlayerApp(ctk.CTk):
                     font=("Futura", 32), fill="#000000", anchor="center"
                 )
                 
+                # Check if telemetry object exists to draw percentage correctly at launch
                 current_status = "▪ ONLINE ▪"
-                if self.is_playing and self.track_list:
-                    clean_name = self.track_list[self.current_track_index].replace(".mp3", "")
-                    current_status = f"▪ PLAYING: {clean_name} ▪"
+                if hasattr(self, 'battery_monitor'):
+                    current_status = self.battery_monitor.get_status_string()
 
                 self.sub_text_id = self.bg_canvas.create_text(
                     w // 2, 145, text=current_status.upper(),
@@ -239,9 +242,9 @@ class SurrealPlayerApp(ctk.CTk):
                 self.after_cancel(self._resize_after_id)
             self._resize_after_id = self.after(50, self.setup_background_canvas)
 
-    def update_status_text(self, custom_subtext):
+    def update_status_text(self, custom_subtext, color="#666666"):
         if self.sub_text_id is not None:
-            self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper())
+            self.bg_canvas.itemconfig(self.sub_text_id, text=custom_subtext.upper(), fill=color)
 
     def play_current_track(self):
         if not self.track_list:
@@ -250,14 +253,14 @@ class SurrealPlayerApp(ctk.CTk):
 
         track_name = self.track_list[self.current_track_index]
         track_path = os.path.join(self.tracks_dir, track_name)
-        clean_display_name = track_name.replace(".mp3", "")
         
         try:
             pygame.mixer.music.load(track_path)
             pygame.mixer.music.play()
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
-            self.update_status_text(f"▪ PLAYING: {clean_display_name} ▪")
+            if not self.battery_monitor.is_low_battery:
+                self.update_status_text(self.battery_monitor.get_status_string())
         except Exception as e:
             print(f"Stream execution error: {e}", flush=True)
             self.update_status_text("▪ STREAM ERROR ▪")
@@ -271,15 +274,16 @@ class SurrealPlayerApp(ctk.CTk):
                 pygame.mixer.music.unpause()
                 self.is_playing = True
                 self.btn_play.configure(text="❚❚")
-                track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-                self.update_status_text(f"▪ PLAYING: {track_name} ▪")
+                if not self.battery_monitor.is_low_battery:
+                    self.update_status_text(self.battery_monitor.get_status_string())
             else:
                 self.play_current_track()
         else:
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
-            self.update_status_text("▪ PAUSED ▪")
+            if not self.battery_monitor.is_low_battery:
+                self.update_status_text(self.battery_monitor.get_status_string())
 
     def next_track(self):
         if not self.track_list: return
@@ -302,33 +306,31 @@ class SurrealPlayerApp(ctk.CTk):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
 
     def turn_off(self):
-        """Instantly maps terminal outputs and drops layout window with zero scroll delay."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # Pull standard text variations for localized terminal tracking
+        # Cease detached threads immediately using our object's kill function
+        self.battery_monitor.stop()
+        
         shutdown_profiles = [
             {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
-            {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
-            {"log": "Flushing core system stack registers...", "ui": "▪ CRITICAL HIT! ▪"},
+            {"log": "Collapsing local path links...", "ui": "▪ HARDWARE TERMINATED ▪"},
+            {"log": "Flushing core system stack registers...", "ui": "▪ VOLTAGE DROP CRITICAL ▪"},
             {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"}
         ]
         chosen = random.choice(shutdown_profiles)
         
-        # Fire the power sweep sound
         self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()
 
-        # Update the visual status text and standard console logs instantly at the exact same moment
         print(f"[INFO] {chosen['log']}")
         print("[INFO] Releasing hardware mixer channels...")
-        self.update_status_text(chosen["ui"])
-        self.update_idletasks() # Force Tkinter GUI to draw the new state right now
         
-        # Clear out core data tracks right away
+        self.update_status_text(chosen["ui"], color="#FF4444")
+        self.update_idletasks() 
+        
         self.track_list.clear()
         self.current_playlist.clear()
         
-        # Wait a static 380ms for the power down sweep to finish its audible vibration drop
         time.sleep(0.38)
         
         pygame.mixer.quit()
@@ -336,7 +338,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.destroy()
 
     def play_ui_sound(self, sound_type):
-        """Global utility method triggered by internal systems to execute interface audio cues."""
         try:
             self.ui_channel.stop()  
             if sound_type == "click" and self.click_sound is not None:
