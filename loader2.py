@@ -38,7 +38,6 @@ class SongLoader:
         frame = ctk.CTkFrame(menu, fg_color="#101012", corner_radius=0)
         frame.pack(fill="both", expand=True)
         
-        # Spaced out text styling matching the IDLE SYSTEM look
         lbl = ctk.CTkLabel(frame, text="S E L E C T   S O U R C E", font=("Helvetica Light", 13), text_color="#FFFFFF")
         lbl.pack(pady=15)
 
@@ -69,9 +68,14 @@ class SongLoader:
                 destination = os.path.join(self.tracks_dir, filename)
                 shutil.copy(file_path, destination)
                 
+                # HARDWARE FIX: Safely refresh track cache without blasting the whole UI layout
                 self.app.load_local_tracks()
-                self.app.bg_canvas.delete("all")
-                self.app.setup_background_canvas()
+                if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
+                    self.app.track_scroller.refresh_scroll_list()
+                
+                # Forces immediate telemetry display check back to screen
+                if hasattr(self.app, 'battery_monitor'):
+                    self.app.battery_monitor._execute_telemetry_render()
                 
                 messagebox.showinfo("Success", f"Imported successfully:\n{filename}")
             except Exception as e:
@@ -146,20 +150,32 @@ class SongLoader:
         }
 
         try:
-            self.app.btn_add.configure(text="DOWNLOADING...")
+            # HARDWARE FIX: Safely route button labels back to the main thread processing queue
+            self.app.after(0, lambda: self.app.btn_add.configure(text="DOWNLOADING..."))
+            
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             
-            self.app.load_local_tracks()
-            self.app.bg_canvas.delete("all")
-            self.app.setup_background_canvas()
+            # HARDWARE FIX: Safely update track indices, queues, and screens via main thread callback loops
+            self.app.after(0, self._finalize_successful_download)
             
-            messagebox.showinfo("Success", "Audio track saved successfully!")
         except Exception as e:
             print(f"Download error details: {e}")
-            messagebox.showerror(
+            self.app.after(0, lambda: messagebox.showerror(
                 "Conversion Error", 
-                "Web download pipeline failed.\n\nPlease ensure 'ffmpeg' is sitting inside your project folder."
-            )
+                "Web download pipeline failed.\n\nPlease ensure 'ffmpeg' is installed or sitting inside your project folder."
+            ))
         finally:
-            self.app.btn_add.configure(state="normal", text="ADD SONG")
+            self.app.after(0, lambda: self.app.btn_add.configure(state="normal", text="ADD SONG"))
+
+    def _finalize_successful_download(self):
+        """Callback to handle safely re-indexing on the main UI execution loop thread."""
+        self.app.load_local_tracks()
+        
+        if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
+            self.app.track_scroller.refresh_scroll_list()
+            
+        if hasattr(self.app, 'battery_monitor'):
+            self.app.battery_monitor._execute_telemetry_render()
+            
+        messagebox.showinfo("Success", "Audio track saved successfully!")
