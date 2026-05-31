@@ -45,7 +45,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
-        self.current_track_length = 0  # Dynamic length tracking
+        self.current_track_length = 0  
         
         self.shuffle_enabled = False
         self.original_order = []    
@@ -105,40 +105,49 @@ class HandheldPlayerApp(ctk.CTk):
 
         # Main Playback Container
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, rely=0.84, anchor="center")
+        self.playback_frame.place(relx=0.5, rely=0.83, anchor="center")
 
-        # PROGRESS BAR (Noticeable design targeting White/Blue themes)
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#333333", height=6, width=220)
-        self.progress_container.pack(side="top", pady=(0, 10))
+        # Niche Countdown Timer Element
+        self.lbl_timer = ctk.CTkLabel(
+            self.playback_frame, text="0:00", 
+            font=("Courier New", 11, "bold"), text_color="#00A8FF"
+        )
+        self.lbl_timer.pack(side="top", pady=(0, 2))
+
+        # Progress Bar Base Frame
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#333333", height=4, width=200)
+        self.progress_container.pack(side="top", pady=(0, 8))
         self.progress_container.pack_propagate(False)
 
-        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=6, width=0)
+        # Progress Bar Fluid Line
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=4, width=0)
         self.progress_bar.pack(side="left")
 
-        control_font = ("Arial", 14)
+        # Minimalist Controls Container
+        control_font = ("Arial", 11, "bold")
         self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
         self.controls_subframe.pack(side="top")
 
         self.btn_prev = ctk.CTkButton(
-            self.controls_subframe, text="◀◀", font=control_font, 
-            width=60, height=35, fg_color=btn_bg, text_color=btn_text,
+            self.controls_subframe, text="❬❬", font=control_font, 
+            width=45, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
-        self.btn_prev.pack(side="left", padx=10)
+        self.btn_prev.pack(side="left", padx=6)
 
         self.btn_play = ctk.CTkButton(
             self.controls_subframe, text="▶", font=control_font, 
-            width=80, height=35, fg_color=btn_bg, text_color=btn_text,
+            width=55, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
-        self.btn_play.pack(side="left", padx=10)
+        self.btn_play.pack(side="left", padx=6)
 
         self.btn_next = ctk.CTkButton(
-            self.controls_subframe, text="▶▶", font=control_font, 
-            width=60, height=35, fg_color=btn_bg, text_color=btn_text,
+            self.controls_subframe, text="❭❭", font=control_font, 
+            width=45, height=28, corner_radius=3, fg_color=btn_bg, text_color=btn_text,
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
-        self.btn_next.pack(side="left", padx=10)
+        self.btn_next.pack(side="left", padx=6)
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
@@ -153,7 +162,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
 
-        # Begin running dynamic progress and state check loops
+        # Initialize internal monitoring loops
         self._update_playback_loop()
 
     def load_ui_sounds(self):
@@ -269,7 +278,6 @@ class HandheldPlayerApp(ctk.CTk):
         try:
             pygame.mixer.music.load(track_path)
             
-            # Fetch audio track file length via Pygame Sound property metadata
             sound_object = pygame.mixer.Sound(track_path)
             self.current_track_length = sound_object.get_length()
             
@@ -304,7 +312,8 @@ class HandheldPlayerApp(ctk.CTk):
 
     def next_track(self):
         if not self.track_list: return
-        self.progress_bar.configure(width=0)  # Reset line animation
+        self.progress_bar.configure(width=0)  
+        self.lbl_timer.configure(text="0:00")
         self.current_track_index = (self.current_track_index + 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
@@ -314,7 +323,8 @@ class HandheldPlayerApp(ctk.CTk):
 
     def prev_track(self):
         if not self.track_list: return
-        self.progress_bar.configure(width=0)  # Reset line animation
+        self.progress_bar.configure(width=0)  
+        self.lbl_timer.configure(text="0:00")
         self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
         if self.is_playing:
             self.play_current_track()
@@ -323,22 +333,24 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text(f"{track_name}", color="#888888")
 
     def _update_playback_loop(self):
-        """Asynchronous tracking routine monitoring current song duration increments."""
         if self.is_playing and self.current_track_length > 0:
-            # pygame mixer track pos drops in milliseconds
             current_ms = pygame.mixer.music.get_pos()
             if current_ms != -1:
                 current_secs = current_ms / 1000.0
                 ratio = min(current_secs / self.current_track_length, 1.0)
                 
-                # Expand tracking graphic width out dynamically to 220 total pixels
-                calculated_width = int(ratio * 220)
-                self.progress_bar.configure(width=calculated_width)
+                # Render tracking line bar width (scaled out to 200px max)
+                self.progress_bar.configure(width=int(ratio * 200))
+                
+                # Generate descending dynamic countdown timer metrics
+                time_remaining = max(0, int(self.current_track_length - current_secs))
+                mins, secs = divmod(time_remaining, 60)
+                self.lbl_timer.configure(text=f"{mins}:{secs:02d}")
         elif not self.is_playing:
             if pygame.mixer.music.get_pos() == -1:
                 self.progress_bar.configure(width=0)
+                self.lbl_timer.configure(text="0:00")
 
-        # Re-trigger loop check execution step every 200 milliseconds
         self.after(200, self._update_playback_loop)
 
     def _setup_hover_glow(self, button, normal_color, glow_color):
