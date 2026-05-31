@@ -105,25 +105,26 @@ class HandheldPlayerApp(ctk.CTk):
 
         # Main Playback Container
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.playback_frame.place(relx=0.5, rely=0.83, anchor="center")
+        self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        # Niche Countdown Timer Element
+        # Niche Transparent Countdown Timer
         self.lbl_timer = ctk.CTkLabel(
             self.playback_frame, text="0:00", 
+            fg_color="transparent",
             font=("Courier New", 11, "bold"), text_color="#00A8FF"
         )
         self.lbl_timer.pack(side="top", pady=(0, 2))
 
-        # Progress Bar Base Frame
-        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#333333", height=4, width=200)
-        self.progress_container.pack(side="top", pady=(0, 8))
+        # Progress Bar Base Frame (Maintained black container layout)
+        self.progress_container = ctk.CTkFrame(self.playback_frame, fg_color="#1A1A1A", height=6, width=200, corner_radius=2)
+        self.progress_container.pack(side="top", pady=(0, 18)) # Expanded spacing below the bar
         self.progress_container.pack_propagate(False)
 
-        # Progress Bar Fluid Line
-        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=4, width=0)
+        # Progress Bar Moving Line Animation
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=6, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
-        # Minimalist Controls Container
+        # Minimalist Control Buttons Row
         control_font = ("Arial", 11, "bold")
         self.controls_subframe = ctk.CTkFrame(self.playback_frame, fg_color="transparent")
         self.controls_subframe.pack(side="top")
@@ -339,10 +340,8 @@ class HandheldPlayerApp(ctk.CTk):
                 current_secs = current_ms / 1000.0
                 ratio = min(current_secs / self.current_track_length, 1.0)
                 
-                # Render tracking line bar width (scaled out to 200px max)
                 self.progress_bar.configure(width=int(ratio * 200))
                 
-                # Generate descending dynamic countdown timer metrics
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 mins, secs = divmod(time_remaining, 60)
                 self.lbl_timer.configure(text=f"{mins}:{secs:02d}")
