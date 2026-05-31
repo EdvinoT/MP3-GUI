@@ -8,6 +8,7 @@ import warnings
 import io
 import random 
 import scroller2  
+import battery  # INTEGRATED DESKTOP TELEMETRY COMPONENT
 
 # Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -30,7 +31,7 @@ class HandheldPlayerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # 1. FIXED HANDHELD DIMENSIONS (Perfect for a 3.5" or 2.8" screen)
+        # 1. FIXED HANDHELD DIMENSIONS
         self.SCREEN_WIDTH = 480
         self.SCREEN_HEIGHT = 320
         
@@ -38,8 +39,16 @@ class HandheldPlayerApp(ctk.CTk):
         self.geometry(f"{self.SCREEN_WIDTH}x{self.SCREEN_HEIGHT}")
         self.resizable(False, False)  
         
+        # Audio UI Feedback Channels
+        self.click_sound = None
+        self.scroll_sound = None
+        self.shutdown_sound = None
+        self.ui_channel = pygame.mixer.Channel(0)
+        self.load_ui_sounds()
+
         # Track Management
         self.track_list = []
+        self.current_playlist = []
         self.current_track_index = 0
         self.is_playing = False
         
@@ -51,20 +60,21 @@ class HandheldPlayerApp(ctk.CTk):
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
-        # Load the background image statically (no heavy CPU resizing)
+        # Load the background image statically
         self.setup_background_canvas()
 
         # 2. COMPACT BUTTON LAYOUT
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
         btn_text = "#DDDDDD" 
+        btn_hover = "#FFFFFF"
 
         # Left Column Buttons
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=self.access_songs
+            command=lambda: [self.play_ui_sound("click"), self.access_songs()]
         )
         self.btn_access.place(x=60, y=140)
 
@@ -72,7 +82,7 @@ class HandheldPlayerApp(ctk.CTk):
             self, text="PLAYLISTS", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=self.make_playlist
+            command=lambda: [self.play_ui_sound("click"), self.make_playlist()]
         )
         self.btn_playlist.place(x=60, y=190)
 
@@ -81,7 +91,7 @@ class HandheldPlayerApp(ctk.CTk):
             self, text="ADD SONG", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
-            command=self.add_song
+            command=lambda: [self.play_ui_sound("click"), self.add_song()]
         )
         self.btn_add.place(x=260, y=140)
 
@@ -103,36 +113,61 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_prev = ctk.CTkButton(
             self.playback_frame, text="◀◀", font=control_font, 
             width=60, height=35, fg_color=btn_bg, text_color=btn_text,
-            command=self.prev_track
+            command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
         self.btn_prev.pack(side="left", padx=10)
 
         self.btn_play = ctk.CTkButton(
             self.playback_frame, text="▶", font=control_font, 
             width=80, height=35, fg_color=btn_bg, text_color=btn_text,
-            command=self.toggle_play
+            command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
         self.btn_play.pack(side="left", padx=10)
 
         self.btn_next = ctk.CTkButton(
             self.playback_frame, text="▶▶", font=control_font, 
             width=60, height=35, fg_color=btn_bg, text_color=btn_text,
-            command=self.next_track
+            command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
         self.btn_next.pack(side="left", padx=10)
 
-        # Load modules
+        # Setup Hover/Touch Glow Mappings
+        self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
+        self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
+
+        # Initialize Engines & Modules
         scroller2.TrackScroller(self)
         loader2.SongLoader(self)
+
+        self.battery_monitor = battery.BatteryTelemetry(self)
+        self.battery_monitor.start()
+
+    def load_ui_sounds(self):
+        """Pre-caches interactive micro-sounds into memory loops safely."""
+        try:
+            for ext in ["ogg", "wav"]:
+                if os.path.exists(f"click.{ext}"):
+                    self.click_sound = pygame.mixer.Sound(f"click.{ext}")
+                if os.path.exists(f"scroll.{ext}"):
+                    self.scroll_sound = pygame.mixer.Sound(f"scroll.{ext}")
+            if os.path.exists("shutdown.wav"):
+                self.shutdown_sound = pygame.mixer.Sound("shutdown.wav")
+        except Exception as e:
+            print(f"Notice: Audio feedback assets unindexed: {e}")
 
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(".mp3")]
         self.track_list.sort()
+        self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
-        """Loads image statically to protect the Pi Zero CPU from lag spikes."""
         png_path = os.path.join(self.dir_path, "background.png")
         if os.path.exists(png_path):
             try:
@@ -143,21 +178,35 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # Primary Title Header
-        self.title_text_id = self.bg_canvas.create_text(
+        # Primary Title Header - String tag targeted
+        self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
-            font=("Helvetica Light", 20), fill="#000000", anchor="center"
+            font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
-        # Dynamic Status / Track Readout Line
-        self.sub_text_id = self.bg_canvas.create_text(
-            self.SCREEN_WIDTH // 2, 85, text="▪ ONLINE ▪",
-            font=("Arial", 11), fill="#888888", anchor="center"
+        current_status = "▪ ONLINE ▪"
+        battery_status = "--%"
+        if hasattr(self, 'battery_monitor'):
+            current_status = self.battery_monitor.get_status_string()
+            battery_status = f"{self.battery_monitor.current_battery_pct}%"
+
+        # Subtitle Status Line - String tag targeted
+        self.bg_canvas.create_text(
+            self.SCREEN_WIDTH // 2, 85, text=current_status.upper(),
+            font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
+        )
+
+        # Micro-Battery Voltage Counter Line - String tag targeted
+        self.bg_canvas.create_text(
+            self.SCREEN_WIDTH // 2, 110, text=battery_status,
+            font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
     def update_status_text(self, text, color="#888888"):
-        if hasattr(self, 'sub_text_id') and self.sub_text_id is not None:
-            self.bg_canvas.itemconfig(self.sub_text_id, text=text.upper(), fill=color)
+        self.bg_canvas.itemconfig("status_sub", text=text.upper(), fill=color)
+
+    def update_battery_display(self, text, color="#666666"):
+        self.bg_canvas.itemconfig("battery_sub", text=text, fill=color)
 
     def play_current_track(self):
         if not self.track_list:
@@ -171,11 +220,10 @@ class HandheldPlayerApp(ctk.CTk):
             self.is_playing = True
             self.btn_play.configure(text="❚❚") 
             
-            # Clean track title representation for the header block
             clean_name = track_name.replace(".mp3", "")
             display_name = clean_name if len(clean_name) < 24 else clean_name[:21] + "..."
             
-            self.bg_canvas.itemconfig(self.title_text_id, text="N O W   P L A Y I N G", fill="#000000")
+            self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
             self.update_status_text(f"▶ {display_name}", color="#00FF00")
         except Exception:
             self.update_status_text("▪ HARDWARE DECODE ERROR ▪", color="#FF3333")
@@ -192,7 +240,7 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 track_name = self.track_list[self.current_track_index].replace(".mp3", "")
                 display_name = track_name if len(track_name) < 24 else track_name[:21] + "..."
-                self.bg_canvas.itemconfig(self.title_text_id, text="N O W   P L A Y I N G", fill="#000000")
+                self.bg_canvas.itemconfig("main_title", text="N O W   P L A Y I N G", fill="#000000")
                 self.update_status_text(f"▶ {display_name}", color="#00FF00")
             else:
                 self.play_current_track()
@@ -200,7 +248,7 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
-            self.bg_canvas.itemconfig(self.title_text_id, text="P A U S E D", fill="#000000")
+            self.bg_canvas.itemconfig("main_title", text="P A U S E D", fill="#000000")
             self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
 
     def next_track(self):
@@ -213,42 +261,83 @@ class HandheldPlayerApp(ctk.CTk):
         self.current_track_index = (self.current_track_index - 1) % len(self.track_list)
         self.play_current_track()
 
+    def _setup_hover_glow(self, button, normal_color, glow_color):
+        button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
+        button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
+
+    def play_ui_sound(self, sound_type):
+        """Fires localized transient microtones safely without interrupting running MP3 streams."""
+        try:
+            self.ui_channel.stop()  
+            if sound_type == "click" and self.click_sound is not None:
+                self.click_sound.set_volume(0.4)  
+                self.ui_channel.play(self.click_sound)
+            elif sound_type == "scroll" and self.scroll_sound is not None:
+                self.scroll_sound.set_volume(0.2)  
+                self.ui_channel.play(self.scroll_sound)
+            elif sound_type == "shutdown" and self.shutdown_sound is not None:
+                self.shutdown_sound.set_volume(0.5)
+                self.ui_channel.play(self.shutdown_sound)
+        except Exception as e:
+            print(f"UI Sound Drop: {e}")
+
     def access_songs(self): pass
     def make_playlist(self): pass
     def add_song(self): pass
 
     def turn_off(self):
-        """Executes a sequenced terminal-style shutdown script layout on the canvas screen."""
-        # 1. Kill active hardware tasks safely
+        """Closes system logs and unmounts thread hooks with real-time logging output."""
+        print("\n=== SYSTEM SHUTDOWN INITIATED ===")
+        self.battery_monitor.stop()
+        self.play_ui_sound("shutdown")
         pygame.mixer.music.stop()
-        pygame.mixer.quit()
         
-        # 2. Dismiss physical button panels to isolate background text blocks
         self.btn_access.place_forget()
         self.btn_playlist.place_forget()
         self.btn_add.place_forget()
         self.btn_off.place_forget()
         self.playback_frame.place_forget()
         
-        # 3. Restyle headers into terminal feedback logs
-        self.bg_canvas.itemconfig(self.title_text_id, text="S H U T D O W N", fill="#FF5555")
-        self.update_status_text("▶ TERMINATING SYSTEM PROCESSES...", color="#FFAAAA")
-        self.update_idletasks()
-        
-        # Low-overhead delay steps to allow the user to read logs without locked frame rendering
-        self.after(400, lambda: self.shutdown_step_two())
+        self.bg_canvas.delete("back_btn", "track_item") 
+        if not self.bg_canvas.find_withtag("main_title"):
+            self.setup_background_canvas()
 
-    def shutdown_step_two(self):
-        """Appends the secondary line update to the hardware console prompt."""
-        self.update_status_text("▶ UNMOUNTING CORE AUDIO ENGINE...", color="#FFAAAA")
-        self.update_idletasks()
-        self.after(400, lambda: self.shutdown_step_three())
+        if self.battery_monitor.is_low_battery:
+            shutdown_ui_text = "▪ VOLTAGE DROP CRITICAL ▪"
+            shutdown_color = "#880000"
+            print("[INFO] Flushing core system stack registers...")
+            self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill=shutdown_color)
+            self.update_status_text(shutdown_ui_text, color=shutdown_color)
+            self.update()
+            self.after(600, self.final_destroy)
+        else:
+            shutdown_profiles = [
+                {"log": "Purging audio matrix cache...", "ui": "▪ SYSTEM DE-COMMISSIONED ▪"},
+                {"log": "Collapsing local path links...", "ui": "▪ TERMINATED ▪"},
+                {"log": "Releasing active app threads...", "ui": "▪ CORE CONSOLE OFFLINE ▪"},
+                {"log": "Terminating the Program...", "ui": "▪ CRITICAL HIT! ▪"}
+            ]
+            chosen = random.choice(shutdown_profiles)
+            print(f"[INFO] {chosen['log']}")
+            
+            self.bg_canvas.itemconfig("main_title", text="S H U T D O W N", fill="#FF5555")
+            self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
+            self.update()
+            
+            self.after(500, lambda: self.shutdown_step_two(chosen["ui"]))
 
-    def shutdown_step_three(self):
-        """Displays final structural status before terminating application loop lifecycle."""
-        self.update_status_text("▶ POWER CORES OFFLINE.", color="#FF3333")
-        self.update_idletasks()
-        self.after(500, lambda: self.destroy())
+    def shutdown_step_two(self, secondary_text):
+        self.update_status_text(secondary_text, color="#BBBBBB")
+        self.update()
+        self.after(500, self.final_destroy)
+
+    def final_destroy(self):
+        print("[INFO] Releasing hardware mixer channels...")
+        self.track_list.clear()
+        self.current_playlist.clear()
+        pygame.mixer.quit()
+        print("=== SYSTEM OFFLINE ===\n")
+        self.destroy()
 
 if __name__ == "__main__":
     app = HandheldPlayerApp()
