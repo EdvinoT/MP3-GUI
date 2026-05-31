@@ -53,8 +53,8 @@ class TrackScroller:
         self.app.playback_frame.place_forget()
 
         # 2. CLEAR PREVIOUS TITLE LOGOS (Redrawn tightly via text list)
-        self.app.bg_canvas.delete("all")
-        self.app.setup_background_canvas()
+        # FIXED: Removed .delete("all") from opening sequence to protect core assets
+        self.clear_canvas_items()
 
         # 3. Bind input controllers (Touch/Mouse)
         self.app.bind("<MouseWheel>", self.on_mouse_scroll)
@@ -159,18 +159,17 @@ class TrackScroller:
             self.app.bg_canvas.tag_raise(item_id)
 
         # Frame 2: Settle to final background color after 40 milliseconds
-        # This creates a responsive "clicky" UI feel without a continuous math loop
         self.app.after(40, lambda: self.settle_highlight_color())
 
     def settle_highlight_color(self):
         """Settles the animation frame down to the final low-contrast row background."""
         if self.hover_strip_id and self.is_open:
             self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#212124")
+
     def draw_flat_highlight(self, x1, y1, x2, y2):
         """Renders an instant solid focus background block behind the text row."""
         if not self.is_open:
             return
-        # Using a dark-gray highlight theme block to remain friendly on high-contrast small screens
         self.hover_strip_id = self.app.bg_canvas.create_rectangle(
             x1, y1, x2, y2, fill="#252528", outline=""
         )
@@ -185,31 +184,38 @@ class TrackScroller:
             self.hover_strip_id = None
         self.currently_hovered_idx = None
 
+    # FIXED: Re-engineered function to safely close menu and synchronize "Now Playing" labels
     def close_full_page_scroller(self):
-        """Clears text elements, wipes structural bindings, and restores home core layout."""
+        """Clears text elements, wipes structural bindings, and restores home core layout safely."""
         self.is_open = False
 
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
+        # Unbind temporary scroller control hooks
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
         self.app.bg_canvas.unbind("<Button-1>")
         self.app.bg_canvas.unbind("<Motion>")
 
+        # Clean old scroller visual remnants cleanly (Avoids delete("all"))
         self.clear_hover_strip()
         self.clear_canvas_items()
-        
-        self.app.bg_canvas.delete("all")
-        self.app.setup_background_canvas()
 
-        # Re-place default menus right where they belong on the small panel
+        # Re-place default menus right where they belong on the small panel layout
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_playlist.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_off.place(x=260, y=190)
         self.app.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
+
+        # INSTANT REFRESH SEQUENCE: Checks playing state and outputs track name immediately on exit
+        if self.app.is_playing and self.app.track_list:
+            current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
+            self.app.update_status_text(f"▶ {current_track}", color="#FFB300")
+        else:
+            self.app.update_status_text("▪ ONLINE ▪", color="#888888")
 
         self.app.update_idletasks()
 
@@ -261,7 +267,7 @@ class TrackScroller:
             y_pos = self.ROW_START_Y + (index * self.LINE_HEIGHT)
             display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
-            # 1. DRAW COMPACT ROW TEXT (Changed fill color to #000000)
+            # 1. DRAW COMPACT ROW TEXT
             track_id = self.app.bg_canvas.create_text(
                 50, y_pos, text=display_string,
                 font=("Arial", 11), fill="#000000", anchor="w"

@@ -188,21 +188,45 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
     def update_status_text(self, text, color="#888888"):
+        """Safely updates text configurations and handles layout lengths cleanly."""
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
 
-        self.marquee_text = text.upper()
+        # Standardize the text input right away
+        self.marquee_text = text.upper().strip()
         self.marquee_color = color
         self.scroll_offset = 0
 
-        clean_check = self.marquee_text.replace("▶ ", "").strip()
-        if len(clean_check) > 16 and "VOLTAGE" not in self.marquee_text and "FLUSH" not in self.marquee_text:
+        # CLEANUP CHECK: Strip out symbols and prefixes to measure the actual song name length
+        clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
+        
+        # If the actual song name is long, start the rolling scroller
+        if len(clean_check) > 12 and "VOLTAGE" not in self.marquee_text:
             self._animate_marquee_step()
         else:
+            # If it's short, just keep it perfectly centered on the screen
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
 
+    def _animate_marquee_step(self):
+        """Clean rolling loop animation frame slicer for long song names."""
+        # Check if we are currently on the main menu view
+        if self.btn_access.winfo_manager() != "":
+            # Add a clear space buffer so the text loops cleanly instead of cutting off
+            padded_text = self.marquee_text + "      ▪      "
+            
+            # Pull a fixed window of characters to display on the screen
+            display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
+            
+            self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
+            self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
+            
+            # Increment scroll frame offset
+            self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
+            self.marquee_job = self.after(280, self._animate_marquee_step)
+        else:
+            self.marquee_job = None
     def _animate_marquee_step(self):
         if self.btn_access.winfo_manager() != "":
             padded_text = self.marquee_text + "         "
