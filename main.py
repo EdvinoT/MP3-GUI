@@ -9,6 +9,7 @@ import os
 import warnings
 import io
 import scroller
+import random  # Added for dynamic shutdown randomization
 
 # Mute high-DPI warning logs entirely
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -46,7 +47,7 @@ class SurrealPlayerApp(ctk.CTk):
 
         # Core States
         self.track_list = []
-        self.current_playlist = []  # INITIALIZED FIRST: Prevents Tkinter AttributeErrors
+        self.current_playlist = []  
         self.current_track_index = 0
         self.is_playing = False
 
@@ -54,7 +55,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.dir_path = os.path.dirname(os.path.abspath(__file__))
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         
-        # Now it is completely safe to scan the directory
         self.load_local_tracks()
 
         # Create canvas for background image
@@ -65,7 +65,6 @@ class SurrealPlayerApp(ctk.CTk):
         self.pil_bg_image = None
         self.resized_bg_image = None
         
-        # Canvas item ID tracking variables for dynamic redraw events
         self.title_text_id = None
         self.sub_text_id = None
 
@@ -75,7 +74,7 @@ class SurrealPlayerApp(ctk.CTk):
         btn_text = "#DDDDDD" 
         btn_hover = "#FFFFFF" 
 
-        # --- MAIN OPTIONS NAVIGATION BUTTONS (WIRED WITH CLICK AUDIO) ---
+        # --- MAIN OPTIONS NAVIGATION BUTTONS ---
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=280, height=45, corner_radius=0, 
@@ -108,11 +107,11 @@ class SurrealPlayerApp(ctk.CTk):
             width=280, height=45, corner_radius=0, 
             fg_color=btn_bg, border_width=0, text_color="#FFAAAA", 
             hover_color="#201010", 
-            command=self.turn_off  # Directly targets the comprehensive power-down engine
+            command=self.turn_off  
         )
         self.btn_off.place(relx=0.5, rely=0.68, anchor="center")
 
-        # --- AUDIO DECK CONTROLS (WIRED WITH CLICK AUDIO) ---
+        # --- AUDIO DECK CONTROLS ---
         self.playback_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.playback_frame.place(relx=0.5, rely=0.85, anchor="center")
 
@@ -155,10 +154,8 @@ class SurrealPlayerApp(ctk.CTk):
 
         self.bind("<Configure>", self.on_window_resize)
         
-        # Schedule background setup after window is fully rendered
         self.after(100, self.setup_background_canvas)
         
-        # Initialize the separate scroller module and plug it in
         scroller.TrackScroller(self)
 
     def load_ui_sounds(self):
@@ -187,7 +184,6 @@ class SurrealPlayerApp(ctk.CTk):
         valid_extensions = (".mp3",)
         self.track_list = [f for f in os.listdir(self.tracks_dir) if f.lower().endswith(valid_extensions)]
         self.track_list.sort()
-        
         self.current_playlist = list(self.track_list)
 
     def setup_background_canvas(self):
@@ -306,43 +302,73 @@ class SurrealPlayerApp(ctk.CTk):
         messagebox.showinfo("Playlist", "Create a new playlist configuration.")
 
     def turn_off(self):
-        """Executes a serious, multi-stage tactical system decommissioning routine with audio."""
+        """Executes a serious, randomized tactical shutdown sequence."""
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
         
-        # Trigger the power-down sound sweep immediately
+        # Trigger the power-down audio sweep instantly
         self.play_ui_sound("shutdown")
         
-        # Phase 1: Halt music stream and change baseline driving registers
-        self.update_status_text("▪ DE-AUTHORIZING CORE DRIVES ▪")
+        # Array of highly grounded, industrial console sequence variants
+        shutdown_profiles = [
+            {
+                "log": "Purging internal audio caching frames...",
+                "step1": "▪ DE-AUTHORIZING CORE DRIVES ▪",
+                "step2": "▪ TERMINATING DIRECTORY CONTEXTS ▪",
+                "step3": "▪ MIXER DECOMMISSIONED ▪"
+            },
+            {
+                "log": "Collapsing local variable sectors cleanly...",
+                "step1": "▪ DISCONNECTING TRACK PATHWAYS ▪",
+                "step2": "▪ PURGING DESKTOP INTERFACES ▪",
+                "step3": "▪ HARDWARE MODULE DISENGAGED ▪"
+            },
+            {
+                "log": "Initiating high-security hardware memory flush...",
+                "step1": "▪ ENCRYPTION REGISTERS CLAMPED ▪",
+                "step2": "▪ DROPPING MEDIA ENVIRONMENTS ▪",
+                "step3": "▪ VOLTAGE CORE COMPROMISED ▪"
+            },
+            {
+                "log": "Severing thread allocation bounds...",
+                "step1": "▪ RELEASING SYSTEM POINTERS ▪",
+                "step2": "▪ STOPPING PIPELINE KERNELS ▪",
+                "step3": "▪ MAIN CONSOLE TERMINATED ▪"
+            }
+        ]
+        
+        # Pick exactly one completely random sequence for this shutdown session
+        chosen = random.choice(shutdown_profiles)
+        
+        # Phase 1: Halt music stream and invoke first custom diagnostic prompt
+        self.update_status_text(chosen["step1"])
         self.update_idletasks() 
         pygame.mixer.music.stop()
         time.sleep(0.25)
         
-        # Phase 2: Purge workspace arrays
-        print("[INFO] Severing local track environment hooks...")
-        self.update_status_text("▪ TERMINATING DIRECTORY CONTEXTS ▪")
+        # Phase 2: Purge core structures and display next custom status
+        print(f"[INFO] {chosen['log']}")
+        self.update_status_text(chosen["step2"])
         self.update_idletasks()
         self.track_list.clear()
         self.current_playlist.clear()
         time.sleep(0.25)
         
-        # Phase 3: Hardware Mixer closeout
+        # Phase 3: Hardware Mixer closeout and final custom message
         print("[INFO] Releasing hardware mixer channels...")
-        self.update_status_text("▪ MIXER DECOMMISSIONED ▪")
+        self.update_status_text(chosen["step3"])
         self.update_idletasks()
         time.sleep(0.2)
         
         pygame.mixer.quit()
         
-        # Phase 4: Full terminal kill
+        # Phase 4: Full window destroy
         print("=== SYSTEM OFFLINE ===\n")
         self.destroy()
 
     def play_ui_sound(self, sound_type):
-        """Global utility method triggered by scroller.py or internal commands to execute interface audio cues."""
+        """Global utility method triggered by internal systems to execute interface audio cues."""
         try:
-            self.ui_channel.stop()  # Clear hardware audio cache buffers immediately to prevent overlapping pops
-            
+            self.ui_channel.stop()  
             if sound_type == "click" and self.click_sound is not None:
                 self.click_sound.set_volume(0.5)  
                 self.ui_channel.play(self.click_sound)
