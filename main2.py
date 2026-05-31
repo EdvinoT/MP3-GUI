@@ -532,4 +532,9 @@ class HandheldPlayerApp(ctk.CTk):
 
 if __name__ == "__main__":
     app = HandheldPlayerApp()
+    
+    # ADD THESE TWO LINES HERE TO HOOK IN THE UPGRADES
+    import hardware_bridge
+    bridge = hardware_bridge.HardwareBridge(app)
+    
     app.mainloop()
