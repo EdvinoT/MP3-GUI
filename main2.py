@@ -6,6 +6,7 @@ import os
 import warnings
 import io
 import random 
+import scroller2  # UPDATED TO IMPORT SCROLLER2
 
 # Hide unnecessary warnings on the small screen
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
@@ -123,6 +124,9 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_next.pack(side="left", padx=10)
 
+        # Load the handheld optimized track scroller module engine
+        scroller2.TrackScroller(self)
+
     def load_local_tracks(self):
         if not os.path.exists(self.tracks_dir):
             os.makedirs(self.tracks_dir)
@@ -141,9 +145,7 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # CHANGES APPLIED HERE:
-        # Title changed to black (#000000), text adjusted to "I D L E   S Y S T E M" 
-        # and font configured to use a skinnier, crisp sans-serif presentation.
+        # Black, clean, thin-styled font variant for "IDLE SYSTEM"
         self.title_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center"
@@ -155,7 +157,8 @@ class HandheldPlayerApp(ctk.CTk):
         )
 
     def update_status_text(self, text, color="#888888"):
-        self.bg_canvas.itemconfig(self.sub_text_id, text=text.upper(), fill=color)
+        if hasattr(self, 'sub_text_id') and self.sub_text_id is not None:
+            self.bg_canvas.itemconfig(self.sub_text_id, text=text.upper(), fill=color)
 
     def play_current_track(self):
         if not self.track_list:
