@@ -9,6 +9,7 @@ import random
 import scroller2  
 import battery2  
 import settings  
+import playlist # Importing your new playlist logic layer
 
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
@@ -24,6 +25,8 @@ class PlaybackLifecycleController(ctk.CTkFrame):
         if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
             return
         if hasattr(self.app, 'settings_open') and self.app.settings_open:
+            return
+        if hasattr(self.app, 'playlist_module') and self.app.playlist_module.is_open:
             return
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
@@ -130,14 +133,26 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_add.place(x=260, y=140)
 
-        self.btn_settings = ctk.CTkButton(
-            self, text="SETTINGS ⚙", font=button_font, 
+        # CHANGED: The old settings option has been redefined to point to your new PLAYLIST layout profile.
+        self.btn_playlist = ctk.CTkButton(
+            self, text="PLAYLIST ☰", font=button_font, 
             width=160, height=35, corner_radius=4, 
             fg_color=btn_bg, text_color=btn_text,
+            command=self.open_playlist_module
+        )
+        self.btn_playlist.place(x=260, y=190)
+
+        # CHANGED: The bottom-left location now houses a dedicated settings toggle icon link layer button instead.
+        self.btn_quick_settings = ctk.CTkButton(
+            self, text="⚙", font=("Arial", 14, "bold"), 
+            width=35, height=35, corner_radius=4, 
+            fg_color="#1A1A1A", text_color="#DDDDDD", 
+            hover_color="#252525",
             command=self.toggle_settings_menu
         )
-        self.btn_settings.place(x=260, y=190)
+        self.btn_quick_settings.place(x=15, y=266)
 
+        # CHANGED: Shutdown has been shifted to the right side where settings used to sit.
         self.btn_off = ctk.CTkButton(
             self, text="⏻", font=("Arial", 14, "bold"), 
             width=35, height=35, corner_radius=4, 
@@ -145,7 +160,7 @@ class HandheldPlayerApp(ctk.CTk):
             hover_color="#551111",
             command=self.turn_off  
         )
-        self.btn_off.place(x=15, y=266)
+        self.btn_off.place(x=430, y=266)
 
         self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
@@ -189,7 +204,8 @@ class HandheldPlayerApp(ctk.CTk):
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_settings, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_quick_settings, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
         self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
@@ -197,6 +213,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.track_scroller = scroller2.TrackScroller(self)
         self.settings_menu = settings.SettingsMenu(self)  
+        self.playlist_module = playlist.PlaylistManager(self) # Instantiating playlist core segment
         loader2.SongLoader(self)
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
@@ -273,7 +290,6 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
-        # CHANGED: 'I D L E   S Y S T E M' font fill reset to solid black (#000000)
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
             font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
@@ -289,9 +305,10 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
+        # CHANGED: Text timer profile setup shifted fill color argument to pure black (#000000)
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
-            font=("Courier New", 12, "bold"), fill="#FFFFFF", anchor="center", tags="playback_timer"
+            font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
         )
 
         self.sleep_text_id = self.bg_canvas.create_text(
@@ -310,7 +327,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         clean_check = self.marquee_text.replace("▶", "").replace("▪", "").strip()
         
-        if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or len(clean_check) <= 16:
+        if "MODULE" in self.marquee_text or "SELECT" in self.marquee_text or "PLAYLIST" in self.marquee_text or len(clean_check) <= 16:
             self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
             self.bg_canvas.itemconfig("status_sub", text=self.marquee_text, fill=self.marquee_color, anchor="center")
         else:
@@ -327,7 +344,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_job = self.after(280, self._animate_marquee_step)
 
     def update_battery_display(self, text, color="#666666"):
-        if (hasattr(self, 'track_scroller') and self.track_scroller.is_open) or self.settings_open:
+        if (hasattr(self, 'track_scroller') and self.track_scroller.is_open) or self.settings_open or self.playlist_module.is_open:
             self.bg_canvas.itemconfig("battery_sub", text="")
             return
             
@@ -477,6 +494,10 @@ class HandheldPlayerApp(ctk.CTk):
         if hasattr(self, 'settings_menu'):
             self.settings_menu.open_settings_scroller()
 
+    def open_playlist_module(self):
+        if hasattr(self, 'playlist_module'):
+            self.playlist_module.open_playlist_view()
+
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
         button.bind("<Leave>", lambda event: button.configure(text_color=normal_color))
@@ -531,10 +552,11 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_access.place_forget()
             self.btn_shuffle.place_forget()
             self.btn_add.place_forget()
-            self.btn_settings.place_forget()
+            self.btn_playlist.place_forget()
+            self.btn_quick_settings.place_forget()
             self.btn_off.place_forget()
             self.playback_frame.place_forget()
-            self.bg_canvas.delete("back_btn", "track_item", "settings_item") 
+            self.bg_canvas.delete("back_btn", "track_item", "settings_item", "playlist_back") 
         except Exception as e:
             print(f"[GUI] Clear widgets failed: {e}")
 

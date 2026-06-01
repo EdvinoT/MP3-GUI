@@ -1,0 +1,88 @@
+import customtkinter as ctk
+from tkinter import messagebox
+
+class PlaylistManager:
+    def __init__(self, main_app_instance):
+        """
+        Manages the dedicated Playlist UI overlay module.
+        Integrates seamlessly with the main canvas and control states.
+        """
+        self.app = main_app_instance
+        self.is_open = False
+        self.canvas_playlist_ids = []
+
+    def open_playlist_view(self):
+        self.is_open = True
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
+
+        # Hide all primary navigation buttons
+        self.app.btn_access.place_forget()
+        if hasattr(self.app, 'btn_shuffle'):
+            self.app.btn_shuffle.place_forget()
+        self.app.btn_add.place_forget()
+        self.app.btn_playlist.place_forget()
+        self.app.btn_quick_settings.place_forget()
+        self.app.btn_off.place_forget()
+
+        # Hide lower media docks
+        self.app.playback_frame.place_forget()
+        self.app.progress_container.place_forget()
+        self.app.controls_dock.place_forget()
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
+
+        self.app.update_status_text("▪ PLAYLIST ENGINE ACTIVE ▪", color="#FFB300")
+        self.render_playlist_screen()
+
+    def render_playlist_screen(self):
+        self.clear_playlist_canvas()
+
+        # Transparent Text Layout Links
+        back_id = self.app.bg_canvas.create_text(
+            45, 135, text="◀  BACK TO MAIN", 
+            font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="playlist_back"
+        )
+        self.canvas_playlist_ids.append(back_id)
+        self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_playlist_view())
+
+        # Placeholder info text matching your system style
+        info_id = self.app.bg_canvas.create_text(
+            45, 180, text="DEFAULT AUDIO QUEUE ACTIVE\nTRACK COUNT: " + str(len(self.app.track_list)),
+            font=("Arial", 11, "bold"), fill="#000000", anchor="w"
+        )
+        self.canvas_playlist_ids.append(info_id)
+
+    def close_playlist_view(self):
+        self.is_open = False
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
+
+        self.clear_playlist_canvas()
+
+        # Restore main application layout to exact coordinate specifications
+        self.app.btn_access.place(x=60, y=140)
+        if hasattr(self.app, 'btn_shuffle'):
+            self.app.btn_shuffle.place(x=60, y=190)
+        self.app.btn_add.place(x=260, y=140)
+        self.app.btn_playlist.place(x=260, y=190)
+        self.app.btn_quick_settings.place(x=15, y=266)
+        self.app.btn_off.place(x=260, y=190) # Replaced lower tracking grid element
+        self.app.btn_off.place(x=260, y=190)
+        
+        # Reset positioning structures
+        self.app.btn_off.place(x=260, y=190)
+        
+        # Bring back the media playback frame layout handles
+        self.app.playback_frame.place()
+
+        if self.app.is_playing and self.app.track_list:
+            track_name = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
+            self.app.update_status_text(f"▶ {track_name}", color="#FFB300")
+        else:
+            self.app.update_status_text("▪ ONLINE ▪", color="#888888")
+
+    def clear_playlist_canvas(self):
+        for cid in self.canvas_playlist_ids:
+            self.app.bg_canvas.delete(cid)
+        self.canvas_playlist_ids.clear()
