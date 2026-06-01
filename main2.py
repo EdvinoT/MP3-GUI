@@ -8,11 +8,17 @@ import warnings
 import random 
 import scroller2  
 import battery2  
+import settings  # Imported new modularized script
 
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
+# Global fallback variables for our new features
+AUDIO_FREQ = 44100
+CROSSFADE_ENABLED = False
+SLEEP_MINUTES_LEFT = 0
+
 try:
-    pygame.mixer.pre_init(44100, -16, 2, 2048)
+    pygame.mixer.pre_init(AUDIO_FREQ, -16, 2, 2048)
     pygame.mixer.init()
 except Exception as mixer_err:
     print(f"Hardware Mixer Warning: {mixer_err}")
@@ -31,6 +37,8 @@ class PlaybackLifecycleController(ctk.CTkFrame):
 
     def place(self, **kwargs):
         if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
+            return
+        if hasattr(self.app, 'settings_open') and self.app.settings_open:
             return
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
@@ -58,6 +66,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.resizable(False, False)  
         
         self.running = True
+        self.settings_open = False
 
         self.click_sound = None
         self.scroll_sound = None
@@ -90,6 +99,7 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.bg_photo = None
         self.timer_text_id = None
+        self.sleep_text_id = None
         self.setup_background_canvas()
 
         button_font = ("Futura", 11)
@@ -121,14 +131,24 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_add.place(x=260, y=140)
 
-        self.btn_off = ctk.CTkButton(
-            self, text="TURN OFF", font=button_font, 
+        # REPLACED: "TURN OFF" is now the "SETTINGS" panel toggle button
+        self.btn_settings = ctk.CTkButton(
+            self, text="SETTINGS ⚙", font=button_font, 
             width=160, height=35, corner_radius=4, 
+            fg_color=btn_bg, text_color=btn_text,
+            command=self.toggle_settings_menu
+        )
+        self.btn_settings.place(x=260, y=190)
+
+        # NEW LOCATION: Compact Icon Shutdown Button located at bottom left
+        self.btn_off = ctk.CTkButton(
+            self, text="⏻", font=("Arial", 14, "bold"), 
+            width=35, height=35, corner_radius=4, 
             fg_color="#331111", text_color="#FFAAAA", 
             hover_color="#551111",
             command=self.turn_off  
         )
-        self.btn_off.place(x=260, y=190)
+        self.btn_off.place(x=15, y=266)
 
         self.progress_container = ctk.CTkFrame(self, fg_color="#1A1A1A", height=8, width=200, corner_radius=2)
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
@@ -172,18 +192,21 @@ class HandheldPlayerApp(ctk.CTk):
 
         self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_settings, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
         self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
         self.track_scroller = scroller2.TrackScroller(self)
+        self.settings_menu = settings.SettingsMenu(self)  # Initialized separate module instances
         loader2.SongLoader(self)
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
         self.battery_monitor.start()
 
         self._update_playback_loop()
+        self._start_sleep_countdown_timer()
 
     def load_ui_sounds(self):
         try:
@@ -204,14 +227,12 @@ class HandheldPlayerApp(ctk.CTk):
         self.track_list.sort()
 
     def generate_true_shuffle_queue(self):
-        """Generates a completely randomized indexing queue map."""
         if not self.track_list: return
         
         self.shuffle_queue = list(range(len(self.track_list)))
         random.seed()
         random.shuffle(self.shuffle_queue)
         
-        # Keep the currently active song pinned at position 0 so order is unbroken
         if self.current_track_index in self.shuffle_queue:
             self.shuffle_queue.remove(self.current_track_index)
             self.shuffle_queue.insert(0, self.current_track_index)
@@ -227,7 +248,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.shuffle_enabled = not self.shuffle_enabled
 
         if self.shuffle_enabled:
-            # FIXED: Pick a completely random start song index immediately if nothing is playing
             if not self.is_playing:
                 self.current_track_index = random.randint(0, len(self.track_list) - 1)
                 
@@ -235,7 +255,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_shuffle.configure(text="SHUFFLE: ON", text_color="#FFB300")
             self.update_status_text("▪ SHUFFLE ENABLED ▪", color="#FFB300")
             
-            # Instantly fire up the random pick if player was idle
             if self.is_playing:
                 pass 
             else:
@@ -277,6 +296,12 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
         )
 
+        # NEW TIMING UI: Sleep counter rendering layer placed directly above standard timers
+        self.sleep_text_id = self.bg_canvas.create_text(
+            self.SCREEN_WIDTH // 2, 215, text="",
+            font=("Arial", 9, "bold"), fill="#FF5555", anchor="center", tags="sleep_timer_display"
+        )
+
     def update_status_text(self, text, color="#888888"):
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
@@ -305,7 +330,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.marquee_job = self.after(280, self._animate_marquee_step)
 
     def update_battery_display(self, text, color="#666666"):
-        if hasattr(self, 'track_scroller') and self.track_scroller.is_open:
+        if (hasattr(self, 'track_scroller') and self.track_scroller.is_open) or self.settings_open:
             self.bg_canvas.itemconfig("battery_sub", text="")
             return
             
@@ -417,11 +442,16 @@ class HandheldPlayerApp(ctk.CTk):
                 self.progress_bar.configure(width=int(ratio * 200))
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
-                mins, secs = divmod(time_remaining, 60)
-                self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
                 
-                if time_remaining <= 0 and self.running:
+                # INTEGRATED: Crossfade trigger checkpoint calculation logic
+                if CROSSFADE_ENABLED and time_remaining <= 3 and time_remaining > 0:
                     self.next_track()
+                else:
+                    mins, secs = divmod(time_remaining, 60)
+                    self.bg_canvas.itemconfig(self.timer_text_id, text=f"{mins}:{secs:02d}")
+                    
+                    if time_remaining <= 0 and self.running:
+                        self.next_track()
                     
         elif not self.is_playing:
             if pygame.mixer.music.get_pos() == -1:
@@ -430,6 +460,28 @@ class HandheldPlayerApp(ctk.CTk):
 
         if self.running:
             self.after(200, self._update_playback_loop)
+
+    def _start_sleep_countdown_timer(self):
+        global SLEEP_MINUTES_LEFT
+        if not self.running: return
+        
+        if SLEEP_MINUTES_LEFT > 0:
+            self.bg_canvas.itemconfig(self.sleep_text_id, text=f"⏱ {int(SLEEP_MINUTES_LEFT)}m SLEEP")
+            SLEEP_MINUTES_LEFT -= (1 / 60)  
+            if SLEEP_MINUTES_LEFT <= 0:
+                SLEEP_MINUTES_LEFT = 0
+                self.turn_off()
+                return
+        else:
+            self.bg_canvas.itemconfig(self.sleep_text_id, text="")
+            
+        self.after(1000, self._start_sleep_countdown_timer)
+
+    # UPDATED NAVIGATION LINK: Calls modularized settings file engine safely
+    def toggle_settings_menu(self):
+        self.play_ui_sound("click")
+        if hasattr(self, 'settings_menu'):
+            self.settings_menu.open_settings_scroller()
 
     def _setup_hover_glow(self, button, normal_color, glow_color):
         button.bind("<Enter>", lambda event: button.configure(text_color=glow_color))
@@ -467,7 +519,6 @@ class HandheldPlayerApp(ctk.CTk):
 
     def turn_off(self):
         print("\n=== SYSTEM SHUTDOWN INITIATED ===")
-        
         self.running = False
         self.is_playing = False
 
@@ -486,14 +537,14 @@ class HandheldPlayerApp(ctk.CTk):
             self.btn_access.place_forget()
             self.btn_shuffle.place_forget()
             self.btn_add.place_forget()
+            self.btn_settings.place_forget()
             self.btn_off.place_forget()
             self.playback_frame.place_forget()
-            self.bg_canvas.delete("back_btn", "track_item") 
+            self.bg_canvas.delete("back_btn", "track_item", "settings_item") 
         except Exception as e:
             print(f"[GUI] Clear widgets failed: {e}")
 
         self.play_ui_sound("shutdown")
-        
         self.update_idletasks()
         self.update()
 
@@ -513,7 +564,6 @@ class HandheldPlayerApp(ctk.CTk):
             
             self.update_status_text("▶ INITIALIZING FLUSH COMMANDS...", color="#FFAAAA")
             self.update()
-            
             self.after(1200, lambda: self.shutdown_step_two(chosen["ui"]))
 
     def shutdown_step_two(self, secondary_text):
@@ -533,8 +583,8 @@ class HandheldPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = HandheldPlayerApp()
     
-    # ADD THESE TWO LINES HERE TO HOOK IN THE UPGRADES
     import hardware_bridge
-    bridge = hardware_bridge.HardwareBridge(app)
+    bridge_instance = hardware_bridge.HardwareBridge(app)
+    app.bridge = bridge_instance 
     
     app.mainloop()
