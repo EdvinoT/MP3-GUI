@@ -120,13 +120,11 @@ class HardwareBridge:
             print("[HARDWARE] Activating iPod-style EC11 click-wheel encoder architecture...")
             try:
                 # 1. Map the dial spinning mechanics (Data Pins 23 and 24)
-                # Turning right skips forward, turning left goes back
                 self.dial = RotaryEncoder(23, 24, bounce_time=0.01)
                 self.dial.when_rotated_clockwise = lambda: [self.poke_activity_timer(), self.app.next_track()]
                 self.dial.when_rotated_counter_clockwise = lambda: [self.poke_activity_timer(), self.app.prev_track()]
                 
                 # 2. Map the physical shaft click action (Pin 22)
-                # Pressing down on the knob toggles Play/Pause
                 self.dial_button = Button(22, bounce_time=0.05)
                 self.dial_button.when_pressed = lambda: [self.poke_activity_timer(), self.app.toggle_play()]
                 
@@ -145,12 +143,23 @@ class HardwareBridge:
     def set_backlight_state(self, awake):
         """Controls system backlighting to prevent burn-in or battery drainage."""
         self.screen_is_awake = awake
+        
+        # Check if the Raspberry Pi backlight directory actually exists before running sudo
+        rpi_backlight_path = "/sys/class/backlight/rpi_backlight/bl_power"
+        has_rpi_backlight = os.path.exists(rpi_backlight_path)
+
         if awake:
             print("[POWER] System wake command processed. Screen backlight ON.")
-            os.system("echo 0 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
+            if has_rpi_backlight:
+                os.system(f"echo 0 | sudo tee {rpi_backlight_path} > /dev/null 2>&1")
+            else:
+                print("[SIMULATION] Mac/PC detected: Skipping physical backlight ON command.")
         else:
             print("[POWER] Display timeout reached. Screen backlight OFF to preserve juice.")
-            os.system("echo 1 | sudo tee /sys/class/backlight/rpi_backlight/bl_power > /dev/null 2>&1")
+            if has_rpi_backlight:
+                os.system(f"echo 1 | sudo tee {rpi_backlight_path} > /dev/null 2>&1")
+            else:
+                print("[SIMULATION] Mac/PC detected: Skipping physical backlight OFF command.")
 
     def _start_power_management_loops(self):
         """Spawns separate daemon threads to safeguard hardware health parameters."""
@@ -195,6 +204,10 @@ class HardwareBridge:
         except Exception:
             pass
             
-        # Tell Linux to safely unmount the SD Card files and completely cut the power line
-        os.system("sudo shutdown -h now")
+        # Only issue full hardware shutdown command if running on a real Pi environment
+        if os.path.exists("/sys/class/backlight/rpi_backlight/bl_power"):
+            os.system("sudo shutdown -h now")
+        else:
+            print("[SIMULATION] Emergency exit finished. Skipping OS-level hardware shutdown.")
+            
         sys.exit()
