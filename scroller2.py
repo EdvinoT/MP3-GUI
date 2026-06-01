@@ -13,7 +13,7 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # CHANGED: Shifted LANE_X1 all the way left to cover the quick-settings position
+        # Left shifted constraints to fully cover the gear wheel location
         self.LANE_X1 = 15
         self.LANE_X2 = 420
         self.ROW_START_Y = 110
@@ -44,8 +44,7 @@ class TrackScroller:
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
         
-        # CHANGED: Do NOT call place_forget() on btn_quick_settings here 
-        # so it remains globally available throughout the browsing page.
+        # Kept visible globally based on layout directives
         self.app.btn_off.place_forget()
         
         self.app.progress_container.place_forget()
@@ -208,7 +207,6 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # CHANGED: Moved Menu Back button further left to look natural with the shifted columns
         back_id = self.app.bg_canvas.create_text(
             25, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
@@ -246,7 +244,6 @@ class TrackScroller:
                     
                 display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
-                # CHANGED: Drawn at X=25 to completely span over original left controls overlay zones
                 track_id = self.app.bg_canvas.create_text(
                     25, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
@@ -263,3 +260,33 @@ class TrackScroller:
                 self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1
             )
             self.canvas_item_ids.append(divider_id)
+
+    # FIXED AND RESTORED: Added missing input handling method 
+    def on_canvas_click(self, event):
+        clicked_item = self.app.bg_canvas.find_withtag("current")
+        if not clicked_item: return
+        tags = self.app.bg_canvas.gettags(clicked_item[0])
+        
+        if "back_btn" in tags:
+            self.close_full_page_scroller()
+            return
+        
+        if "ui_scroll_up" in tags:
+            self.force_scroll_direction(-1)
+            return
+        if "ui_scroll_down" in tags:
+            self.force_scroll_direction(1)
+            return
+            
+        for tag in tags:
+            if tag.startswith("track_") and tag != "track_item":
+                if hasattr(self.app, 'play_ui_sound'):
+                    self.app.play_ui_sound("click")
+                track_index = int(tag.split("_")[1])
+                self.app.current_track_index = track_index
+                
+                if self.app.shuffle_enabled:
+                    self.app.generate_true_shuffle_queue()
+                    
+                self.app.play_current_track()
+                break
