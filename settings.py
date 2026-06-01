@@ -9,19 +9,18 @@ class SettingsMenu:
         self.canvas_settings_ids = []
 
     def open_settings_scroller(self):
-        # Prevent double-instantiation collisions
         if self.app.settings_open:
             return
             
         self.app.settings_open = True
         
-        # Hide main menu elements 
+        # Hide main functional buttons so they don't conflict with menu clicks
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
         
-        # CHANGED: Do NOT hide btn_quick_settings so it stays accessible globally.
+        # Keep circular quick settings button visible globally
         self.app.btn_off.place_forget()
         
         self.app.playback_frame.place_forget()
@@ -42,13 +41,8 @@ class SettingsMenu:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
-        # CHANGED: Renders a solid background shield directly below the sub-heading (y=92)
-        # covering all lingering layout lines, text, or elements up to that line.
-        mask_bg_id = self.app.bg_canvas.create_rectangle(
-            0, 92, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT,
-            fill="#101012", outline=""
-        )
-        self.canvas_settings_ids.append(mask_bg_id)
+        # CHANGED: Removed the solid black rectangle mask entirely!
+        # This makes the background completely transparent so you can see right through it.
 
         back_id = self.app.bg_canvas.create_text(
             25, 120, text="◀  EXIT SETTINGS", 
@@ -68,6 +62,8 @@ class SettingsMenu:
                 status = f"{int(self.app.SLEEP_MINUTES_LEFT)}m" if self.app.SLEEP_MINUTES_LEFT > 0 else "OFF"
                 
             display_text = f"{option}: {status}"
+            
+            # Bright colors are used here so text remains sharp over the transparent background
             color = "#00A8FF" if idx == self.active_settings_idx else "#FFFFFF"
             
             opt_id = self.app.bg_canvas.create_text(
@@ -133,12 +129,11 @@ class SettingsMenu:
         self.app.unbind("<Key-d>")
         self.app.unbind("<Return>")
 
-        # If we closed settings but the song browser is still running underneath, drop back to scroller view
         if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
             self.app.track_scroller.refresh_scroll_list()
             return
 
-        # Otherwise return cleanly to the core Main Menu layout mapping
+        # Restore main background elements upon closure
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
