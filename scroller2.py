@@ -17,8 +17,8 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # CHANGED: Nudged visual panel layout a tiny bit more left to 100
-        self.LANE_X1 = 100
+        # CHANGED: Nudged the panel lane base slightly left to 85
+        self.LANE_X1 = 85
         self.LANE_X2 = 465
         self.ROW_START_Y = 110
         self.LINE_HEIGHT = 30
@@ -206,7 +206,7 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Invisible safety click block over the total screen space
+        # Full screen structural click safety shield
         shield_id = self.app.bg_canvas.create_rectangle(
             0, 0, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT,
             fill="", outline="", tags="scroller_click_shield"
@@ -214,9 +214,9 @@ class TrackScroller:
         self.canvas_item_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
-        # CHANGED: Menu button is now placed at 85 (closer to left than the track items at 100)
+        # CHANGED: Pushed MENU button hard-left to x=15
         back_id = self.app.bg_canvas.create_text(
-            85, 80, text="◀  MENU", 
+            15, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
@@ -247,21 +247,21 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                # Sized character limit to match 100 base position cleanly
-                if len(clean_display_title) > 32:
-                    clean_display_title = clean_display_title[:29] + "..."
+                # Balanced string clipping length for the x=85 panel startpoint
+                if len(clean_display_title) > 34:
+                    clean_display_title = clean_display_title[:31] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
 
-                # CHANGED: Aligned track listings to start evenly at x=100
+                # CHANGED: Placed the listings at x=85 for a staggered panel look
                 track_id = self.app.bg_canvas.create_text(
-                    100, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                    85, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    100, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                    85, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
