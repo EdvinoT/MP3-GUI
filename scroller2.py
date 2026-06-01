@@ -17,7 +17,7 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # CHANGED: Pushed X1 far left and kept X2 wide to stretch across and block underlying elements
+        # FIXED: Pushed LANE_X1 all the way left to 15 so things aren't centered
         self.LANE_X1 = 15
         self.LANE_X2 = 465
         self.ROW_START_Y = 110
@@ -206,9 +206,9 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # RESTORED: Original Futura/Arial styling, shifted anchor points left to x=25
+        # FIXED: Shifted Menu header to x=15 to align with items
         back_id = self.app.bg_canvas.create_text(
-            25, 80, text="◀  MENU", 
+            15, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
@@ -239,20 +239,22 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                # CHANGED: Increased truncation character allowance since the row spans wider now
+                # Truncation window adjusted for left-shifted text space
                 if len(clean_display_title) > 38:
                     clean_display_title = clean_display_title[:35] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
+                # FIXED: Shifted track text anchor points left to x=15
                 track_id = self.app.bg_canvas.create_text(
-                    30, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                    15, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
+                # FIXED: Shifted empty text nodes left to x=15
                 track_id = self.app.bg_canvas.create_text(
-                    30, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                    15, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
