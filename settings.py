@@ -9,16 +9,19 @@ class SettingsMenu:
         self.canvas_settings_ids = []
 
     def open_settings_scroller(self):
+        # Prevent double-instantiation collisions
+        if self.app.settings_open:
+            return
+            
         self.app.settings_open = True
         
-        # Hide main menu components cleanly
+        # Hide main menu elements 
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
         
-        # FIXED: Changed from btn_settings to btn_quick_settings to stop the crash
-        self.app.btn_quick_settings.place_forget()
+        # CHANGED: Do NOT hide btn_quick_settings so it stays accessible globally.
         self.app.btn_off.place_forget()
         
         self.app.playback_frame.place_forget()
@@ -39,15 +42,23 @@ class SettingsMenu:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
+        # CHANGED: Renders a solid background shield directly below the sub-heading (y=92)
+        # covering all lingering layout lines, text, or elements up to that line.
+        mask_bg_id = self.app.bg_canvas.create_rectangle(
+            0, 92, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT,
+            fill="#101012", outline=""
+        )
+        self.canvas_settings_ids.append(mask_bg_id)
+
         back_id = self.app.bg_canvas.create_text(
-            45, 135, text="◀  EXIT SETTINGS", 
+            25, 120, text="◀  EXIT SETTINGS", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="settings_back"
         )
         self.canvas_settings_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
 
         for idx, option in enumerate(self.settings_options):
-            y_pos = 175 + (idx * 35)
+            y_pos = 160 + (idx * 35)
             
             if option == "CROSSFADE":
                 status = "ON (3s)" if self.app.CROSSFADE_ENABLED else "OFF"
@@ -60,7 +71,7 @@ class SettingsMenu:
             color = "#00A8FF" if idx == self.active_settings_idx else "#FFFFFF"
             
             opt_id = self.app.bg_canvas.create_text(
-                45, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
+                25, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
             )
             self.canvas_settings_ids.append(opt_id)
             
@@ -122,13 +133,17 @@ class SettingsMenu:
         self.app.unbind("<Key-d>")
         self.app.unbind("<Return>")
 
-        # Restore main application elements at their exact grid constraints
+        # If we closed settings but the song browser is still running underneath, drop back to scroller view
+        if hasattr(self.app, 'track_scroller') and self.app.track_scroller.is_open:
+            self.app.track_scroller.refresh_scroll_list()
+            return
+
+        # Otherwise return cleanly to the core Main Menu layout mapping
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_playlist.place(x=260, y=190)
         
-        # Maintained the circular buttons at their updated bottom row locations
         self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
         self.app.playback_frame.place()

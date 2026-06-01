@@ -13,8 +13,9 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        self.LANE_X1 = 30
-        self.LANE_X2 = 450
+        # CHANGED: Shifted LANE_X1 all the way left to cover the quick-settings position
+        self.LANE_X1 = 15
+        self.LANE_X2 = 420
         self.ROW_START_Y = 110
         self.LINE_HEIGHT = 30
 
@@ -42,7 +43,9 @@ class TrackScroller:
             
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
-        self.app.btn_quick_settings.place_forget()  # Fixed: No more AttributeError crash
+        
+        # CHANGED: Do NOT call place_forget() on btn_quick_settings here 
+        # so it remains globally available throughout the browsing page.
         self.app.btn_off.place_forget()
         
         self.app.progress_container.place_forget()
@@ -172,8 +175,8 @@ class TrackScroller:
             
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_playlist.place(x=260, y=190)
-        self.app.btn_quick_settings.place(x=15, y=266)  # Restores circular settings button
-        self.app.btn_off.place(x=430, y=266)             # Restores circular shutdown button
+        self.app.btn_quick_settings.place(x=15, y=266)  
+        self.app.btn_off.place(x=430, y=266)             
         
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
@@ -205,18 +208,19 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
+        # CHANGED: Moved Menu Back button further left to look natural with the shifted columns
         back_id = self.app.bg_canvas.create_text(
-            45, 80, text="◀  MENU", 
+            25, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
         scr_up_id = self.app.bg_canvas.create_text(
-            395, 80, text="▲",
+            375, 80, text="▲",
             font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
         )
         scr_down_id = self.app.bg_canvas.create_text(
-            435, 80, text="▼",
+            415, 80, text="▼",
             font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_down",)
         )
         self.canvas_item_ids.extend([scr_up_id, scr_down_id])
@@ -237,19 +241,20 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                if len(clean_display_title) > 32:
-                    clean_display_title = clean_display_title[:29] + "..."
+                if len(clean_display_title) > 35:
+                    clean_display_title = clean_display_title[:32] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
+                # CHANGED: Drawn at X=25 to completely span over original left controls overlay zones
                 track_id = self.app.bg_canvas.create_text(
-                    50, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                    25, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    50, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                    25, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
@@ -258,32 +263,3 @@ class TrackScroller:
                 self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1
             )
             self.canvas_item_ids.append(divider_id)
-
-    def on_canvas_click(self, event):
-        clicked_item = self.app.bg_canvas.find_withtag("current")
-        if not clicked_item: return
-        tags = self.app.bg_canvas.gettags(clicked_item[0])
-        
-        if "back_btn" in tags:
-            self.close_full_page_scroller()
-            return
-        
-        if "ui_scroll_up" in tags:
-            self.force_scroll_direction(-1)
-            return
-        if "ui_scroll_down" in tags:
-            self.force_scroll_direction(1)
-            return
-            
-        for tag in tags:
-            if tag.startswith("track_") and tag != "track_item":
-                if hasattr(self.app, 'play_ui_sound'):
-                    self.app.play_ui_sound("click")
-                track_index = int(tag.split("_")[1])
-                self.app.current_track_index = track_index
-                
-                if self.app.shuffle_enabled:
-                    self.app.generate_true_shuffle_queue()
-                    
-                self.app.play_current_track()
-                break
