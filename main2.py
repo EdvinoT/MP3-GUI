@@ -53,7 +53,6 @@ class HandheldPlayerApp(ctk.CTk):
         self.running = True
         self.settings_open = False
 
-        # SAFE: Shifted these to instance properties to wipe out the circular import loop
         self.AUDIO_FREQ = 44100
         self.CROSSFADE_ENABLED = False
         self.SLEEP_MINUTES_LEFT = 0.0
@@ -276,7 +275,7 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
-            font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
+            font=("Helvetica Light", 20), fill="#FFFFFF", anchor="center", tags="main_title"
         )
         
         self.bg_canvas.create_text(
@@ -291,7 +290,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
-            font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
+            font=("Courier New", 12, "bold"), fill="#FFFFFF", anchor="center", tags="playback_timer"
         )
 
         self.sleep_text_id = self.bg_canvas.create_text(
@@ -440,7 +439,6 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 
-                # Reading self property wrapper
                 if self.CROSSFADE_ENABLED and time_remaining <= 3 and time_remaining > 0:
                     self.next_track()
                 else:
