@@ -222,6 +222,11 @@ class HandheldPlayerApp(ctk.CTk):
         self._update_playback_loop()
         self._start_sleep_countdown_timer()
 
+        # Add these to your main app class __init__ if they aren't there already:
+        self.all_local_tracks = []       # Keeps a master record of all physical MP3 files
+        self.custom_playlists = {}       # Dictionary: {"Chill": ["song1.mp3", "song2.mp3"]}
+        self.active_playlist_name = "Main" # Tracks which list is active ("Main" or custom name)
+
     def load_ui_sounds(self):
         try:
             for ext in ["ogg", "wav"]:
