@@ -41,6 +41,10 @@ class SettingsMenu:
         
         if self.app.timer_text_id:
             self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
+            
+        # Hide the red sleep tracking subtext while inside settings layout
+        if self.app.sleep_text_id:
+            self.app.bg_canvas.itemconfig(self.app.sleep_text_id, state="hidden")
         
         self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color="#000000")
         self.refresh_settings_view()
@@ -64,10 +68,10 @@ class SettingsMenu:
         self.canvas_settings_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
-        # Render the Exit Action Header (Changed font to Courier New, color to black)
+        # CHANGED: Exit header is now rendered in bold RED text at a larger size 12 scale factor
         back_id = self.app.bg_canvas.create_text(
             25, 130, text="◀  EXIT CONFIGURATION", 
-            font=("Courier New", 10, "bold"), fill="#000000", anchor="w", tags="settings_back"
+            font=("Courier New", 12, "bold"), fill="#DD2222", anchor="w", tags="settings_back"
         )
         self.canvas_settings_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
@@ -77,8 +81,8 @@ class SettingsMenu:
             column = idx // 3  
             row = idx % 3     
             
-            x_pos = 25 if column == 0 else 250
-            y_pos = 165 + (row * 32)
+            x_pos = 25 if column == 0 else 245
+            y_pos = 165 + (row * 36)
             
             if option == "CROSSFADE":
                 status = "ON (3s)" if self.app.CROSSFADE_ENABLED else "OFF"
@@ -91,10 +95,13 @@ class SettingsMenu:
             elif option == "EQ PRESET":
                 status = self.eq_preset
                 
-            display_text = f"{option}\n{status}"
+            display_text = f"{option}\n[{status}]"
             
-            # Selection UI: Active index gets underlined, but text stays pure black
-            text_font = ("Courier New", 10, "bold underline") if idx == self.active_settings_idx else ("Courier New", 10, "bold")
+            # Selection UI: Active index gets underlined, but text stays pure black and size 12
+            if idx == self.active_settings_idx:
+                text_font = ("Courier New", 12, "bold underline")
+            else:
+                text_font = ("Courier New", 12, "bold")
             
             opt_id = self.app.bg_canvas.create_text(
                 x_pos, y_pos, text=display_text, 
@@ -140,10 +147,15 @@ class SettingsMenu:
                 print(f"[MIXER] Error reloading hardware frequencies: {ex}")
                 
         elif selected_option == "SLEEP TIMER":
-            if self.app.SLEEP_MINUTES_LEFT == 0: self.app.SLEEP_MINUTES_LEFT = 15
+            # CHANGED: Added deep cycle time windows to select from
+            if self.app.SLEEP_MINUTES_LEFT == 0: self.app.SLEEP_MINUTES_LEFT = 5
+            elif self.app.SLEEP_MINUTES_LEFT == 5: self.app.SLEEP_MINUTES_LEFT = 10
+            elif self.app.SLEEP_MINUTES_LEFT == 10: self.app.SLEEP_MINUTES_LEFT = 15
             elif self.app.SLEEP_MINUTES_LEFT == 15: self.app.SLEEP_MINUTES_LEFT = 30
             elif self.app.SLEEP_MINUTES_LEFT == 30: self.app.SLEEP_MINUTES_LEFT = 45
             elif self.app.SLEEP_MINUTES_LEFT == 45: self.app.SLEEP_MINUTES_LEFT = 60
+            elif self.app.SLEEP_MINUTES_LEFT == 60: self.app.SLEEP_MINUTES_LEFT = 90
+            elif self.app.SLEEP_MINUTES_LEFT == 90: self.app.SLEEP_MINUTES_LEFT = 120
             else: self.app.SLEEP_MINUTES_LEFT = 0
 
         elif selected_option == "LED BACKLIGHT":
@@ -183,5 +195,9 @@ class SettingsMenu:
         self.app.btn_off.place(x=430, y=266)
         
         self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
+        
+        # CHANGED: Ensure that the main engine hides the tracking overlay string globally
+        if self.app.sleep_text_id:
+            self.app.bg_canvas.itemconfig(self.app.sleep_text_id, text="", state="hidden")
         
         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
