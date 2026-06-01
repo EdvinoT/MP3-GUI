@@ -17,8 +17,8 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # CHANGED: Visual panel boundaries now start at left-center (160) and extend right
-        self.LANE_X1 = 160
+        # CHANGED: Nudged visual panel back to the left (starts at 100 instead of 160)
+        self.LANE_X1 = 100
         self.LANE_X2 = 465
         self.ROW_START_Y = 110
         self.LINE_HEIGHT = 30
@@ -206,8 +206,7 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # FIXED: Added a global invisible safety block spanning the total screen length (0 to 480) 
-        # This acts as the barrier shielding background buttons, independent of where the list text sits
+        # Invisible safety click block over the total screen space
         shield_id = self.app.bg_canvas.create_rectangle(
             0, 0, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT,
             fill="", outline="", tags="scroller_click_shield"
@@ -215,14 +214,13 @@ class TrackScroller:
         self.canvas_item_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
-        # FIXED: Positioned Menu header to start at left-center (160)
+        # CHANGED: Aligned Menu header to start at x=100
         back_id = self.app.bg_canvas.create_text(
-            160, 80, text="◀  MENU", 
+            100, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
-        # Adjusted navigation arrows relative to the panel's right side boundary
         scr_up_id = self.app.bg_canvas.create_text(
             395, 80, text="▲",
             font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
@@ -249,21 +247,21 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                # Sized character limit to perfectly fit the new mid-panel width span
-                if len(clean_display_title) > 24:
-                    clean_display_title = clean_display_title[:21] + "..."
+                # CHANGED: Expanded truncation character allowance to 30 since it's shifted left now
+                if len(clean_display_title) > 30:
+                    clean_display_title = clean_display_title[:27] + "..."
                     
                 display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
 
-                # FIXED: Shifted track text positions to start at left-center x=165
+                # CHANGED: Track text starting positions shifted left to x=105
                 track_id = self.app.bg_canvas.create_text(
-                    165, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                    105, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    165, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                    105, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
