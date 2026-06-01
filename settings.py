@@ -20,18 +20,19 @@ class SettingsMenu:
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
         
-        # Keep circular quick settings button visible globally
+        # Clear main tracking docks safely
         self.app.btn_off.place_forget()
-        
         self.app.playback_frame.place_forget()
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
+        
         if self.app.timer_text_id:
             self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
         
         self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color="#00A8FF")
         self.refresh_settings_view()
 
+        # Keyboard bindings for hardware physical buttons mapping
         self.app.bind("<Key-u>", lambda e: self._handle_settings_scroll(-1))
         self.app.bind("<Key-d>", lambda e: self._handle_settings_scroll(1))
         self.app.bind("<Return>", lambda e: self._execute_settings_action())
@@ -41,18 +42,17 @@ class SettingsMenu:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
-        # CHANGED: Removed the solid black rectangle mask entirely!
-        # This makes the background completely transparent so you can see right through it.
-
+        # Render Exit choice higher up on the screen space map
         back_id = self.app.bg_canvas.create_text(
-            25, 120, text="◀  EXIT SETTINGS", 
+            25, 135, text="◀  EXIT SETTINGS", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="settings_back"
         )
         self.canvas_settings_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
 
+        # FIX: Compacted y_pos steps to keep text clear of the 215px-284px layout zone
         for idx, option in enumerate(self.settings_options):
-            y_pos = 160 + (idx * 35)
+            y_pos = 165 + (idx * 22)
             
             if option == "CROSSFADE":
                 status = "ON (3s)" if self.app.CROSSFADE_ENABLED else "OFF"
@@ -62,12 +62,10 @@ class SettingsMenu:
                 status = f"{int(self.app.SLEEP_MINUTES_LEFT)}m" if self.app.SLEEP_MINUTES_LEFT > 0 else "OFF"
                 
             display_text = f"{option}: {status}"
-            
-            # Bright colors are used here so text remains sharp over the transparent background
             color = "#00A8FF" if idx == self.active_settings_idx else "#FFFFFF"
             
             opt_id = self.app.bg_canvas.create_text(
-                25, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
+                25, y_pos, text=display_text, font=("Arial", 11, "bold"), fill=color, anchor="w", tags="settings_item"
             )
             self.canvas_settings_ids.append(opt_id)
             
@@ -141,6 +139,8 @@ class SettingsMenu:
         
         self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
-        self.app.playback_frame.place()
+        
+        # FIX: Passing absolute positioning mapping values required by your Custom Lifecycle controller
+        self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
         
         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
