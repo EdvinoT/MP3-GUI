@@ -8,24 +8,9 @@ import warnings
 import random 
 import scroller2  
 import battery2  
-import settings  # Imported new modularized script
+import settings  
 
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
-
-# Global fallback variables for our new features
-AUDIO_FREQ = 44100
-CROSSFADE_ENABLED = False
-SLEEP_MINUTES_LEFT = 0
-
-try:
-    pygame.mixer.pre_init(AUDIO_FREQ, -16, 2, 2048)
-    pygame.mixer.init()
-except Exception as mixer_err:
-    print(f"Hardware Mixer Warning: {mixer_err}")
-    try:
-        pygame.mixer.init()
-    except Exception:
-        pass
 
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue") 
@@ -67,6 +52,21 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.running = True
         self.settings_open = False
+
+        # SAFE: Shifted these to instance properties to wipe out the circular import loop
+        self.AUDIO_FREQ = 44100
+        self.CROSSFADE_ENABLED = False
+        self.SLEEP_MINUTES_LEFT = 0.0
+
+        try:
+            pygame.mixer.pre_init(self.AUDIO_FREQ, -16, 2, 2048)
+            pygame.mixer.init()
+        except Exception as mixer_err:
+            print(f"Hardware Mixer Warning: {mixer_err}")
+            try:
+                pygame.mixer.init()
+            except Exception:
+                pass
 
         self.click_sound = None
         self.scroll_sound = None
@@ -131,7 +131,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_add.place(x=260, y=140)
 
-        # REPLACED: "TURN OFF" is now the "SETTINGS" panel toggle button
         self.btn_settings = ctk.CTkButton(
             self, text="SETTINGS ⚙", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -140,7 +139,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_settings.place(x=260, y=190)
 
-        # NEW LOCATION: Compact Icon Shutdown Button located at bottom left
         self.btn_off = ctk.CTkButton(
             self, text="⏻", font=("Arial", 14, "bold"), 
             width=35, height=35, corner_radius=4, 
@@ -199,7 +197,7 @@ class HandheldPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
         self.track_scroller = scroller2.TrackScroller(self)
-        self.settings_menu = settings.SettingsMenu(self)  # Initialized separate module instances
+        self.settings_menu = settings.SettingsMenu(self)  
         loader2.SongLoader(self)
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
@@ -296,7 +294,6 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
         )
 
-        # NEW TIMING UI: Sleep counter rendering layer placed directly above standard timers
         self.sleep_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 215, text="",
             font=("Arial", 9, "bold"), fill="#FF5555", anchor="center", tags="sleep_timer_display"
@@ -443,8 +440,8 @@ class HandheldPlayerApp(ctk.CTk):
                 
                 time_remaining = max(0, int(self.current_track_length - current_secs))
                 
-                # INTEGRATED: Crossfade trigger checkpoint calculation logic
-                if CROSSFADE_ENABLED and time_remaining <= 3 and time_remaining > 0:
+                # Reading self property wrapper
+                if self.CROSSFADE_ENABLED and time_remaining <= 3 and time_remaining > 0:
                     self.next_track()
                 else:
                     mins, secs = divmod(time_remaining, 60)
@@ -462,14 +459,13 @@ class HandheldPlayerApp(ctk.CTk):
             self.after(200, self._update_playback_loop)
 
     def _start_sleep_countdown_timer(self):
-        global SLEEP_MINUTES_LEFT
         if not self.running: return
         
-        if SLEEP_MINUTES_LEFT > 0:
-            self.bg_canvas.itemconfig(self.sleep_text_id, text=f"⏱ {int(SLEEP_MINUTES_LEFT)}m SLEEP")
-            SLEEP_MINUTES_LEFT -= (1 / 60)  
-            if SLEEP_MINUTES_LEFT <= 0:
-                SLEEP_MINUTES_LEFT = 0
+        if self.SLEEP_MINUTES_LEFT > 0:
+            self.bg_canvas.itemconfig(self.sleep_text_id, text=f"⏱ {int(self.SLEEP_MINUTES_LEFT)}m SLEEP")
+            self.SLEEP_MINUTES_LEFT -= (1 / 60)  
+            if self.SLEEP_MINUTES_LEFT <= 0:
+                self.SLEEP_MINUTES_LEFT = 0
                 self.turn_off()
                 return
         else:
@@ -477,7 +473,6 @@ class HandheldPlayerApp(ctk.CTk):
             
         self.after(1000, self._start_sleep_countdown_timer)
 
-    # UPDATED NAVIGATION LINK: Calls modularized settings file engine safely
     def toggle_settings_menu(self):
         self.play_ui_sound("click")
         if hasattr(self, 'settings_menu'):

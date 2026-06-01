@@ -32,7 +32,6 @@ class SettingsMenu:
         self.app.bind("<Return>", lambda e: self._execute_settings_action())
 
     def refresh_settings_view(self):
-        import main as m
         for cid in self.canvas_settings_ids:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
@@ -49,13 +48,13 @@ class SettingsMenu:
         for idx, option in enumerate(self.settings_options):
             y_pos = 120 + (idx * 35)
             
-            # Formulate option state flags strings
+            # SAFE: Read state flags directly from the live app instance instead of module import
             if option == "CROSSFADE":
-                status = "ON (3s)" if m.CROSSFADE_ENABLED else "OFF"
+                status = "ON (3s)" if self.app.CROSSFADE_ENABLED else "OFF"
             elif option == "AUDIO FREQ":
-                status = f"{m.AUDIO_FREQ} Hz"
+                status = f"{self.app.AUDIO_FREQ} Hz"
             elif option == "SLEEP TIMER":
-                status = f"{int(m.SLEEP_MINUTES_LEFT)}m" if m.SLEEP_MINUTES_LEFT > 0 else "OFF"
+                status = f"{int(self.app.SLEEP_MINUTES_LEFT)}m" if self.app.SLEEP_MINUTES_LEFT > 0 else "OFF"
                 
             display_text = f"{option}: {status}"
             color = "#00A8FF" if idx == self.active_settings_idx else "#000000"
@@ -65,7 +64,7 @@ class SettingsMenu:
             )
             self.canvas_settings_ids.append(opt_id)
             
-            # Simple link mouse indexing wrapper to allow click toggles
+            # Link mouse indexing wrapper to allow click toggles
             self.app.bg_canvas.tag_bind(
                 opt_id, 
                 "<Button-1>", 
@@ -83,35 +82,34 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _execute_settings_action(self):
-        import main as m
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
         selected_option = self.settings_options[self.active_settings_idx]
 
         if selected_option == "CROSSFADE":
-            m.CROSSFADE_ENABLED = not m.CROSSFADE_ENABLED
+            self.app.CROSSFADE_ENABLED = not self.app.CROSSFADE_ENABLED
             
         elif selected_option == "AUDIO FREQ":
             # Rotate target rates between standard profiles
-            if m.AUDIO_FREQ == 44100: m.AUDIO_FREQ = 22050
-            elif m.AUDIO_FREQ == 22050: m.AUDIO_FREQ = 11025
-            else: m.AUDIO_FREQ = 44100
+            if self.app.AUDIO_FREQ == 44100: self.app.AUDIO_FREQ = 22050
+            elif self.app.AUDIO_FREQ == 22050: self.app.AUDIO_FREQ = 11025
+            else: self.app.AUDIO_FREQ = 44100
             
             # Reload mixer hardware parameters seamlessly
             try:
                 pygame.mixer.quit()
-                pygame.mixer.pre_init(m.AUDIO_FREQ, -16, 2, 2048)
+                pygame.mixer.pre_init(self.app.AUDIO_FREQ, -16, 2, 2048)
                 pygame.mixer.init()
-                print(f"[MIXER] Frequency recalibrated to {m.AUDIO_FREQ}Hz")
+                print(f"[MIXER] Frequency recalibrated to {self.app.AUDIO_FREQ}Hz")
             except Exception as ex:
                 print(f"[MIXER] Error reloading rate configuration: {ex}")
                 
         elif selected_option == "SLEEP TIMER":
-            if m.SLEEP_MINUTES_LEFT == 0: m.SLEEP_MINUTES_LEFT = 15
-            elif m.SLEEP_MINUTES_LEFT == 15: m.SLEEP_MINUTES_LEFT = 30
-            elif m.SLEEP_MINUTES_LEFT == 30: m.SLEEP_MINUTES_LEFT = 45
-            elif m.SLEEP_MINUTES_LEFT == 45: m.SLEEP_MINUTES_LEFT = 60
-            else: m.SLEEP_MINUTES_LEFT = 0
+            if self.app.SLEEP_MINUTES_LEFT == 0: self.app.SLEEP_MINUTES_LEFT = 15
+            elif self.app.SLEEP_MINUTES_LEFT == 15: self.app.SLEEP_MINUTES_LEFT = 30
+            elif self.app.SLEEP_MINUTES_LEFT == 30: self.app.SLEEP_MINUTES_LEFT = 45
+            elif self.app.SLEEP_MINUTES_LEFT == 45: self.app.SLEEP_MINUTES_LEFT = 60
+            else: self.app.SLEEP_MINUTES_LEFT = 0
             
         self.refresh_settings_view()
 
