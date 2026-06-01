@@ -68,8 +68,9 @@ class PlaylistManager:
             return
 
         # ---- STANDARD MODE VIEW ----
+        # CHANGED: Shortened back button text to just "◀  BACK"
         back_id = self.app.bg_canvas.create_text(
-            15, 80, text="◀  BACK TO MAIN", 
+            15, 80, text="◀  BACK", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="playlist_back"
         )
         self.canvas_playlist_ids.append(back_id)
@@ -100,7 +101,7 @@ class PlaylistManager:
         self.canvas_playlist_ids.append(main_box_id)
         self.app.bg_canvas.tag_bind(main_box_id, "<Button-1>", lambda e: self.action_activate_main_list())
 
-        # Custom Lists Display Area with [EDIT] Tags
+        # Custom Playlists Area
         y_offset = 235
         playlists_dict = getattr(self.app, 'custom_playlists', {})
         
@@ -114,7 +115,7 @@ class PlaylistManager:
             for p_name in list(playlists_dict.keys()):
                 if y_offset > 300: break
                 
-                # Load selection trigger text
+                # Selection trigger text
                 list_item_id = self.app.bg_canvas.create_text(
                     85, y_offset, text=f"▶ {p_name.upper()} ({len(playlists_dict[p_name])})",
                     font=("Arial", 11), fill="#212124", anchor="w"
@@ -122,7 +123,7 @@ class PlaylistManager:
                 self.canvas_playlist_ids.append(list_item_id)
                 self.app.bg_canvas.tag_bind(list_item_id, "<Button-1>", lambda e, name=p_name: self.action_activate_custom_list(name))
 
-                # [EDIT] Action Text Trigger (aligned cleanly on the right side)
+                # [EDIT] Action Text Trigger
                 edit_btn_id = self.app.bg_canvas.create_text(
                     420, y_offset, text="[EDIT]",
                     font=("Arial", 10, "bold"), fill="#FFB300", anchor="e"
@@ -135,7 +136,6 @@ class PlaylistManager:
     # ---- SCROLLER INTERACTIVE SELECTION MENU ENGINE ----
     def render_song_selection_scroller(self):
         """Builds the custom interactive track checklist scroller UI environment."""
-        # Clean up scrolling input listeners before assigning fresh hooks
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Up>")
         self.app.unbind("<Down>")
@@ -190,10 +190,8 @@ class PlaylistManager:
             if len(clean_title) > 28:
                 clean_title = clean_title[:25] + "..."
 
-            # Determine check state status character indicator
             is_checked = track_filename in self.selected_songs_pool
             check_box_char = "[X] " if is_checked else "[  ] "
-            check_color = "#00A8FF" if is_checked else "#555555"
 
             # Render Checkbox Text (Starts at x=85)
             row_id = self.app.bg_canvas.create_text(
@@ -202,19 +200,17 @@ class PlaylistManager:
             )
             self.canvas_playlist_ids.append(row_id)
 
-            # Bind row click to toggle checkbox status state
             self.app.bg_canvas.tag_bind(
                 row_id, "<Button-1>", 
                 lambda e, filename=track_filename: self.toggle_song_selection(filename)
             )
 
-            # Row item panel accent separating line
+            # Row accent line
             line_y = y_pos + 13
             div_id = self.app.bg_canvas.create_line(self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1)
             self.canvas_playlist_ids.append(div_id)
 
     def initiate_playlist_wizard(self, edit_mode=False, name=None):
-        """Prepares metadata details and loads up the selection module."""
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
@@ -233,7 +229,6 @@ class PlaylistManager:
         self.render_playlist_screen()
 
     def toggle_song_selection(self, filename):
-        """Inverts tracking storage sets when a specific row item gets tapped."""
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("scroll")
 
@@ -261,11 +256,9 @@ class PlaylistManager:
             self.scroll_selection_list(1)
 
     def exit_selection_scroller(self, save=True):
-        """Handles committing changes or discarding them before exiting the wizard view."""
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
-        # Unbind scroller navigation input hooks
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Up>")
         self.app.unbind("<Down>")
@@ -283,7 +276,6 @@ class PlaylistManager:
             self.app.custom_playlists[self.editing_playlist_name] = list(self.selected_songs_pool)
             messagebox.showinfo("Saved", f"Playlist '{self.editing_playlist_name}' updated successfully.")
 
-        # Tear down flags and reset state
         self.selection_mode = False
         self.editing_playlist_name = None
         self.selected_songs_pool.clear()
@@ -332,7 +324,7 @@ class PlaylistManager:
 
         self.clear_playlist_canvas()
 
-        # Re-initialize standard parent grid layout positions
+        # Re-initialize standard layout interface positions
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
