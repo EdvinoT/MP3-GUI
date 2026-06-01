@@ -4,10 +4,6 @@ import os
 
 class TrackScroller:
     def __init__(self, main_app_instance):
-        """
-        Takes the main app instance to project a compact handheld track menu lane.
-        Optimized specifically for a 480x320 screen resolution on a Pi Zero 2 W.
-        """
         self.app = main_app_instance
         self.is_open = False  
         self.scroll_offset = 0
@@ -40,14 +36,14 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
         
-        # Hide all primary buttons so nothing bleeds through your transparent layout
         self.app.btn_access.place_forget()
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place_forget()
             
         self.app.btn_add.place_forget()
-        self.app.btn_settings.place_forget()  # ADDED FEATURE: Hides the settings button cleanly
-        self.app.btn_off.place_forget()       # ADDED FEATURE: Hides the shutdown button cleanly
+        self.app.btn_playlist.place_forget()
+        self.app.btn_quick_settings.place_forget()  # Fixed: No more AttributeError crash
+        self.app.btn_off.place_forget()
         
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
@@ -170,14 +166,14 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Restore all main navigation elements to their exact clean positions perfectly
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
             
         self.app.btn_add.place(x=260, y=140)
-        self.app.btn_settings.place(x=260, y=190)  # ADDED FEATURE: Restores settings cleanly
-        self.app.btn_off.place(x=15, y=266)         # ADDED FEATURE: Restores shutdown cleanly
+        self.app.btn_playlist.place(x=260, y=190)
+        self.app.btn_quick_settings.place(x=15, y=266)  # Restores circular settings button
+        self.app.btn_off.place(x=430, y=266)             # Restores circular shutdown button
         
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")

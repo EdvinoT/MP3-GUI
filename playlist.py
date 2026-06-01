@@ -3,10 +3,6 @@ from tkinter import messagebox
 
 class PlaylistManager:
     def __init__(self, main_app_instance):
-        """
-        Manages the dedicated Playlist UI overlay module.
-        Integrates seamlessly with the main canvas and control states.
-        """
         self.app = main_app_instance
         self.is_open = False
         self.canvas_playlist_ids = []
@@ -16,7 +12,6 @@ class PlaylistManager:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
-        # Hide all primary navigation buttons
         self.app.btn_access.place_forget()
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place_forget()
@@ -25,7 +20,6 @@ class PlaylistManager:
         self.app.btn_quick_settings.place_forget()
         self.app.btn_off.place_forget()
 
-        # Hide lower media docks
         self.app.playback_frame.place_forget()
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
@@ -38,7 +32,6 @@ class PlaylistManager:
     def render_playlist_screen(self):
         self.clear_playlist_canvas()
 
-        # Transparent Text Layout Links
         back_id = self.app.bg_canvas.create_text(
             45, 135, text="◀  BACK TO MAIN", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="playlist_back"
@@ -46,7 +39,6 @@ class PlaylistManager:
         self.canvas_playlist_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_playlist_view())
 
-        # Placeholder info text matching your system style
         info_id = self.app.bg_canvas.create_text(
             45, 180, text="DEFAULT AUDIO QUEUE ACTIVE\nTRACK COUNT: " + str(len(self.app.track_list)),
             font=("Arial", 11, "bold"), fill="#000000", anchor="w"
@@ -60,20 +52,14 @@ class PlaylistManager:
 
         self.clear_playlist_canvas()
 
-        # Restore main application layout to exact coordinate specifications
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_playlist.place(x=260, y=190)
         self.app.btn_quick_settings.place(x=15, y=266)
-        self.app.btn_off.place(x=260, y=190) # Replaced lower tracking grid element
-        self.app.btn_off.place(x=260, y=190)
+        self.app.btn_off.place(x=430, y=266)
         
-        # Reset positioning structures
-        self.app.btn_off.place(x=260, y=190)
-        
-        # Bring back the media playback frame layout handles
         self.app.playback_frame.place()
 
         if self.app.is_playing and self.app.track_list:
