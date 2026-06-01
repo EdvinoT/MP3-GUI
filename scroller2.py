@@ -17,11 +17,11 @@ class TrackScroller:
         self.hover_strip_id = None    
         self.currently_hovered_idx = None  
         
-        # FIX: Shifted columns hard-left to clear room on the right side of the screen
+        # CHANGED: Pushed X1 far left and kept X2 wide to stretch across and block underlying elements
         self.LANE_X1 = 15
-        self.LANE_X2 = 410
+        self.LANE_X2 = 465
         self.ROW_START_Y = 110
-        self.LINE_HEIGHT = 26
+        self.LINE_HEIGHT = 30
 
         self.app.btn_access.configure(command=self.toggle_full_page_scroller)
 
@@ -41,19 +41,13 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
         
-        # Hide main operational selections
         self.app.btn_access.place_forget()
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place_forget()
             
         self.app.btn_add.place_forget()
-        self.app.btn_playlist.place_forget()
-        
-        # FIX: Keep settings icon visible but hide the shutdown trigger to block accidental power cutouts
         self.app.btn_off.place_forget()
-        self.app.btn_quick_settings.place(x=15, y=266)
         
-        self.app.playback_frame.place_forget()
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
         if self.app.timer_text_id:
@@ -74,7 +68,7 @@ class TrackScroller:
             current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
             self.app.update_status_text(f"▶ {current_track}", color="#FFB300")
         else:
-            self.app.update_status_text("▪ SELECT TRACK MODULE ▪", color="#000000")
+            self.app.update_status_text("▪ SELECT TRACK MODULE ▪", color="#888888")
 
         self.refresh_scroll_list()
 
@@ -135,7 +129,7 @@ class TrackScroller:
                             bbox = self.app.bg_canvas.bbox(item_id)
                             if bbox:
                                 _, y1, _, y2 = bbox
-                                padding = 2  
+                                padding = 4  
                                 self.animate_snap_highlight(self.LANE_X1, y1 - padding, self.LANE_X2, y2 + padding)
                         return
         else:
@@ -151,7 +145,7 @@ class TrackScroller:
 
     def settle_highlight_color(self):
         if self.hover_strip_id and self.is_open:
-            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#D1D1D6")
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#212124")
 
     def clear_hover_strip(self):
         if self.hover_strip_id:
@@ -175,16 +169,12 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # FIX: Exact positional alignment restoration based on main2.py geometry layout
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
             
         self.app.btn_add.place(x=260, y=140)
-        self.app.btn_playlist.place(x=260, y=190)
-        
-        self.app.btn_quick_settings.place(x=15, y=266)
-        self.app.btn_off.place(x=430, y=266)
+        self.app.btn_off.place(x=260, y=190)
         
         self.app.progress_container.place(relx=0.5, y=252, anchor="center")
         self.app.controls_dock.place(relx=0.5, y=284, anchor="center")
@@ -216,27 +206,27 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # FIX: Changed fonts to Courier New to match skinny aesthetic profiles
+        # RESTORED: Original Futura/Arial styling, shifted anchor points left to x=25
         back_id = self.app.bg_canvas.create_text(
             25, 80, text="◀  MENU", 
-            font=("Courier New", 11, "bold"), fill="#DD2222", anchor="w", tags=("back_btn",)
+            font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
         scr_up_id = self.app.bg_canvas.create_text(
-            345, 80, text="▲",
-            font=("Courier New", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
+            395, 80, text="▲",
+            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
         )
         scr_down_id = self.app.bg_canvas.create_text(
-            385, 80, text="▼",
-            font=("Courier New", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_down",)
+            435, 80, text="▼",
+            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_down",)
         )
         self.canvas_item_ids.extend([scr_up_id, scr_down_id])
 
         if not self.app.track_list:
             empty_id = self.app.bg_canvas.create_text(
                 self.app.SCREEN_WIDTH // 2, 180, text="Empty Local Audio Catalog",
-                font=("Courier New", 11, "bold"), fill="#000000", anchor="center"
+                font=("Arial", 11), fill="#55555A", anchor="center"
             )
             self.canvas_item_ids.append(empty_id)
             return
@@ -249,26 +239,26 @@ class TrackScroller:
                 track_name = self.app.track_list[actual_track_index]
                 clean_display_title = track_name.replace(".mp3", "")
                 
-                # Truncated window adjusted for left-shifted coordinates alignment
-                if len(clean_display_title) > 26:
-                    clean_display_title = clean_display_title[:23] + "..."
+                # CHANGED: Increased truncation character allowance since the row spans wider now
+                if len(clean_display_title) > 38:
+                    clean_display_title = clean_display_title[:35] + "..."
                     
-                display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
+                display_string = f"[{actual_track_index + 1:02d}]  {clean_display_title}"
 
                 track_id = self.app.bg_canvas.create_text(
-                    25, y_pos, text=display_string, font=("Courier New", 11, "bold"), fill="#000000", anchor="w"
+                    30, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
                 self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    25, y_pos, text="", font=("Courier New", 11, "bold"), fill="#000000", anchor="w"
+                    30, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
-            line_y = y_pos + 12  
+            line_y = y_pos + 14  
             divider_id = self.app.bg_canvas.create_line(
-                self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#D1D1D6", width=1
+                self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1
             )
             self.canvas_item_ids.append(divider_id)
 
