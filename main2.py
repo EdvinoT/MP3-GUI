@@ -273,9 +273,10 @@ class HandheldPlayerApp(ctk.CTk):
             except Exception as e:
                 print(f"Canvas Image Error: {e}")
         
+        # CHANGED: 'I D L E   S Y S T E M' font fill reset to solid black (#000000)
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 45, text="I D L E   S Y S T E M",
-            font=("Helvetica Light", 20), fill="#FFFFFF", anchor="center", tags="main_title"
+            font=("Helvetica Light", 20), fill="#000000", anchor="center", tags="main_title"
         )
         
         self.bg_canvas.create_text(

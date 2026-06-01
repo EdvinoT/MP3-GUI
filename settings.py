@@ -16,13 +16,19 @@ class SettingsMenu:
     def open_settings_scroller(self):
         self.app.settings_open = True
         
-        # CLEAN FIX: Hide absolutely every button and frame so nothing bleeds through
+        # Force-hide all center buttons, side buttons, and the shutdown button
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_settings.place_forget()
-        self.app.btn_off.place_forget()  # Hidden cleanly now
+        self.app.btn_off.place_forget()
+        
+        # Force-hide the bottom playback engine bar and controls dock completely
         self.app.playback_frame.place_forget()
+        self.app.progress_container.place_forget()
+        self.app.controls_dock.place_forget()
+        if self.app.timer_text_id:
+            self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
         
         self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color="#00A8FF")
         self.refresh_settings_view()
@@ -37,8 +43,7 @@ class SettingsMenu:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
-        # Transparent alignment: Elements are drawn directly over your original background image
-        # Back Menu Text Link
+        # Position line markers safely out to the left margin to keep it clean
         back_id = self.app.bg_canvas.create_text(
             45, 135, text="◀  EXIT SETTINGS", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="settings_back"
@@ -60,8 +65,9 @@ class SettingsMenu:
             display_text = f"{option}: {status}"
             color = "#00A8FF" if idx == self.active_settings_idx else "#FFFFFF"
             
+            # Left alignment anchor at X=45 matching the back button line perfectly
             opt_id = self.app.bg_canvas.create_text(
-                60, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
+                45, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
             )
             self.canvas_settings_ids.append(opt_id)
             
@@ -116,22 +122,20 @@ class SettingsMenu:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
         
-        # Clear setting labels from canvas
         for cid in self.canvas_settings_ids:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
-        # Unbind configuration key elements
         self.app.unbind("<Key-u>")
         self.app.unbind("<Key-d>")
         self.app.unbind("<Return>")
 
-        # Restore all widgets back to their clean positions perfectly
+        # Restore widgets
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_settings.place(x=260, y=190)
-        self.app.btn_off.place(x=15, y=266)  # Restored clean alignment
+        self.app.btn_off.place(x=15, y=266)
         self.app.playback_frame.place()
         
         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
