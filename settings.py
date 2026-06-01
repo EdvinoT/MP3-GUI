@@ -3,11 +3,6 @@ import pygame
 
 class SettingsMenu:
     def __init__(self, main_app_instance):
-        """
-        Manages an overlay configuration console layer on the shared canvas.
-        Leaves the main menu title and subtitle visible at the top while cleanly
-        hiding ALL menu elements below it.
-        """
         self.app = main_app_instance
         self.active_settings_idx = 0
         self.settings_options = ["CROSSFADE", "AUDIO FREQ", "SLEEP TIMER"]
@@ -16,14 +11,16 @@ class SettingsMenu:
     def open_settings_scroller(self):
         self.app.settings_open = True
         
-        # Force-hide all center buttons, side buttons, and the shutdown button
+        # Hide main menu components cleanly
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
-        self.app.btn_settings.place_forget()
+        self.app.btn_playlist.place_forget()
+        
+        # FIXED: Changed from btn_settings to btn_quick_settings to stop the crash
+        self.app.btn_quick_settings.place_forget()
         self.app.btn_off.place_forget()
         
-        # Force-hide the bottom playback engine bar and controls dock completely
         self.app.playback_frame.place_forget()
         self.app.progress_container.place_forget()
         self.app.controls_dock.place_forget()
@@ -33,7 +30,6 @@ class SettingsMenu:
         self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color="#00A8FF")
         self.refresh_settings_view()
 
-        # Keyboard emulation hooks for testing dial rotation/clicks
         self.app.bind("<Key-u>", lambda e: self._handle_settings_scroll(-1))
         self.app.bind("<Key-d>", lambda e: self._handle_settings_scroll(1))
         self.app.bind("<Return>", lambda e: self._execute_settings_action())
@@ -43,7 +39,6 @@ class SettingsMenu:
             self.app.bg_canvas.delete(cid)
         self.canvas_settings_ids.clear()
 
-        # Position line markers safely out to the left margin to keep it clean
         back_id = self.app.bg_canvas.create_text(
             45, 135, text="◀  EXIT SETTINGS", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="settings_back"
@@ -51,7 +46,6 @@ class SettingsMenu:
         self.canvas_settings_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
 
-        # Render list parameters dynamically onto layout lines
         for idx, option in enumerate(self.settings_options):
             y_pos = 175 + (idx * 35)
             
@@ -65,7 +59,6 @@ class SettingsMenu:
             display_text = f"{option}: {status}"
             color = "#00A8FF" if idx == self.active_settings_idx else "#FFFFFF"
             
-            # Left alignment anchor at X=45 matching the back button line perfectly
             opt_id = self.app.bg_canvas.create_text(
                 45, y_pos, text=display_text, font=("Arial", 12, "bold"), fill=color, anchor="w", tags="settings_item"
             )
@@ -104,7 +97,6 @@ class SettingsMenu:
                 pygame.mixer.quit()
                 pygame.mixer.pre_init(self.app.AUDIO_FREQ, -16, 2, 2048)
                 pygame.mixer.init()
-                print(f"[MIXER] Frequency recalibrated to {self.app.AUDIO_FREQ}Hz")
             except Exception as ex:
                 print(f"[MIXER] Error reloading rate configuration: {ex}")
                 
@@ -130,12 +122,15 @@ class SettingsMenu:
         self.app.unbind("<Key-d>")
         self.app.unbind("<Return>")
 
-        # Restore widgets
+        # Restore main application elements at their exact grid constraints
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
-        self.app.btn_settings.place(x=260, y=190)
-        self.app.btn_off.place(x=15, y=266)
+        self.app.btn_playlist.place(x=260, y=190)
+        
+        # Maintained the circular buttons at their updated bottom row locations
+        self.app.btn_quick_settings.place(x=15, y=266)
+        self.app.btn_off.place(x=430, y=266)
         self.app.playback_frame.place()
         
         self.app.update_status_text("▪ ONLINE ▪", color="#888888")
