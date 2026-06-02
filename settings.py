@@ -51,9 +51,9 @@ class SettingsMenu:
             if matching_wp in self.available_wallpapers:
                 self.wp_idx = self.available_wallpapers.index(matching_wp)
 
-        self.FONT_TITLE = ("Helvetica Neue", 11, "normal")
+        self.FONT_TITLE = ("Helvetica Neue", 11, "bold")
         self.FONT_ITEM = ("Helvetica Neue", 10, "normal")
-        self.FONT_HIGHLIGHT = ("Helvetica Neue", 10, "underline")
+        self.FONT_HIGHLIGHT = ("Helvetica Neue", 10, "bold")
 
     @property
     def active_options(self):
@@ -65,6 +65,31 @@ class SettingsMenu:
             os.makedirs(target_dir)
         files = [os.path.join(folder_name, f) for f in os.listdir(target_dir) if f.lower().endswith(".png")]
         return files if files else [fallback]
+
+    def _create_outlined_text(self, canvas, x, y, text, font, fill_color, anchor="nw", is_header=False):
+        """Draws clean text with a subtle, pixel-perfect contrast outline boundary to ensure readability."""
+        # Determine outline color based on fill brightness
+        outline_color = "#000000" if fill_color not in ["#121215", "#1F1F24", "#000000"] else "#FFFFFF"
+        
+        # Render fine boundary shell paths (North, South, East, West, Diagonals)
+        offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        for dx, dy in offsets:
+            sh_id = canvas.create_text(x + dx, y + dy, text=text, font=font, fill=outline_color, anchor=anchor)
+            self.canvas_settings_ids.append(sh_id)
+            if is_header:
+                canvas.addtag_withtag("hdr_touch_target", sh_id)
+            else:
+                canvas.addtag_withtag("item_touch_target", sh_id)
+                
+        # Main core readable front-text layer
+        main_id = canvas.create_text(x, y, text=text, font=font, fill=fill_color, anchor=anchor)
+        self.canvas_settings_ids.append(main_id)
+        if is_header:
+            canvas.addtag_withtag("hdr_touch_target", main_id)
+        else:
+            canvas.addtag_withtag("item_touch_target", main_id)
+            
+        return main_id
 
     def open_settings_scroller(self):
         if self.app.settings_open: return
@@ -103,19 +128,21 @@ class SettingsMenu:
         self.canvas_settings_ids.clear()
 
         canvas = self.app.bg_canvas
+        
+        # Base settings window bounding container box
         mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1)
         self.canvas_settings_ids.append(mask)
 
         hdr_text = "◀  EXIT CONFIGURATION" if self.current_page == "MAIN" else "◀  BACK TO SYSTEM CONFIG"
         hdr_fill = "#FF5555" if self.current_page == "MAIN" else self.app.c_play
         
-        back_id = canvas.create_text(30, 80, text=hdr_text, font=self.FONT_TITLE, fill=hdr_fill, anchor="w")
-        self.canvas_settings_ids.append(back_id)
+        # Draw outlined Header safely
+        self._create_outlined_text(canvas, 30, 80, text=hdr_text, font=self.FONT_TITLE, fill_color=hdr_fill, anchor="w", is_header=True)
         
         if self.current_page == "MAIN":
-            canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
+            canvas.tag_bind("hdr_touch_target", "<Button-1>", lambda e: self.close_settings_scroller())
         else:
-            canvas.tag_bind(back_id, "<Button-1>", lambda e: [setattr(self, 'current_page', "MAIN"), setattr(self, 'active_settings_idx', 6), self.refresh_settings_view()])
+            canvas.tag_bind("hdr_touch_target", "<Button-1>", lambda e: [setattr(self, 'current_page', "MAIN"), setattr(self, 'active_settings_idx', 6), self.refresh_settings_view()])
 
         for idx, option in enumerate(self.active_options):
             column = idx // 4  
@@ -145,17 +172,39 @@ class SettingsMenu:
                 elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
                 elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
 
-            if self.current_page == "THEME" and fill_color == self.app.c_box:
-                bg_box = canvas.create_rectangle(x_pos - 4, y_pos - 2, x_pos + 130, y_pos + 28, fill="#1F1F24", outline="#3F3F46", width=1)
-                self.canvas_settings_ids.append(bg_box)
-
             display_text = f"{option}\n[{status}]" if status else option
-            text_font = self.FONT_HIGHLIGHT if idx == self.active_settings_idx else self.FONT_ITEM
             
-            opt_id = canvas.create_text(x_pos, y_pos, text=display_text, font=text_font, fill=fill_color, anchor="nw")
-            self.canvas_settings_ids.append(opt_id)
+            # Use appropriate text fonts based on active selection state
+            if idx == self.active_settings_idx:
+                text_font = self.FONT_HIGHLIGHT
+                # Wrap item in an active clean focus border frame box (No filled block background color to avoid chopping)
+                sel_border = canvas.create_rectangle(x_pos - 4, y_pos - 2, x_pos + 132, y_pos + 29, fill="", outline=self.app.c_play, width=1.5)
+                self.canvas_settings_ids.append(sel_border)
+            else:
+                text_font = self.FONT_ITEM
+
+            # Generate item via safety text outliner function
+            self._create_outlined_text(canvas, x_pos, y_pos, text=display_text, font=text_font, fill_color=fill_color, anchor="nw", is_header=False)
             
-            canvas.tag_bind(opt_id, "<Button-1>", lambda e, i=idx: [self._set_active_idx(i), self._execute_settings_action()])
+        # Bind universal group tag for item selections cleanly
+        canvas.tag_bind("item_touch_target", "<Button-1>", self._handle_canvas_click)
+
+    def _handle_canvas_click(self, event):
+        """Calculates mouse coordinate metrics on dynamic entries to match up selected index bounds cleanly."""
+        canvas = self.app.bg_canvas
+        click_y = event.y
+        click_x = event.x
+        
+        for idx in range(len(self.active_options)):
+            column = idx // 4
+            row = idx % 4
+            x_pos = 30 + (column * 145)
+            y_pos = 115 + (row * 34)
+            
+            if (x_pos - 5 <= click_x <= x_pos + 135) and (y_pos - 5 <= click_y <= y_pos + 32):
+                self._set_active_idx(idx)
+                self._execute_settings_action()
+                break
 
     def _set_active_idx(self, idx):
         self.active_settings_idx = idx
@@ -251,22 +300,18 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _update_app_button_colors(self):
-        """Forces all custom application layers, dynamic generation components, and header text elements to repaint to selected group colors."""
         try:
-            # Sync root application interface CTK buttons
             self.app.btn_access.configure(text_color=self.app.c_btn)
             self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
             self.app.btn_add.configure(text_color=self.app.c_btn)
             self.app.btn_playlist.configure(text_color=self.app.c_btn)
             self.app.btn_quick_settings.configure(text_color=self.app.c_btn)
             
-            # Sync primary hardware media navigation deck
             self.app.btn_prev.configure(text_color=self.app.c_btn)
             self.app.btn_play.configure(text_color=self.app.c_btn)
             self.app.btn_next.configure(text_color=self.app.c_btn)
             self.app.progress_bar.configure(fg_color=self.app.c_play)
 
-            # Re-initialize native CTK glow listeners to protect custom colors
             self.app._setup_hover_glow(self.app.btn_access, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_add, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_playlist, self.app.c_btn, "#00A8FF")
@@ -275,29 +320,22 @@ class SettingsMenu:
             self.app._setup_hover_glow(self.app.btn_play, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_next, self.app.c_btn, "#00A8FF")
 
-            # --- FIX: SYNC MAIN MENU HEADING + MARQUEE TICKERS TO THE SUB HEADINGS GROUP ---
             self.app.bg_canvas.itemconfig("main_title", fill=self.app.c_sub)
             self.app.bg_canvas.itemconfig("status_sub", fill=self.app.c_sub)
             if hasattr(self.app, 'marquee_color'):
                 self.app.marquee_color = self.app.c_sub
 
-            # --- FIX: FORCE SCROLL WHEEL TEXT TARGETS TO REPAINT TO SCROLL TEXT GROUP ---
             self.app.bg_canvas.itemconfig("scroll_wheel_txt", fill=self.app.c_scroll)
             self.app.bg_canvas.itemconfig("track_item", fill=self.app.c_scroll)
 
-            # --- FIX: CLEAN UP DYNAMIC GENERATION ON ACTIVE LIST MODULE LAYERS ---
             if hasattr(self.app, 'track_scroller'):
                 self.app.bg_canvas.itemconfig("back_btn", fill=self.app.c_btn)
                 if self.app.track_scroller.is_open and hasattr(self.app.track_scroller, 'refresh_scroller_view'):
                     self.app.track_scroller.refresh_scroller_view()
                     
-            # --- FIX: FULLY COLOR ALL UNCOLORED AND GENERATED POPUP ITEMS IN THE PLAYLIST MENU ---
             if hasattr(self.app, 'playlist_module'):
-                # Colors menu/back headers, title details, and operational utility configurations
                 self.app.bg_canvas.itemconfig("playlist_back", fill=self.app.c_btn)
                 self.app.bg_canvas.itemconfig("playlist_title", fill=self.app.c_sub)
-                
-                # Targets everything labeled or tagged as utility inside generation hooks (Create, Edit, Delete)
                 self.app.bg_canvas.itemconfig("playlist_util_btn", fill=self.app.c_play)
                 self.app.bg_canvas.itemconfig("playlist_item_text", fill=self.app.c_scroll)
                 self.app.bg_canvas.itemconfig("playlist_card_bg", fill=self.app.c_box)
@@ -305,7 +343,6 @@ class SettingsMenu:
                 if self.app.playlist_module.is_open and hasattr(self.app.playlist_module, 'refresh_playlist_view'):
                     self.app.playlist_module.refresh_playlist_view()
                     
-            # Update physical container shapes to reflect customization
             if hasattr(self.app, 'custom_textbox_frame'):
                 self.app.custom_textbox_frame.configure(fg_color=self.app.c_box)
         except Exception as e:
