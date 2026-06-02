@@ -146,14 +146,44 @@ class PlaylistManager:
                 self.canvas_playlist_ids.append(list_item_id)
                 self.app.bg_canvas.tag_bind(list_item_id, "<Button-1>", lambda e, name=p_name: self.action_activate_custom_list(name))
 
+                # Touchscreen Interactive [EDIT] Hook
                 edit_btn_id = self.app.bg_canvas.create_text(
-                    420, y_offset, text="[EDIT]",
+                    380, y_offset, text="[EDIT]",
                     font=("Arial", 10, "bold"), fill="#FFB300", anchor="e"
                 )
                 self.canvas_playlist_ids.append(edit_btn_id)
                 self.app.bg_canvas.tag_bind(edit_btn_id, "<Button-1>", lambda e, name=p_name: self.initiate_playlist_wizard(edit_mode=True, name=name))
                 
+                # Touchscreen Interactive [DEL] Hook
+                del_btn_id = self.app.bg_canvas.create_text(
+                    450, y_offset, text="[DEL]",
+                    font=("Arial", 10, "bold"), fill="#FF5555", anchor="e"
+                )
+                self.canvas_playlist_ids.append(del_btn_id)
+                self.app.bg_canvas.tag_bind(del_btn_id, "<Button-1>", lambda e, name=p_name: self.action_delete_playlist(name))
+                
                 y_offset += 24
+
+    def action_delete_playlist(self, name):
+        """Removes a custom playlist from memory and disk storage completely."""
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
+            
+        confirm = messagebox.askyesno("Delete Playlist", f"Are you sure you want to permanently delete '{name}'?", parent=self.app)
+        if confirm:
+            if name in self.app.custom_playlists:
+                del self.app.custom_playlists[name]
+                self.save_playlists_to_disk()
+                
+                # Fallback safeguard: If deleted playlist was playing, point system back to general catalog
+                if self.app.active_playlist_name == name:
+                    if hasattr(self.app, 'all_local_tracks') and self.app.all_local_tracks:
+                        self.app.track_list = list(self.app.all_local_tracks)
+                    self.app.active_playlist_name = "Main"
+                    self.app.current_track_index = 0
+                    
+                messagebox.showinfo("Deleted", f"Playlist '{name}' removed successfully.")
+                self.render_playlist_screen()
 
     # ---- SCROLLER INTERACTIVE SELECTION MENU ENGINE ----
     def render_song_selection_scroller(self):
