@@ -114,7 +114,7 @@ class SettingsMenu:
         canvas = self.app.bg_canvas
 
         # Background card frame boundary box using our customizable color variables
-        mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#222228", width=1)
+        mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1)
         self.canvas_settings_ids.append(mask)
 
         # Navigation Header String Line
@@ -159,6 +159,12 @@ class SettingsMenu:
                 elif option == "SUB HEADINGS": fill_color = self.app.c_sub; status = "COLOR"
                 elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
                 elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
+
+            # FIX: If the text color matches the box fill color exactly, give it an outline or fallback shade so it stays visible
+            if self.current_page == "THEME" and fill_color == self.app.c_box:
+                # Draws a subtle gray guide box behind the text so you can find it
+                bg_box = canvas.create_rectangle(x_pos - 4, y_pos - 2, x_pos + 130, y_pos + 28, fill="#1F1F24", outline="#3F3F46", width=1)
+                self.canvas_settings_ids.append(bg_box)
 
             display_text = f"{option}\n[{status}]" if status else option
             text_font = self.FONT_HIGHLIGHT if idx == self.active_settings_idx else self.FONT_ITEM
@@ -209,7 +215,7 @@ class SettingsMenu:
                 self.app.CROSSFADE_ENABLED = self.staged_crossfade
                 self.app.SLEEP_MINUTES_LEFT = self.staged_sleep
                 
-                # --- SAVES PERSISTENT DATA DIRECTLY TO HARDWARE DRIVE VIA JSON ---
+                # Saves persistent data straight to hardware drive via JSON
                 config_data = {
                     "c_box": self.app.c_box,
                     "c_btn": self.app.c_btn,
@@ -223,7 +229,6 @@ class SettingsMenu:
                         json.dump(config_data, f)
                 except Exception as e:
                     print(f"Failed writing hardware settings to SD card: {e}")
-                # -----------------------------------------------------------------
 
                 if self.app.AUDIO_FREQ != self.staged_freq:
                     self.app.AUDIO_FREQ = self.staged_freq
@@ -243,11 +248,10 @@ class SettingsMenu:
                 self.backlight_level = 80
                 self.eq_preset = "FLAT"
                 self.wp_idx = 0
-                self.app.c_box, self.app.c_btn, self.app.c_scroll, self.app.c_sub, self.app.c_play = "#121215", "#FFFFFF", "#FFFFFF", "#888888", "#00A8FF"
+                self.app.c_box, self.app.c_btn, self.app.c_scroll, self.app.c_sub, self.app.c_play = "#121215", "#DDDDDD", "#FFFFFF", "#888888", "#00A8FF"
                 self._apply_live_wallpaper("background.png")
                 self._update_app_button_colors()
                 
-                # Overwrite save file with defaults
                 try:
                     if os.path.exists(self.app.config_file):
                         os.remove(self.app.config_file)
@@ -271,6 +275,7 @@ class SettingsMenu:
     def _update_app_button_colors(self):
         """Forces custom tkinter native button objects to paint themselves to your matching theme color."""
         try:
+            # FIX: Force updates both standard text color AND active hover colors to match your theme selections perfectly
             self.app.btn_access.configure(text_color=self.app.c_btn)
             self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
             self.app.btn_add.configure(text_color=self.app.c_btn)
@@ -282,7 +287,17 @@ class SettingsMenu:
             self.app.btn_play.configure(text_color=self.app.c_btn)
             self.app.btn_next.configure(text_color=self.app.c_btn)
             self.app.progress_bar.configure(fg_color=self.app.c_play)
-        except Exception: pass
+
+            # Re-bind mouseover listeners to protect new colors during touch interactions
+            self.app._setup_hover_glow(self.app.btn_access, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_add, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_playlist, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_quick_settings, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_prev, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_play, self.app.c_btn, "#00A8FF")
+            self.app._setup_hover_glow(self.app.btn_next, self.app.c_btn, "#00A8FF")
+        except Exception as e:
+            print(f"UI Color Synchronizer error: {e}")
 
     def _apply_live_wallpaper(self, image_path):
         if not os.path.exists(image_path): return
@@ -312,11 +327,10 @@ class SettingsMenu:
         self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
         
-        # --- FIXES THE DISAPPEARING TITLE PHENOMENON BY LAYERING TEXT ON TOP ---
+        # Layer layout fixes
         self.app.bg_canvas.tag_raise("main_title")
         self.app.bg_canvas.tag_raise("status_sub")
         self.app.bg_canvas.tag_raise("battery_sub")
-        # ----------------------------------------------------------------------
         
         self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
         self._update_app_button_colors()
