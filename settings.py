@@ -160,9 +160,8 @@ class SettingsMenu:
                 elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
                 elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
 
-            # FIX: If the text color matches the box fill color exactly, give it an outline or fallback shade so it stays visible
+            # If the text color matches the box fill color exactly, give it an outline or fallback shade so it stays visible
             if self.current_page == "THEME" and fill_color == self.app.c_box:
-                # Draws a subtle gray guide box behind the text so you can find it
                 bg_box = canvas.create_rectangle(x_pos - 4, y_pos - 2, x_pos + 130, y_pos + 28, fill="#1F1F24", outline="#3F3F46", width=1)
                 self.canvas_settings_ids.append(bg_box)
 
@@ -191,6 +190,9 @@ class SettingsMenu:
         else:
             next_idx = 0
         setattr(self.app, attribute_name, self.color_spectrum[next_idx])
+        
+        # --- FIX: LIVE UPDATE BACKGROUND RECTANGLE AND NATIVE LAYER ITEMS ON RADIAL CHANGE ---
+        self._update_app_button_colors()
 
     def _execute_settings_action(self):
         if hasattr(self.app, 'play_ui_sound'): self.app.play_ui_sound("click")
@@ -246,7 +248,6 @@ class SettingsMenu:
                 self.staged_freq = 44100
                 self.staged_sleep = 0
                 self.backlight_level = 80
-                self.eq_preset = "FLAT"
                 self.wp_idx = 0
                 self.app.c_box, self.app.c_btn, self.app.c_scroll, self.app.c_sub, self.app.c_play = "#121215", "#DDDDDD", "#FFFFFF", "#888888", "#00A8FF"
                 self._apply_live_wallpaper("background.png")
@@ -275,7 +276,7 @@ class SettingsMenu:
     def _update_app_button_colors(self):
         """Forces custom tkinter native button objects to paint themselves to your matching theme color."""
         try:
-            # FIX: Force updates both standard text color AND active hover colors to match your theme selections perfectly
+            # Force updates both standard text color AND active hover colors to match theme selections
             self.app.btn_access.configure(text_color=self.app.c_btn)
             self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
             self.app.btn_add.configure(text_color=self.app.c_btn)
@@ -296,6 +297,20 @@ class SettingsMenu:
             self.app._setup_hover_glow(self.app.btn_prev, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_play, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_next, self.app.c_btn, "#00A8FF")
+
+            # --- FIX: UPDATE THE BASE SUBHEADING MARQUEE COLOR LIVE ---
+            self.app.bg_canvas.itemconfig("status_sub", fill=self.app.c_sub)
+            if hasattr(self.app, 'marquee_color'):
+                self.app.marquee_color = self.app.c_sub
+
+            # --- FIX: FORCE COMPONENT MODULE WINDOWS TO UPDATE THEIR BOX RECTANGLES ---
+            if hasattr(self.app, 'track_scroller') and hasattr(self.app.track_scroller, 'refresh_scroller_view'):
+                if self.app.track_scroller.is_open:
+                    self.app.track_scroller.refresh_scroller_view()
+                    
+            if hasattr(self.app, 'playlist_module') and hasattr(self.app.playlist_module, 'refresh_playlist_view'):
+                if self.app.playlist_module.is_open:
+                    self.app.playlist_module.refresh_playlist_view()
         except Exception as e:
             print(f"UI Color Synchronizer error: {e}")
 
