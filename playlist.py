@@ -112,7 +112,7 @@ class PlaylistManager:
         current_list_name = getattr(self.app, 'active_playlist_name', 'Main')
         status_str = f"ACTIVE LIST: {current_list_name.upper()}  ({len(self.app.track_list)} Tracks)"
         info_id = self.app.bg_canvas.create_text(
-            85, 155, text=status_str, font=("Arial", 10, "bold"), fill="#FFFFFF", anchor="w"
+            85, 155, text=status_str, font=("Arial", 10, "bold"), fill="#000000", anchor="w"
         )
         self.canvas_playlist_ids.append(info_id)
 
@@ -121,7 +121,7 @@ class PlaylistManager:
 
         main_box_id = self.app.bg_canvas.create_text(
             85, 205, text="▶ PLAY ALL SONGS (MAIN CATALOG)",
-            font=("Arial", 11, "bold"), fill="#FFFFFF", anchor="w", tags="play_all_trigger"
+            font=("Arial", 11, "bold"), fill="#000000", anchor="w", tags="play_all_trigger"
         )
         self.canvas_playlist_ids.append(main_box_id)
         self.app.bg_canvas.tag_bind(main_box_id, "<Button-1>", lambda e: self.action_activate_main_list())
@@ -132,7 +132,7 @@ class PlaylistManager:
         if not playlists_dict:
             no_lists_id = self.app.bg_canvas.create_text(
                 85, y_offset, text="(No custom playlists created yet)",
-                font=("Arial", 10, "italic"), fill="#888888", anchor="w"
+                font=("Arial", 10, "italic"), fill="#555555", anchor="w"
             )
             self.canvas_playlist_ids.append(no_lists_id)
         else:
@@ -141,7 +141,7 @@ class PlaylistManager:
                 
                 list_item_id = self.app.bg_canvas.create_text(
                     85, y_offset, text=f"▶ {p_name.upper()} ({len(playlists_dict[p_name])})",
-                    font=("Arial", 11), fill="#DDDDDD", anchor="w"
+                    font=("Arial", 11), fill="#000000", anchor="w"
                 )
                 self.canvas_playlist_ids.append(list_item_id)
                 self.app.bg_canvas.tag_bind(list_item_id, "<Button-1>", lambda e, name=p_name: self.action_activate_custom_list(name))
@@ -167,7 +167,7 @@ class PlaylistManager:
 
         title_text = f"EDITING: {self.editing_playlist_name.upper()}" if self.editing_playlist_name else "NEW PLAYLIST SELECTION"
         title_id = self.app.bg_canvas.create_text(
-            85, 55, text=title_text, font=("Arial", 11, "bold"), fill="#FFFFFF", anchor="w"
+            85, 55, text=title_text, font=("Arial", 11, "bold"), fill="#000000", anchor="w"
         )
         self.canvas_playlist_ids.append(title_id)
 
@@ -185,8 +185,8 @@ class PlaylistManager:
         self.canvas_playlist_ids.append(save_id)
         self.app.bg_canvas.tag_bind(save_id, "<Button-1>", lambda e: self.exit_selection_scroller(save=True))
 
-        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill="#888888", anchor="center")
-        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill="#888888", anchor="center")
+        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill="#555555", anchor="center")
+        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill="#555555", anchor="center")
         self.canvas_playlist_ids.extend([up_arrow, down_arrow])
         self.app.bg_canvas.tag_bind(up_arrow, "<Button-1>", lambda e: self.scroll_selection_list(-1))
         self.app.bg_canvas.tag_bind(down_arrow, "<Button-1>", lambda e: self.scroll_selection_list(1))
@@ -210,7 +210,7 @@ class PlaylistManager:
 
             row_id = self.app.bg_canvas.create_text(
                 85, y_pos, text=f"{check_box_char}{clean_title}",
-                font=("Arial", 11), fill="#DDDDDD", anchor="w"
+                font=("Arial", 11), fill="#000000", anchor="w"
             )
             self.canvas_playlist_ids.append(row_id)
 
