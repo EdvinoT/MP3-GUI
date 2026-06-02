@@ -606,6 +606,11 @@ class HandheldPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = HandheldPlayerApp()
     
+    # --- INJECT CUSTOM TEXTBOX PATCH HERE ---
+    import custom_textbox_ui
+    custom_textbox_ui.popup_engine.inject_hardware_patch(app)
+    # ----------------------------------------
+
     import hardware_bridge
     bridge_instance = hardware_bridge.HardwareBridge(app)
     app.bridge = bridge_instance 
