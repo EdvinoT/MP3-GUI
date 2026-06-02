@@ -1,3 +1,5 @@
+import json
+import os
 import customtkinter as ctk
 from tkinter import messagebox, simpledialog
 
@@ -6,6 +8,12 @@ class PlaylistManager:
         self.app = main_app_instance
         self.is_open = False
         self.canvas_playlist_ids = []
+        
+        # Permanent hardware storage tracking file
+        self.DATA_FILE = "playlists.json"
+        
+        # Automatically pull saved playlists from the MicroSD card on boot
+        self.load_playlists_from_disk()
         
         # Scroller navigation tracking variables for the song selection menu
         self.selection_mode = False
@@ -17,6 +25,27 @@ class PlaylistManager:
         self.ROW_START_Y = 130
         self.LANE_X1 = 85
         self.LANE_X2 = 465
+
+    def save_playlists_to_disk(self):
+        """Writes the custom playlists dictionary permanently to storage."""
+        try:
+            playlists_dict = getattr(self.app, 'custom_playlists', {})
+            with open(self.DATA_FILE, "w") as f:
+                json.dump(playlists_dict, f, indent=4)
+        except Exception as e:
+            print(f"Error saving playlists to hardware storage: {e}")
+
+    def load_playlists_from_disk(self):
+        """Reads permanent playlists from storage back into application memory."""
+        if os.path.exists(self.DATA_FILE):
+            try:
+                with open(self.DATA_FILE, "r") as f:
+                    self.app.custom_playlists = json.load(f)
+            except Exception as e:
+                print(f"Error loading playlists: {e}")
+                self.app.custom_playlists = {}
+        else:
+            self.app.custom_playlists = {}
 
     def open_playlist_view(self):
         self.is_open = True
@@ -68,7 +97,6 @@ class PlaylistManager:
             return
 
         # ---- STANDARD MODE VIEW ----
-        # CHANGED: Shortened back button text to just "◀  BACK"
         back_id = self.app.bg_canvas.create_text(
             15, 80, text="◀  BACK", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="playlist_back"
@@ -274,6 +302,10 @@ class PlaylistManager:
                 self.app.custom_playlists = {}
                 
             self.app.custom_playlists[self.editing_playlist_name] = list(self.selected_songs_pool)
+            
+            # Commit the dictionary context permanently to the hardware MicroSD card
+            self.save_playlists_to_disk()
+            
             messagebox.showinfo("Saved", f"Playlist '{self.editing_playlist_name}' updated successfully.")
 
         self.selection_mode = False
