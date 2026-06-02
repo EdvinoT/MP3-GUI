@@ -21,7 +21,6 @@ class SettingsMenu:
             "LOAD DEFAULTS"
         ]
         
-        # --- FIXED: Split SCROLL TEXT into separate Marquee and Tracklist options ---
         self.theme_options = [
             "BOX CARDS",        
             "MENU BUTTONS",     
@@ -40,9 +39,10 @@ class SettingsMenu:
         self.backlight_level = 80
         self.eq_preset = "FLAT"
 
+        # UPDATED: Added "#000000" right to the front of the customizable color selection loop
         self.color_spectrum = [
-            "#00A8FF", "#00FF00", "#FFB300", "#FF5555", "#FFFFFF", 
-            "#E066FF", "#00FFFF", "#FF66B2", "#888888", "#555566"
+            "#000000", "#00A8FF", "#00FF00", "#FFB300", "#FF5555", 
+            "#FFFFFF", "#E066FF", "#00FFFF", "#FF66B2", "#888888", "#555566"
         ]
 
         self.available_wallpapers = self._scan_for_pngs("wallpapers", fallback="background.png")
@@ -69,7 +69,8 @@ class SettingsMenu:
         return files if files else [fallback]
 
     def _create_outlined_text(self, canvas, x, y, text, font, fill_color, anchor="nw", is_header=False):
-        outline_color = "#000000" if fill_color not in ["#121215", "#1F1F24", "#000000"] else "#FFFFFF"
+        # Dynamically flips the text outline to white if the user assigns pure black to an element text profile
+        outline_color = "#FFFFFF" if fill_color in ["#000000", "#121215", "#1F1F24"] else "#000000"
         
         offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
         for dx, dy in offsets:
@@ -128,7 +129,8 @@ class SettingsMenu:
 
         canvas = self.app.bg_canvas
         
-        mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1)
+        # Maintains the solid flat-black UI backing shield
+        mask = canvas.create_rectangle(15, 60, 465, 255, fill="#000000", outline="", width=1)
         self.canvas_settings_ids.append(mask)
 
         hdr_text = "◀  EXIT CONFIGURATION" if self.current_page == "MAIN" else "◀  BACK TO SYSTEM CONFIG"
@@ -220,9 +222,7 @@ class SettingsMenu:
         setattr(self.app, attribute_name, self.color_spectrum[next_idx])
         self._update_app_button_colors()
 
-    # --- FIXED: Connected separate button trigger directly to new variables ---
     def change_color_via_separate_button(self):
-        """Allows an external button layout or direct hotkey to change the theme color target."""
         if hasattr(self.app, 'play_ui_sound'): 
             self.app.play_ui_sound("click")
             
