@@ -104,6 +104,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.c_box = "#121215"
         self.c_btn = "#DDDDDD"
         self.c_scroll = "#FFFFFF"
+        self.c_marquee = "#FFFFFF" # Added default assignment variable to isolate marquee scroller layout text safely
         self.c_sub = "#888888"
         self.c_play = "#00A8FF"
         self.saved_wp = "background.png"
@@ -116,6 +117,7 @@ class HandheldPlayerApp(ctk.CTk):
                     self.c_box = saved_data.get("c_box", "#121215")
                     self.c_btn = saved_data.get("c_btn", "#DDDDDD")
                     self.c_scroll = saved_data.get("c_scroll", "#FFFFFF")
+                    self.c_marquee = saved_data.get("c_marquee", "#FFFFFF") # Re-pull state values back safely on boot execution sequences
                     self.c_sub = saved_data.get("c_sub", "#888888")
                     self.c_play = saved_data.get("c_play", "#00A8FF")
                     self.saved_wp = saved_data.get("current_wallpaper", "background.png")
@@ -312,7 +314,6 @@ class HandheldPlayerApp(ctk.CTk):
             self.update_status_text("▪ LINEAR TRACKING ▪", color=self.c_sub)
 
     def setup_background_canvas(self):
-        # Scan inside /wallpapers using saved data references
         png_path = os.path.join(self.dir_path, "wallpapers", self.saved_wp)
         if not os.path.exists(png_path):
             png_path = os.path.join(self.dir_path, "background.png")
@@ -353,7 +354,7 @@ class HandheldPlayerApp(ctk.CTk):
         
     def update_status_text(self, text, color=None):
         if color is None:
-            color = self.c_sub
+            color = getattr(self, 'c_marquee', self.c_sub)
             
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
@@ -378,13 +379,13 @@ class HandheldPlayerApp(ctk.CTk):
         padded_text = self.marquee_text + "         "
         display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
         
-        # Pull dynamic colors live on every single tick
-        current_theme_sub = getattr(self, 'c_sub', self.marquee_color)
+        # Pull dynamic colors live on every single tick specifically from c_marquee variable settings target
+        marquee_paint_target = getattr(self, 'c_marquee', self.c_sub)
+        current_theme_sub = getattr(self, 'c_sub', "#888888")
         
-        # Keep the main menu header and scrolling song text flawlessly grouped
         self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
-        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=current_theme_sub, anchor="center")
-        self.bg_canvas.itemconfig("main_title", fill=current_theme_sub) # Links Main Header to Sub Heading Group
+        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=marquee_paint_target, anchor="center")
+        self.bg_canvas.itemconfig("main_title", fill=current_theme_sub) 
         
         self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
         self.marquee_job = self.after(280, self._animate_marquee_step)

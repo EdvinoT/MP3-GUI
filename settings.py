@@ -67,7 +67,6 @@ class SettingsMenu:
         return files if files else [fallback]
 
     def _create_outlined_text(self, canvas, x, y, text, font, fill_color, anchor="nw", is_header=False):
-        """Draws clean text with a subtle, pixel-perfect contrast outline boundary to ensure readability."""
         outline_color = "#000000" if fill_color not in ["#121215", "#1F1F24", "#000000"] else "#FFFFFF"
         
         offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
@@ -115,9 +114,13 @@ class SettingsMenu:
         self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color=self.app.c_play)
         self.refresh_settings_view()
 
+        # Navigation Keybinds
         self.app.bind("<Key-u>", lambda e: self._handle_settings_scroll(-1))
         self.app.bind("<Key-d>", lambda e: self._handle_settings_scroll(1))
         self.app.bind("<Return>", lambda e: self._execute_settings_action())
+        
+        # --- NEW BINDING: Pressing 'c' will trigger color cycle directly ---
+        self.app.bind("<Key-c>", lambda e: self.change_color_via_separate_button())
 
     def refresh_settings_view(self):
         for cid in self.canvas_settings_ids:
@@ -162,7 +165,6 @@ class SettingsMenu:
             else:
                 if option == "BOX CARDS": fill_color = self.app.c_box; status = "COLOR"
                 elif option == "MENU BUTTONS": fill_color = self.app.c_btn; status = "COLOR"
-                # --- FIX: Link theme UI element sample text display color directly to c_marquee ---
                 elif option == "SCROLL TEXT": fill_color = getattr(self.app, 'c_marquee', self.app.c_scroll); status = "COLOR"
                 elif option == "SUB HEADINGS": fill_color = self.app.c_sub; status = "COLOR"
                 elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
@@ -207,7 +209,6 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _cycle_element_color(self, attribute_name):
-        # Fallback initialization check for safety
         if not hasattr(self.app, attribute_name):
             setattr(self.app, attribute_name, "#FFFFFF")
             
@@ -218,6 +219,28 @@ class SettingsMenu:
             next_idx = 0
         setattr(self.app, attribute_name, self.color_spectrum[next_idx])
         self._update_app_button_colors()
+
+    # --- NEW FUNCTION FOR SEPARATE BUTTON ACTIONS ---
+    def change_color_via_separate_button(self):
+        """Allows an external button layout or direct hotkey to change the theme color target."""
+        if hasattr(self.app, 'play_ui_sound'): 
+            self.app.play_ui_sound("click")
+            
+        # Target the currently selected setting index item dynamically
+        selected_option = self.active_options[self.active_settings_idx]
+        
+        if self.current_page == "THEME":
+            if selected_option == "BOX CARDS": self._cycle_element_color('c_box')
+            elif selected_option == "MENU BUTTONS": self._cycle_element_color('c_btn')
+            elif selected_option == "SCROLL TEXT": self._cycle_element_color('c_marquee')
+            elif selected_option == "SUB HEADINGS": self._cycle_element_color('c_sub')
+            elif selected_option == "PLAYLIST UTILS": self._cycle_element_color('c_play')
+        else:
+            # If used on the main menu, default it to cycle text/marquee color as a quick toggle
+            self._cycle_element_color('c_marquee')
+            
+        # Refresh screen to reflect immediate changes
+        self.refresh_settings_view()
 
     def _execute_settings_action(self):
         if hasattr(self.app, 'play_ui_sound'): self.app.play_ui_sound("click")
@@ -245,7 +268,7 @@ class SettingsMenu:
                     "c_box": self.app.c_box,
                     "c_btn": self.app.c_btn,
                     "c_scroll": self.app.c_scroll,
-                    "c_marquee": getattr(self.app, 'c_marquee', self.app.c_scroll), # Add to file serialization pipeline
+                    "c_marquee": getattr(self.app, 'c_marquee', self.app.c_scroll),
                     "c_sub": self.app.c_sub,
                     "c_play": self.app.c_play,
                     "current_wallpaper": os.path.basename(self.available_wallpapers[self.wp_idx])
@@ -276,7 +299,7 @@ class SettingsMenu:
                 self.app.c_box = "#121215"
                 self.app.c_btn = "#DDDDDD"
                 self.app.c_scroll = "#FFFFFF"
-                self.app.c_marquee = "#FFFFFF" # Default assignment
+                self.app.c_marquee = "#FFFFFF"
                 self.app.c_sub = "#888888"
                 self.app.c_play = "#00A8FF"
                 self._apply_live_wallpaper("background.png")
@@ -291,7 +314,6 @@ class SettingsMenu:
         else:
             if selected_option == "BOX CARDS": self._cycle_element_color('c_box')
             elif selected_option == "MENU BUTTONS": self._cycle_element_color('c_btn')
-            # --- FIX: SCROLL TEXT cycles c_marquee variables completely separate from c_scroll lists ---
             elif selected_option == "SCROLL TEXT": self._cycle_element_color('c_marquee')
             elif selected_option == "SUB HEADINGS": self._cycle_element_color('c_sub')
             elif selected_option == "PLAYLIST UTILS": self._cycle_element_color('c_play')
@@ -325,15 +347,12 @@ class SettingsMenu:
             self.app.bg_canvas.itemconfig("main_title", fill=self.app.c_sub)
             self.app.bg_canvas.itemconfig("status_sub", fill=self.app.c_sub)
             
-            # --- FIX: Force top scrolling marquee text to capture c_marquee instead of c_sub or c_scroll ---
             marquee_color_target = getattr(self.app, 'c_marquee', self.app.c_scroll)
             if hasattr(self.app, 'marquee_color'):
                 self.app.marquee_color = marquee_color_target
             
-            # Repaint top title item directly if it uses a canvas text tag for the marquee
             self.app.bg_canvas.itemconfig("marquee_text_tag", fill=marquee_color_target)
 
-            # Keep song listed text targets on c_scroll completely separate
             self.app.bg_canvas.itemconfig("scroll_wheel_txt", fill=self.app.c_scroll)
             self.app.bg_canvas.itemconfig("track_item", fill=self.app.c_scroll)
 
@@ -377,6 +396,7 @@ class SettingsMenu:
         self.app.unbind("<Key-u>")
         self.app.unbind("<Key-d>")
         self.app.unbind("<Return>")
+        self.app.unbind("<Key-c>") # Unbind on cleanup
 
         self.app.btn_access.place(x=60, y=140)
         self.app.btn_shuffle.place(x=60, y=190)
