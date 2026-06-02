@@ -62,7 +62,6 @@ class TrackScroller:
 
         self.clear_canvas_items()
 
-        # --- FIXED BINDS: Mapping safely to self.on_canvas_scroll ---
         self.app.bind("<MouseWheel>", self.on_canvas_scroll)
         self.app.bind("<Button-4>", self.on_canvas_scroll)  
         self.app.bind("<Button-5>", self.on_canvas_scroll)  
@@ -154,7 +153,7 @@ class TrackScroller:
 
     def settle_highlight_color(self):
         if self.hover_strip_id and self.is_open:
-            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#1F1F24" if self.app.c_box != "#1F1F24" else "#2C2C35")
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#212124")
 
     def clear_hover_strip(self):
         if self.hover_strip_id:
@@ -167,7 +166,6 @@ class TrackScroller:
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
 
-        # --- FIXED UNBINDS: Clean up matching references ---
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Button-4>")
         self.app.unbind("<Button-5>")
@@ -179,7 +177,6 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Restore main layout interfaces
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
@@ -232,17 +229,20 @@ class TrackScroller:
         self.canvas_item_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
+        # RESTORED: Box card background strictly returns to original transparent setup loop
         card_bg = self.app.bg_canvas.create_rectangle(
-            15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1, tags="track_scroll_card"
+            15, 60, 465, 255, fill="", outline="", width=1, tags="track_scroll_card"
         )
         self.canvas_item_ids.append(card_bg)
 
+        # FIXED: Back text elements follow MENU BUTTONS group color choice live
         back_id = self.app.bg_canvas.create_text(
             30, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill=self.app.c_btn, anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
+        # FIXED: Up/Down selection pointers follow SUB HEADINGS grouping colors
         scr_up_id = self.app.bg_canvas.create_text(
             395, 80, text="▲",
             font=("Arial", 12, "bold"), fill=self.app.c_sub, anchor="center", tags=("ui_scroll_up",)
@@ -274,6 +274,7 @@ class TrackScroller:
                     
                 display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
 
+                # FIXED: Generated line names pull dynamic SCROLL TEXT assignments
                 track_id = self.app.bg_canvas.create_text(
                     85, y_pos, text=display_string, font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
                 )
