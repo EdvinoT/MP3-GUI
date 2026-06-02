@@ -229,20 +229,20 @@ class TrackScroller:
         self.canvas_item_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
-        # Configures the box backdrop color seamlessly to match structural profiles
+        # RESTORED: Box card background strictly returns to completely clean, transparent setup loop
         card_bg = self.app.bg_canvas.create_rectangle(
-            15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1, tags="track_scroll_card"
+            15, 60, 465, 255, fill="", outline="", width=1, tags="track_scroll_card"
         )
         self.canvas_item_ids.append(card_bg)
 
-        # FIXED: Hooked to self.app.c_btn configuration parameters
+        # Back text elements follow MENU BUTTONS group color choice live
         back_id = self.app.bg_canvas.create_text(
             30, 80, text="◀  MENU", 
             font=("Futura", 10, "bold"), fill=self.app.c_btn, anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
-        # FIXED: Hooked to self.app.c_sub configuration parameters
+        # Up/Down selection pointers follow SUB HEADINGS grouping colors
         scr_up_id = self.app.bg_canvas.create_text(
             395, 80, text="▲",
             font=("Arial", 12, "bold"), fill=self.app.c_sub, anchor="center", tags=("ui_scroll_up",)
@@ -274,7 +274,7 @@ class TrackScroller:
                     
                 display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
 
-                # FIXED: Hooked to self.app.c_scroll configuration parameters to remove hardcoded orange
+                # Generated line names pull dynamic SCROLL TEXT assignments
                 track_id = self.app.bg_canvas.create_text(
                     85, y_pos, text=display_string, font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
                 )
