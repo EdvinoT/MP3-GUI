@@ -372,15 +372,20 @@ class HandheldPlayerApp(ctk.CTk):
             self._animate_marquee_step()
 
     def _animate_marquee_step(self):
+        if not self.running:
+            return
+            
         padded_text = self.marquee_text + "         "
         display_string = padded_text[self.scroll_offset:self.scroll_offset + 18]
         
+        # Pulls your updated dynamic sub-heading color choice live on every frame tick
+        current_theme_sub = getattr(self, 'c_sub', self.marquee_color)
+        
         self.bg_canvas.coords("status_sub", self.SCREEN_WIDTH // 2, 85)
-        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=self.marquee_color, anchor="center")
+        self.bg_canvas.itemconfig("status_sub", text=display_string, fill=current_theme_sub, anchor="center")
         
         self.scroll_offset = (self.scroll_offset + 1) % len(padded_text)
         self.marquee_job = self.after(280, self._animate_marquee_step)
-
     def update_battery_display(self, text, color="#666666"):
         if (hasattr(self, 'track_scroller') and self.track_scroller.is_open) or self.settings_open or self.playlist_module.is_open:
             self.bg_canvas.itemconfig("battery_sub", text="")

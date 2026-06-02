@@ -6,65 +6,57 @@ from PIL import Image, ImageTk
 class SettingsMenu:
     def __init__(self, main_app_instance):
         self.app = main_app_instance
-        self.current_page = "MAIN" # Tracks navigation states: "MAIN" or "THEME"
+        self.current_page = "MAIN" 
         self.active_settings_idx = 0
         
-        # Page 1: Main System Performance Configurations
         self.main_options = [
             "CROSSFADE", 
             "AUDIO FREQ", 
             "SLEEP TIMER", 
             "LED BACKLIGHT", 
             "EQ PRESET",
-            "WALLPAPER",        # Cycles files inside /wallpapers/ folder
-            "▶ CUSTOMIZE THEME", # Navigates to Page 2
+            "WALLPAPER",        
+            "▶ CUSTOMIZE THEME", 
             "SAVE CONFIG",
             "LOAD DEFAULTS"
         ]
         
-        # Page 2: Granular Hardware Canvas Theme Builder
         self.theme_options = [
-            "BOX CARDS",        # Background frames / popup shapes
-            "MENU BUTTONS",     # Main navigation button texts
-            "SCROLL TEXT",      # Item text inside the list browser
-            "SUB HEADINGS",     # Status headers / tickers / subtitles
-            "PLAYLIST UTILS",   # Track editor utility text elements
-            "◀ BACK TO CONFIG"   # Navigates back to Page 1
+            "BOX CARDS",        
+            "MENU BUTTONS",     
+            "SCROLL TEXT",      
+            "SUB HEADINGS",     
+            "PLAYLIST UTILS",   
+            "◀ BACK TO CONFIG"   
         ]
         
         self.canvas_settings_ids = []
         
-        # Local staging cache references
         self.staged_crossfade = self.app.CROSSFADE_ENABLED
         self.staged_freq = self.app.AUDIO_FREQ
         self.staged_sleep = self.app.SLEEP_MINUTES_LEFT
         self.backlight_level = 80
         self.eq_preset = "FLAT"
 
-        # Complete Hardware Color Spectrum Matrix
         self.color_spectrum = [
             "#00A8FF", "#00FF00", "#FFB300", "#FF5555", "#FFFFFF", 
             "#E066FF", "#00FFFF", "#FF66B2", "#888888", "#555566"
         ]
 
-        # Background index mapping setup
         self.available_wallpapers = self._scan_for_pngs("wallpapers", fallback="background.png")
         
-        # Sync the wallpaper index pointer with whatever image was loaded from persistent disk memory
         self.wp_idx = 0
         if hasattr(self.app, 'saved_wp'):
             matching_wp = os.path.join("wallpapers", self.app.saved_wp)
             if matching_wp in self.available_wallpapers:
                 self.wp_idx = self.available_wallpapers.index(matching_wp)
 
-        # Premium sleek typography configurations
         self.FONT_TITLE = ("Helvetica Neue", 11, "normal")
         self.FONT_ITEM = ("Helvetica Neue", 10, "normal")
         self.FONT_HIGHLIGHT = ("Helvetica Neue", 10, "underline")
 
     @property
     def active_options(self):
-        """Swaps target tracking indexes dynamically based on our active page."""
         return self.main_options if self.current_page == "MAIN" else self.theme_options
 
     def _scan_for_pngs(self, folder_name, fallback):
@@ -84,7 +76,6 @@ class SettingsMenu:
         self.staged_freq = self.app.AUDIO_FREQ
         self.staged_sleep = self.app.SLEEP_MINUTES_LEFT
         
-        # Unplace interface controls
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
@@ -112,12 +103,9 @@ class SettingsMenu:
         self.canvas_settings_ids.clear()
 
         canvas = self.app.bg_canvas
-
-        # Background card frame boundary box using our customizable color variables
         mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1)
         self.canvas_settings_ids.append(mask)
 
-        # Navigation Header String Line
         hdr_text = "◀  EXIT CONFIGURATION" if self.current_page == "MAIN" else "◀  BACK TO SYSTEM CONFIG"
         hdr_fill = "#FF5555" if self.current_page == "MAIN" else self.app.c_play
         
@@ -129,7 +117,6 @@ class SettingsMenu:
         else:
             canvas.tag_bind(back_id, "<Button-1>", lambda e: [setattr(self, 'current_page', "MAIN"), setattr(self, 'active_settings_idx', 6), self.refresh_settings_view()])
 
-        # Build Layout Column Grid Structure Layout
         for idx, option in enumerate(self.active_options):
             column = idx // 4  
             row = idx % 4     
@@ -140,7 +127,6 @@ class SettingsMenu:
             status = ""
             fill_color = "#FFFFFF"
             
-            # Context state translation engine logic
             if self.current_page == "MAIN":
                 if option == "CROSSFADE": status = "ON" if self.staged_crossfade else "OFF"
                 elif option == "AUDIO FREQ": status = f"{self.staged_freq//1000}k"
@@ -152,7 +138,6 @@ class SettingsMenu:
                 elif option == "SAVE CONFIG": fill_color = "#00FF00"
                 elif option == "LOAD DEFAULTS": fill_color = "#FF5555"
             else:
-                # Theme customizer value mappings
                 if option == "BOX CARDS": fill_color = self.app.c_box; status = "COLOR"
                 elif option == "MENU BUTTONS": fill_color = self.app.c_btn; status = "COLOR"
                 elif option == "SCROLL TEXT": fill_color = self.app.c_scroll; status = "COLOR"
@@ -160,7 +145,6 @@ class SettingsMenu:
                 elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
                 elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
 
-            # If the text color matches the box fill color exactly, give it an outline or fallback shade so it stays visible
             if self.current_page == "THEME" and fill_color == self.app.c_box:
                 bg_box = canvas.create_rectangle(x_pos - 4, y_pos - 2, x_pos + 130, y_pos + 28, fill="#1F1F24", outline="#3F3F46", width=1)
                 self.canvas_settings_ids.append(bg_box)
@@ -183,22 +167,18 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _cycle_element_color(self, attribute_name):
-        """Cycles a selected color profile variable through our spectrum array."""
         current_color = getattr(self.app, attribute_name)
         if current_color in self.color_spectrum:
             next_idx = (self.color_spectrum.index(current_color) + 1) % len(self.color_spectrum)
         else:
             next_idx = 0
         setattr(self.app, attribute_name, self.color_spectrum[next_idx])
-        
-        # --- FIX: LIVE UPDATE BACKGROUND RECTANGLE AND NATIVE LAYER ITEMS ON RADIAL CHANGE ---
         self._update_app_button_colors()
 
     def _execute_settings_action(self):
         if hasattr(self.app, 'play_ui_sound'): self.app.play_ui_sound("click")
         selected_option = self.active_options[self.active_settings_idx]
 
-        # PAGE 1 Actions Execution Path
         if self.current_page == "MAIN":
             if selected_option == "CROSSFADE": self.staged_crossfade = not self.staged_crossfade
             elif selected_option == "AUDIO FREQ": self.staged_freq = 22050 if self.staged_freq == 44100 else 44100
@@ -217,7 +197,6 @@ class SettingsMenu:
                 self.app.CROSSFADE_ENABLED = self.staged_crossfade
                 self.app.SLEEP_MINUTES_LEFT = self.staged_sleep
                 
-                # Saves persistent data straight to hardware drive via JSON
                 config_data = {
                     "c_box": self.app.c_box,
                     "c_btn": self.app.c_btn,
@@ -259,8 +238,6 @@ class SettingsMenu:
                 except Exception: pass
                 
                 self.app.update_status_text("▪ DEFAULTS LOADED ▪", color="#FFFFFF")
-
-        # PAGE 2 Theme Actions Execution Path
         else:
             if selected_option == "BOX CARDS": self._cycle_element_color('c_box')
             elif selected_option == "MENU BUTTONS": self._cycle_element_color('c_btn')
@@ -274,22 +251,22 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _update_app_button_colors(self):
-        """Forces custom tkinter native button objects to paint themselves to your matching theme color."""
+        """Forces custom tkinter elements and custom module view layers to mirror selected colors."""
         try:
-            # Force updates both standard text color AND active hover colors to match theme selections
+            # Sync root application CTK button widgets
             self.app.btn_access.configure(text_color=self.app.c_btn)
             self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
             self.app.btn_add.configure(text_color=self.app.c_btn)
             self.app.btn_playlist.configure(text_color=self.app.c_btn)
             self.app.btn_quick_settings.configure(text_color=self.app.c_btn)
             
-            # Sync playback frame button components
+            # Sync playback frame infrastructure
             self.app.btn_prev.configure(text_color=self.app.c_btn)
             self.app.btn_play.configure(text_color=self.app.c_btn)
             self.app.btn_next.configure(text_color=self.app.c_btn)
             self.app.progress_bar.configure(fg_color=self.app.c_play)
 
-            # Re-bind mouseover listeners to protect new colors during touch interactions
+            # Re-initialize mouse hover listeners to protect new text configurations
             self.app._setup_hover_glow(self.app.btn_access, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_add, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_playlist, self.app.c_btn, "#00A8FF")
@@ -298,19 +275,31 @@ class SettingsMenu:
             self.app._setup_hover_glow(self.app.btn_play, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_next, self.app.c_btn, "#00A8FF")
 
-            # --- FIX: UPDATE THE BASE SUBHEADING MARQUEE COLOR LIVE ---
+            # --- FIX: RECOLOUR THE TICKER MARQUEE AND THE SUBHEAD CANVAS LAYERS LIVE ---
             self.app.bg_canvas.itemconfig("status_sub", fill=self.app.c_sub)
             if hasattr(self.app, 'marquee_color'):
                 self.app.marquee_color = self.app.c_sub
 
-            # --- FIX: FORCE COMPONENT MODULE WINDOWS TO UPDATE THEIR BOX RECTANGLES ---
-            if hasattr(self.app, 'track_scroller') and hasattr(self.app.track_scroller, 'refresh_scroller_view'):
-                if self.app.track_scroller.is_open:
+            # --- FIX: FORCE RE-COLORING ON CUSTOM EXTERNAL COMPONENT POPUPS & NAVIGATION HEADERS ---
+            # Checks for list browser modules
+            if hasattr(self.app, 'track_scroller'):
+                # Paint scroller navigation headers to c_btn, utility actions to c_play
+                self.app.bg_canvas.itemconfig("back_btn", fill=self.app.c_btn)
+                self.app.bg_canvas.itemconfig("track_item", fill=self.app.c_scroll)
+                if self.app.track_scroller.is_open and hasattr(self.app.track_scroller, 'refresh_scroller_view'):
                     self.app.track_scroller.refresh_scroller_view()
                     
-            if hasattr(self.app, 'playlist_module') and hasattr(self.app.playlist_module, 'refresh_playlist_view'):
-                if self.app.playlist_module.is_open:
+            # Checks for custom playlist modules
+            if hasattr(self.app, 'playlist_module'):
+                self.app.bg_canvas.itemconfig("playlist_back", fill=self.app.c_btn)
+                self.app.bg_canvas.itemconfig("playlist_title", fill=self.app.c_sub)
+                self.app.bg_canvas.itemconfig("playlist_util_btn", fill=self.app.c_play) # Groups Create/Edit/Utility actions
+                if self.app.playlist_module.is_open and hasattr(self.app.playlist_module, 'refresh_playlist_view'):
                     self.app.playlist_module.refresh_playlist_view()
+                    
+            # Checks for external injected textbox custom UI frame patches
+            if hasattr(self.app, 'custom_textbox_frame'):
+                self.app.custom_textbox_frame.configure(fg_color=self.app.c_box)
         except Exception as e:
             print(f"UI Color Synchronizer error: {e}")
 
@@ -342,7 +331,6 @@ class SettingsMenu:
         self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
         
-        # Layer layout fixes
         self.app.bg_canvas.tag_raise("main_title")
         self.app.bg_canvas.tag_raise("status_sub")
         self.app.bg_canvas.tag_raise("battery_sub")
