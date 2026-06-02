@@ -251,22 +251,22 @@ class SettingsMenu:
         self.refresh_settings_view()
 
     def _update_app_button_colors(self):
-        """Forces custom tkinter elements and custom module view layers to mirror selected colors."""
+        """Forces all custom application layers, dynamic generation components, and header text elements to repaint to selected group colors."""
         try:
-            # Sync root application CTK button widgets
+            # Sync root application interface CTK buttons
             self.app.btn_access.configure(text_color=self.app.c_btn)
             self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
             self.app.btn_add.configure(text_color=self.app.c_btn)
             self.app.btn_playlist.configure(text_color=self.app.c_btn)
             self.app.btn_quick_settings.configure(text_color=self.app.c_btn)
             
-            # Sync playback frame infrastructure
+            # Sync primary hardware media navigation deck
             self.app.btn_prev.configure(text_color=self.app.c_btn)
             self.app.btn_play.configure(text_color=self.app.c_btn)
             self.app.btn_next.configure(text_color=self.app.c_btn)
             self.app.progress_bar.configure(fg_color=self.app.c_play)
 
-            # Re-initialize mouse hover listeners to protect new text configurations
+            # Re-initialize native CTK glow listeners to protect custom colors
             self.app._setup_hover_glow(self.app.btn_access, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_add, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_playlist, self.app.c_btn, "#00A8FF")
@@ -275,29 +275,37 @@ class SettingsMenu:
             self.app._setup_hover_glow(self.app.btn_play, self.app.c_btn, "#00A8FF")
             self.app._setup_hover_glow(self.app.btn_next, self.app.c_btn, "#00A8FF")
 
-            # --- FIX: RECOLOUR THE TICKER MARQUEE AND THE SUBHEAD CANVAS LAYERS LIVE ---
+            # --- FIX: SYNC MAIN MENU HEADING + MARQUEE TICKERS TO THE SUB HEADINGS GROUP ---
+            self.app.bg_canvas.itemconfig("main_title", fill=self.app.c_sub)
             self.app.bg_canvas.itemconfig("status_sub", fill=self.app.c_sub)
             if hasattr(self.app, 'marquee_color'):
                 self.app.marquee_color = self.app.c_sub
 
-            # --- FIX: FORCE RE-COLORING ON CUSTOM EXTERNAL COMPONENT POPUPS & NAVIGATION HEADERS ---
-            # Checks for list browser modules
+            # --- FIX: FORCE SCROLL WHEEL TEXT TARGETS TO REPAINT TO SCROLL TEXT GROUP ---
+            self.app.bg_canvas.itemconfig("scroll_wheel_txt", fill=self.app.c_scroll)
+            self.app.bg_canvas.itemconfig("track_item", fill=self.app.c_scroll)
+
+            # --- FIX: CLEAN UP DYNAMIC GENERATION ON ACTIVE LIST MODULE LAYERS ---
             if hasattr(self.app, 'track_scroller'):
-                # Paint scroller navigation headers to c_btn, utility actions to c_play
                 self.app.bg_canvas.itemconfig("back_btn", fill=self.app.c_btn)
-                self.app.bg_canvas.itemconfig("track_item", fill=self.app.c_scroll)
                 if self.app.track_scroller.is_open and hasattr(self.app.track_scroller, 'refresh_scroller_view'):
                     self.app.track_scroller.refresh_scroller_view()
                     
-            # Checks for custom playlist modules
+            # --- FIX: FULLY COLOR ALL UNCOLORED AND GENERATED POPUP ITEMS IN THE PLAYLIST MENU ---
             if hasattr(self.app, 'playlist_module'):
+                # Colors menu/back headers, title details, and operational utility configurations
                 self.app.bg_canvas.itemconfig("playlist_back", fill=self.app.c_btn)
                 self.app.bg_canvas.itemconfig("playlist_title", fill=self.app.c_sub)
-                self.app.bg_canvas.itemconfig("playlist_util_btn", fill=self.app.c_play) # Groups Create/Edit/Utility actions
+                
+                # Targets everything labeled or tagged as utility inside generation hooks (Create, Edit, Delete)
+                self.app.bg_canvas.itemconfig("playlist_util_btn", fill=self.app.c_play)
+                self.app.bg_canvas.itemconfig("playlist_item_text", fill=self.app.c_scroll)
+                self.app.bg_canvas.itemconfig("playlist_card_bg", fill=self.app.c_box)
+                
                 if self.app.playlist_module.is_open and hasattr(self.app.playlist_module, 'refresh_playlist_view'):
                     self.app.playlist_module.refresh_playlist_view()
                     
-            # Checks for external injected textbox custom UI frame patches
+            # Update physical container shapes to reflect customization
             if hasattr(self.app, 'custom_textbox_frame'):
                 self.app.custom_textbox_frame.configure(fg_color=self.app.c_box)
         except Exception as e:
