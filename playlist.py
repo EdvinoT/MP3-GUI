@@ -76,7 +76,8 @@ class PlaylistManager:
         if self.app.timer_text_id:
             self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
 
-        self.app.update_status_text("▪ PLAYLIST ENGINE ACTIVE ▪", color="#FFB300")
+        # COLOR FIX: Updates upper main profile banner status text to utility primary accent color
+        self.app.update_status_text("▪ PLAYLIST ENGINE ACTIVE ▪", color=self.app.c_play)
         self.render_playlist_screen()
 
     def render_playlist_screen(self):
@@ -95,33 +96,38 @@ class PlaylistManager:
             return
 
         # ---- STANDARD MODE VIEW ----
+        # COLOR FIX: Back navigation text maps to standard dynamic menu buttons color
         back_id = self.app.bg_canvas.create_text(
             15, 80, text="◀  BACK", 
-            font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="playlist_back"
+            font=("Futura", 10, "bold"), fill=self.app.c_btn, anchor="w", tags="playlist_back"
         )
         self.canvas_playlist_ids.append(back_id)
         self.app.bg_canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_playlist_view())
 
+        # COLOR FIX: Utility "Create New List" label text maps to utility primary color
         create_id = self.app.bg_canvas.create_text(
             85, 120, text="[+ CREATE NEW LIST]",
-            font=("Arial", 11, "bold"), fill="#00A8FF", anchor="w", tags="playlist_create"
+            font=("Arial", 11, "bold"), fill=self.app.c_play, anchor="w", tags="playlist_create"
         )
         self.canvas_playlist_ids.append(create_id)
         self.app.bg_canvas.tag_bind(create_id, "<Button-1>", lambda e: self.initiate_playlist_wizard(edit_mode=False))
 
         current_list_name = getattr(self.app, 'active_playlist_name', 'Main')
         status_str = f"ACTIVE LIST: {current_list_name.upper()}  ({len(self.app.track_list)} Tracks)"
+        
+        # COLOR FIX: Playlist description status readout inherits dynamic scroll view text colors
         info_id = self.app.bg_canvas.create_text(
-            85, 155, text=status_str, font=("Arial", 10, "bold"), fill="#000000", anchor="w"
+            85, 155, text=status_str, font=("Arial", 10, "bold"), fill=self.app.c_scroll, anchor="w"
         )
         self.canvas_playlist_ids.append(info_id)
 
         div_id = self.app.bg_canvas.create_line(85, 180, 465, 180, fill="#202025", width=1)
         self.canvas_playlist_ids.append(div_id)
 
+        # COLOR FIX: Master list play action uses standard scroll catalog colors
         main_box_id = self.app.bg_canvas.create_text(
             85, 205, text="▶ PLAY ALL SONGS (MAIN CATALOG)",
-            font=("Arial", 11, "bold"), fill="#000000", anchor="w", tags="play_all_trigger"
+            font=("Arial", 11, "bold"), fill=self.app.c_scroll, anchor="w", tags="play_all_trigger"
         )
         self.canvas_playlist_ids.append(main_box_id)
         self.app.bg_canvas.tag_bind(main_box_id, "<Button-1>", lambda e: self.action_activate_main_list())
@@ -130,34 +136,38 @@ class PlaylistManager:
         playlists_dict = getattr(self.app, 'custom_playlists', {})
         
         if not playlists_dict:
+            # COLOR FIX: Fallback notice text maps cleanly to sub headings color group
             no_lists_id = self.app.bg_canvas.create_text(
                 85, y_offset, text="(No custom playlists created yet)",
-                font=("Arial", 10, "italic"), fill="#555555", anchor="w"
+                font=("Arial", 10, "italic"), fill=self.app.c_sub, anchor="w"
             )
             self.canvas_playlist_ids.append(no_lists_id)
         else:
             for p_name in list(playlists_dict.keys()):
                 if y_offset > 300: break
                 
+                # COLOR FIX: Iterated item entries inherit dynamic scroll view text colors
                 list_item_id = self.app.bg_canvas.create_text(
                     85, y_offset, text=f"▶ {p_name.upper()} ({len(playlists_dict[p_name])})",
-                    font=("Arial", 11), fill="#000000", anchor="w"
+                    font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
                 )
                 self.canvas_playlist_ids.append(list_item_id)
                 self.app.bg_canvas.tag_bind(list_item_id, "<Button-1>", lambda e, name=p_name: self.action_activate_custom_list(name))
 
                 # Touchscreen Interactive [EDIT] Hook
+                # COLOR FIX: Operational sub items map to sub headings colors profile configuration
                 edit_btn_id = self.app.bg_canvas.create_text(
                     380, y_offset, text="[EDIT]",
-                    font=("Arial", 10, "bold"), fill="#FFB300", anchor="e"
+                    font=("Arial", 10, "bold"), fill=self.app.c_sub, anchor="e"
                 )
                 self.canvas_playlist_ids.append(edit_btn_id)
                 self.app.bg_canvas.tag_bind(edit_btn_id, "<Button-1>", lambda e, name=p_name: self.initiate_playlist_wizard(edit_mode=True, name=name))
                 
                 # Touchscreen Interactive [DEL] Hook
+                # COLOR FIX: Operational delete markers map safely to utility color highlights
                 del_btn_id = self.app.bg_canvas.create_text(
                     450, y_offset, text="[DEL]",
-                    font=("Arial", 10, "bold"), fill="#FF5555", anchor="e"
+                    font=("Arial", 10, "bold"), fill=self.app.c_play, anchor="e"
                 )
                 self.canvas_playlist_ids.append(del_btn_id)
                 self.app.bg_canvas.tag_bind(del_btn_id, "<Button-1>", lambda e, name=p_name: self.action_delete_playlist(name))
@@ -175,7 +185,6 @@ class PlaylistManager:
                 del self.app.custom_playlists[name]
                 self.save_playlists_to_disk()
                 
-                # Fallback safeguard: If deleted playlist was playing, point system back to general catalog
                 if self.app.active_playlist_name == name:
                     if hasattr(self.app, 'all_local_tracks') and self.app.all_local_tracks:
                         self.app.track_list = list(self.app.all_local_tracks)
@@ -196,27 +205,32 @@ class PlaylistManager:
         self.app.bind("<Down>", lambda e: self.scroll_selection_list(1))
 
         title_text = f"EDITING: {self.editing_playlist_name.upper()}" if self.editing_playlist_name else "NEW PLAYLIST SELECTION"
+        
+        # COLOR FIX: Wizard page header title maps to menu button elements configuration group
         title_id = self.app.bg_canvas.create_text(
-            85, 55, text=title_text, font=("Arial", 11, "bold"), fill="#000000", anchor="w"
+            85, 55, text=title_text, font=("Arial", 11, "bold"), fill=self.app.c_btn, anchor="w"
         )
         self.canvas_playlist_ids.append(title_id)
 
+        # COLOR FIX: Cancel tag maps directly to the active utility highlight configurations
         cancel_id = self.app.bg_canvas.create_text(
             15, 90, text="[X] CANCEL", 
-            font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="sel_cancel"
+            font=("Futura", 10, "bold"), fill=self.app.c_play, anchor="w", tags="sel_cancel"
         )
         self.canvas_playlist_ids.append(cancel_id)
         self.app.bg_canvas.tag_bind(cancel_id, "<Button-1>", lambda e: self.exit_selection_scroller(save=False))
 
+        # COLOR FIX: Save tag text string switches smoothly to dynamic menu button color choices
         save_id = self.app.bg_canvas.create_text(
             465, 90, text="[S] SAVE & EXIT", 
-            font=("Futura", 10, "bold"), fill="#00A8FF", anchor="e", tags="sel_save"
+            font=("Futura", 10, "bold"), fill=self.app.c_btn, anchor="e", tags="sel_save"
         )
         self.canvas_playlist_ids.append(save_id)
         self.app.bg_canvas.tag_bind(save_id, "<Button-1>", lambda e: self.exit_selection_scroller(save=True))
 
-        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill="#555555", anchor="center")
-        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill="#555555", anchor="center")
+        # COLOR FIX: Up/Down chevron markers fetch their tracking color profile from sub headings
+        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill=self.app.c_sub, anchor="center")
+        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill=self.app.c_sub, anchor="center")
         self.canvas_playlist_ids.extend([up_arrow, down_arrow])
         self.app.bg_canvas.tag_bind(up_arrow, "<Button-1>", lambda e: self.scroll_selection_list(-1))
         self.app.bg_canvas.tag_bind(down_arrow, "<Button-1>", lambda e: self.scroll_selection_list(1))
@@ -238,9 +252,10 @@ class PlaylistManager:
             is_checked = track_filename in self.selected_songs_pool
             check_box_char = "[X] " if is_checked else "[  ] "
 
+            # COLOR FIX: Song selector item files update layout to match dynamic scroll text variables
             row_id = self.app.bg_canvas.create_text(
                 85, y_pos, text=f"{check_box_char}{clean_title}",
-                font=("Arial", 11), fill="#000000", anchor="w"
+                font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
             )
             self.canvas_playlist_ids.append(row_id)
 
@@ -317,8 +332,6 @@ class PlaylistManager:
                 self.app.custom_playlists = {}
                 
             self.app.custom_playlists[self.editing_playlist_name] = list(self.selected_songs_pool)
-            
-            # Commit the playlists to storage
             self.save_playlists_to_disk()
             
             messagebox.showinfo("Saved", f"Playlist '{self.editing_playlist_name}' updated successfully.")
@@ -386,9 +399,10 @@ class PlaylistManager:
 
         if self.app.is_playing and self.app.track_list:
             track_name = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
-            self.app.update_status_text(f"▶ {track_name}", color="#FFB300")
+            # COLOR FIX: Syncs main status footer back up to utility accent properties upon exit
+            self.app.update_status_text(f"▶ {track_name}", color=self.app.c_play)
         else:
-            self.app.update_status_text("▪ ONLINE ▪", color="#888888")
+            self.app.update_status_text("▪ ONLINE ▪", color=self.app.c_sub)
 
     def clear_playlist_canvas(self):
         for cid in self.canvas_playlist_ids:
