@@ -8,12 +8,13 @@ class GlobalHardwarePopupEngine:
         self.input_buffer = ""
         self.input_submitted = False
         self.canvas_ids = []
+        self.popup_canvas = None  # Dedicated top-layer canvas
         
-        # Sleeker, clean hardware font configuration profiles
+        # Your original hardware font configuration profiles
         self.FONT_HEADER = ("Helvetica Neue", 11, "normal")
         self.FONT_BODY = ("Helvetica Neue", 12, "normal")
         self.FONT_BUTTON = ("Helvetica Neue", 11, "normal")
-        self.FONT_INPUT = ("Courier New", 13, "bold") # Preserved monospace clarity for typing
+        self.FONT_INPUT = ("Courier New", 13, "bold")
 
     def inject_hardware_patch(self, main_app_instance):
         """Hooks into the standard library calls and routes them to the canvas."""
@@ -26,15 +27,29 @@ class GlobalHardwarePopupEngine:
         old_dialog.askstring = self.mock_askstring
 
     def _clear_popup_layers(self):
-        for cid in self.canvas_ids:
-            if self.app and hasattr(self.app, 'bg_canvas'):
-                self.app.bg_canvas.delete(cid)
+        # Clean up and completely remove the top-layer canvas when done
+        if self.popup_canvas:
+            self.popup_canvas.destroy()
+            self.popup_canvas = None
         self.canvas_ids.clear()
 
     def _draw_base_backdrop(self, title_text):
         self._clear_popup_layers()
-        canvas = self.app.bg_canvas
         
+        # FIX: Create a dedicated overlay canvas that sits strictly on top of ALL widgets
+        self.popup_canvas = ctk.CTkCanvas(
+            self.app, 
+            width=self.app.SCREEN_WIDTH, 
+            height=self.app.SCREEN_HEIGHT, 
+            bg="#0A0A0C", 
+            highlightthickness=0
+        )
+        # Place it to completely cover the screen app window
+        self.popup_canvas.place(x=0, y=0, relwidth=1, relheight=1)
+        
+        canvas = self.popup_canvas
+        
+        # Your original exact design coordinates and colors
         # Dimming backdrop shield
         shade = canvas.create_rectangle(0, 0, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT, fill="#0A0A0C", outline="", tags="global_popup")
         # Main dialog physical card block 
@@ -44,9 +59,6 @@ class GlobalHardwarePopupEngine:
         
         self.canvas_ids.extend([shade, card, hdr])
         canvas.tag_bind(shade, "<Button-1>", lambda e: "break")
-        
-        # FIX: Push the backdrop elements to the front layer
-        canvas.tag_raise("global_popup")
 
     # ---- MOCK: ASK YES / NO ----
     def mock_askyesno(self, title, message, **kwargs):
@@ -54,7 +66,7 @@ class GlobalHardwarePopupEngine:
             self.app.play_ui_sound("click")
             
         self._draw_base_backdrop(title)
-        canvas = self.app.bg_canvas
+        canvas = self.popup_canvas
         
         msg_txt = canvas.create_text(240, 135, text=str(message), font=self.FONT_BODY, fill="#DDDDDD", justify="center", width=340, tags="global_popup")
         self.canvas_ids.append(msg_txt)
@@ -66,11 +78,11 @@ class GlobalHardwarePopupEngine:
             user_choice[0] = response
             loop_flag.set(True)
 
-        # Clean finger-target YES box
+        # Your original clean finger-target YES box
         b_yes = canvas.create_rectangle(80, 195, 230, 240, fill="#2A1414", outline="#FF5555", width=1, tags="global_popup")
         t_yes = canvas.create_text(155, 217, text="YES", font=self.FONT_BUTTON, fill="#FFAAAA", tags="global_popup")
         
-        # Clean finger-target NO box
+        # Your original clean finger-target NO box
         b_no = canvas.create_rectangle(250, 195, 400, 240, fill="#1C1C22", outline="#555566", width=1, tags="global_popup")
         t_no = canvas.create_text(325, 217, text="NO", font=self.FONT_BUTTON, fill="#BBBBBB", tags="global_popup")
 
@@ -78,9 +90,6 @@ class GlobalHardwarePopupEngine:
 
         for item in (b_yes, t_yes): canvas.tag_bind(item, "<Button-1>", lambda e: click_action(True))
         for item in (b_no, t_no): canvas.tag_bind(item, "<Button-1>", lambda e: click_action(False))
-
-        # FIX: Ensure newly drawn buttons/text sit on top before freezing the loop
-        canvas.tag_raise("global_popup")
 
         self.app.wait_variable(loop_flag)
         self._clear_popup_layers()
@@ -92,22 +101,19 @@ class GlobalHardwarePopupEngine:
             self.app.play_ui_sound("click")
             
         self._draw_base_backdrop(title)
-        canvas = self.app.bg_canvas
+        canvas = self.popup_canvas
 
         msg_txt = canvas.create_text(240, 135, text=str(message), font=self.FONT_BODY, fill="#DDDDDD", justify="center", width=340, tags="global_popup")
         self.canvas_ids.append(msg_txt)
 
         loop_flag = ctk.BooleanVar(value=False)
 
-        # Large "OK" confirmation touch area
+        # Your original large "OK" confirmation touch area
         b_ok = canvas.create_rectangle(165, 195, 315, 240, fill="#1C1C22", outline="#00A8FF", width=1, tags="global_popup")
         t_ok = canvas.create_text(240, 217, text="OK", font=self.FONT_BUTTON, fill="#FFFFFF", tags="global_popup")
         self.canvas_ids.extend([b_ok, t_ok])
 
         for item in (b_ok, t_ok): canvas.tag_bind(item, "<Button-1>", lambda e: loop_flag.set(True))
-
-        # FIX: Ensure newly drawn buttons/text sit on top before freezing the loop
-        canvas.tag_raise("global_popup")
 
         self.app.wait_variable(loop_flag)
         self._clear_popup_layers()
@@ -116,11 +122,11 @@ class GlobalHardwarePopupEngine:
     # ---- MOCK: ASK STRING INPUT ----
     def mock_askstring(self, title, prompt, **kwargs):
         self._draw_base_backdrop(title)
-        canvas = self.app.bg_canvas
+        canvas = self.popup_canvas
 
         prompt_txt = canvas.create_text(240, 115, text=str(prompt), font=self.FONT_BODY, fill="#AAAAAA", tags="global_popup")
         
-        # Variable display box field
+        # Your original variable display box field
         field = canvas.create_rectangle(80, 140, 400, 180, fill="#1C1C22", outline="#333344", width=1, tags="global_popup")
         
         self.input_buffer = ""
@@ -149,7 +155,7 @@ class GlobalHardwarePopupEngine:
 
         self.app.bind("<Key>", stroke_listener)
 
-        # Confirm / Cancel buttons
+        # Your original Confirm / Cancel buttons
         b_ent = canvas.create_rectangle(80, 205, 230, 248, fill="#122412", outline="#00FF00", width=1, tags="global_popup")
         t_ent = canvas.create_text(155, 226, text="ENTER", font=self.FONT_BUTTON, fill="#99FF99", tags="global_popup")
         
@@ -160,9 +166,6 @@ class GlobalHardwarePopupEngine:
 
         for item in (b_ent, t_ent): canvas.tag_bind(item, "<Button-1>", lambda e: [setattr(self, 'input_submitted', True), loop_flag.set(True)])
         for item in (b_cc, t_cc): canvas.tag_bind(item, "<Button-1>", lambda e: [setattr(self, 'input_submitted', False), loop_flag.set(True)])
-
-        # FIX: Ensure newly drawn input box elements sit on top before freezing the loop
-        canvas.tag_raise("global_popup")
 
         self.app.wait_variable(loop_flag)
         self.app.unbind("<Key>")
