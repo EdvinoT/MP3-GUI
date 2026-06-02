@@ -47,7 +47,6 @@ class TrackScroller:
             self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
         
-        # FIXED: Added these to hide your new menu layout items so they don't clip through!
         if hasattr(self.app, 'btn_playlist'):
             self.app.btn_playlist.place_forget()
         if hasattr(self.app, 'btn_quick_settings'):
@@ -74,9 +73,9 @@ class TrackScroller:
 
         if self.app.is_playing and self.app.track_list:
             current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
-            self.app.update_status_text(f"▶ {current_track}", color="#FFB300")
+            self.app.update_status_text(f"▶ {current_track}", color=self.app.c_play)
         else:
-            self.app.update_status_text("▪ SELECT TRACK MODULE ▪", color="#888888")
+            self.app.update_status_text("▪ SELECT TRACK MODULE ▪", color=self.app.c_sub)
 
         self.refresh_scroll_list()
 
@@ -98,14 +97,6 @@ class TrackScroller:
                 self.app.play_ui_sound("scroll")
             self.refresh_scroll_list()
 
-    def on_mouse_scroll(self, event):
-        if not self.app.track_list: return
-        
-        if event.num == 4 or (event.delta and event.delta > 0):
-            self.force_scroll_direction(-1)
-        elif event.num == 5 or (event.delta and event.delta < 0):
-            self.force_scroll_direction(1)
-
     def on_canvas_hover(self, event):
         if not self.is_open: return
         current_item = self.app.bg_canvas.find_withtag("current")
@@ -120,12 +111,13 @@ class TrackScroller:
                 return
             elif "ui_scroll_up" in tags or "ui_scroll_down" in tags:
                 self.clear_hover_strip()
-                self.app.bg_canvas.itemconfig(item_id, fill="#00A8FF")
+                self.app.bg_canvas.itemconfig(item_id, fill=self.app.c_play)
                 return
             else:
-                self.app.bg_canvas.itemconfig("back_btn", fill="#000000")
-                self.app.bg_canvas.itemconfig("ui_scroll_up", fill="#555555")
-                self.app.bg_canvas.itemconfig("ui_scroll_down", fill="#555555")
+                # Hover release fallbacks obey dynamic setup groups
+                self.app.bg_canvas.itemconfig("back_btn", fill=self.app.c_btn)
+                self.app.bg_canvas.itemconfig("ui_scroll_up", fill=self.app.c_sub)
+                self.app.bg_canvas.itemconfig("ui_scroll_down", fill=self.app.c_sub)
 
             if "track_item" in tags:
                 for tag in tags:
@@ -145,7 +137,8 @@ class TrackScroller:
 
     def animate_snap_highlight(self, x1, y1, x2, y2):
         if not self.is_open: return
-        self.hover_strip_id = self.app.bg_canvas.create_rectangle(x1, y1, x2, y2, fill="#3A3A3F", outline="")
+        # Hover strip outline matches dynamic layout configurations
+        self.hover_strip_id = self.app.bg_canvas.create_rectangle(x1, y1, x2, y2, fill=self.app.c_play, outline="")
         self.app.bg_canvas.tag_lower(self.hover_strip_id)
         for item_id in self.canvas_item_ids:
             self.app.bg_canvas.tag_raise(item_id)
@@ -153,7 +146,8 @@ class TrackScroller:
 
     def settle_highlight_color(self):
         if self.hover_strip_id and self.is_open:
-            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#212124")
+            # Drop down color tone shifts safely inside your customizable box theme parameters
+            self.app.bg_canvas.itemconfig(self.hover_strip_id, fill="#1F1F24" if self.app.c_box != "#1F1F24" else "#2C2C35")
 
     def clear_hover_strip(self):
         if self.hover_strip_id:
@@ -177,14 +171,13 @@ class TrackScroller:
         self.clear_hover_strip()
         self.clear_canvas_items()
 
-        # Restore everything exactly to your updated main menu positioning scheme
+        # Restore tracking controls
         self.app.btn_access.place(x=60, y=140)
         if hasattr(self.app, 'btn_shuffle'):
             self.app.btn_shuffle.place(x=60, y=190)
             
         self.app.btn_add.place(x=260, y=140)
         
-        # FIXED: Restoring your new menu layout items here too
         if hasattr(self.app, 'btn_playlist'):
             self.app.btn_playlist.place(x=260, y=190)
         if hasattr(self.app, 'btn_quick_settings'):
@@ -201,9 +194,9 @@ class TrackScroller:
 
         if self.app.is_playing and self.app.track_list:
             current_track = self.app.track_list[self.app.current_track_index].replace(".mp3", "")
-            self.app.update_status_text(f"▶ {current_track}", color="#FFB300")
+            self.app.update_status_text(f"▶ {current_track}", color=self.app.c_play)
         else:
-            self.app.update_status_text("▪ ONLINE ▪", color="#888888")
+            self.app.update_status_text("▪ ONLINE ▪", color=self.app.c_sub)
 
         if hasattr(self.app, 'battery_monitor'):
             self.app.battery_monitor._execute_telemetry_render()
@@ -231,27 +224,34 @@ class TrackScroller:
         self.canvas_item_ids.append(shield_id)
         self.app.bg_canvas.tag_bind(shield_id, "<Button-1>", lambda e: "break")
 
-        # Perfected layout coordinates
+        # FIX: Solid background box frame follows c_box setting directly
+        card_bg = self.app.bg_canvas.create_rectangle(
+            15, 60, 465, 255, fill=self.app.c_box, outline="#44444c", width=1, tags="track_scroll_card"
+        )
+        self.canvas_item_ids.append(card_bg)
+
+        # FIX: Back Navigation uses MENU BUTTONS color
         back_id = self.app.bg_canvas.create_text(
-            15, 80, text="◀  MENU", 
-            font=("Futura", 10, "bold"), fill="#000000", anchor="w", tags=("back_btn",)
+            30, 80, text="◀  MENU", 
+            font=("Futura", 10, "bold"), fill=self.app.c_btn, anchor="w", tags=("back_btn",)
         )
         self.canvas_item_ids.append(back_id)
 
+        # FIX: Up/Down navigational indicators follow SUB HEADINGS grouping colors
         scr_up_id = self.app.bg_canvas.create_text(
             395, 80, text="▲",
-            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_up",)
+            font=("Arial", 12, "bold"), fill=self.app.c_sub, anchor="center", tags=("ui_scroll_up",)
         )
         scr_down_id = self.app.bg_canvas.create_text(
             435, 80, text="▼",
-            font=("Arial", 12, "bold"), fill="#555555", anchor="center", tags=("ui_scroll_down",)
+            font=("Arial", 12, "bold"), fill=self.app.c_sub, anchor="center", tags=("ui_scroll_down",)
         )
         self.canvas_item_ids.extend([scr_up_id, scr_down_id])
 
         if not self.app.track_list:
             empty_id = self.app.bg_canvas.create_text(
                 self.app.SCREEN_WIDTH // 2, 180, text="Empty Local Audio Catalog",
-                font=("Arial", 11), fill="#55555A", anchor="center"
+                font=("Arial", 11), fill=self.app.c_sub, anchor="center"
             )
             self.canvas_item_ids.append(empty_id)
             return
@@ -269,14 +269,15 @@ class TrackScroller:
                     
                 display_string = f"[{actual_track_index + 1:02d}] {clean_display_title}"
 
+                # FIX: Check tracks inside our dynamic SCROLL TEXT profile array mappings
                 track_id = self.app.bg_canvas.create_text(
-                    85, y_pos, text=display_string, font=("Arial", 11), fill="#000000", anchor="w"
+                    85, y_pos, text=display_string, font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
-                self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item"))
+                self.app.bg_canvas.itemconfig(track_id, tags=(f"track_{actual_track_index}", "track_item", "scroll_wheel_txt"))
             else:
                 track_id = self.app.bg_canvas.create_text(
-                    85, y_pos, text="", font=("Arial", 11), fill="#000000", anchor="w"
+                    85, y_pos, text="", font=("Arial", 11), fill=self.app.c_scroll, anchor="w"
                 )
                 self.canvas_item_ids.append(track_id)
 
