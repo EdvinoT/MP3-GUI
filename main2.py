@@ -4,12 +4,13 @@ import customtkinter as ctk
 from tkinter import messagebox, Canvas
 from PIL import Image, ImageTk
 import os
+import json
 import warnings
 import random 
 import scroller2  
 import battery2  
 import settings  
-import playlist # Importing your new playlist logic layer
+import playlist 
 
 warnings.filterwarnings("ignore", category=UserWarning, module="customtkinter")
 
@@ -96,6 +97,32 @@ class HandheldPlayerApp(ctk.CTk):
         self.tracks_dir = os.path.join(self.dir_path, "tracks")
         self.load_local_tracks()
 
+        # --- DYNAMIC HARDWARE PERSISTENCE REGISTRY ---
+        self.config_file = os.path.join(self.dir_path, "settings.json")
+        
+        # Fallback default constants
+        self.c_box = "#121215"
+        self.c_btn = "#DDDDDD"
+        self.c_scroll = "#FFFFFF"
+        self.c_sub = "#888888"
+        self.c_play = "#00A8FF"
+        self.saved_wp = "background.png"
+
+        # Read JSON persistence mapping out of physical disk space
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, "r") as f:
+                    saved_data = json.load(f)
+                    self.c_box = saved_data.get("c_box", "#121215")
+                    self.c_btn = saved_data.get("c_btn", "#DDDDDD")
+                    self.c_scroll = saved_data.get("c_scroll", "#FFFFFF")
+                    self.c_sub = saved_data.get("c_sub", "#888888")
+                    self.c_play = saved_data.get("c_play", "#00A8FF")
+                    self.saved_wp = saved_data.get("current_wallpaper", "background.png")
+            except Exception as e:
+                print(f"Configuration disk read error: {e}")
+        # -----------------------------------------------
+
         self.bg_canvas = Canvas(self, highlightthickness=0, bg="#101012")
         self.bg_canvas.place(x=0, y=0, relwidth=1, relheight=1)
         
@@ -106,13 +133,13 @@ class HandheldPlayerApp(ctk.CTk):
 
         button_font = ("Futura", 11)
         btn_bg = "#1A1A1A" 
-        btn_text = "#DDDDDD" 
         btn_hover = "#00A8FF"  
 
+        # Applied self.c_btn to native buttons dynamically
         self.btn_access = ctk.CTkButton(
             self, text="ACCESS SONGS", font=button_font, 
             width=160, height=35, corner_radius=4, 
-            fg_color=btn_bg, text_color=btn_text,
+            fg_color=btn_bg, text_color=self.c_btn,
             command=self.access_songs
         )
         self.btn_access.place(x=60, y=140)
@@ -128,7 +155,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_add = ctk.CTkButton(
             self, text="ADD SONG", font=button_font, 
             width=160, height=35, corner_radius=4, 
-            fg_color=btn_bg, text_color=btn_text,
+            fg_color=btn_bg, text_color=self.c_btn,
             command=lambda: [self.play_ui_sound("click"), self.clear_telemetry_for_menu(), self.add_song()]
         )
         self.btn_add.place(x=260, y=140)
@@ -136,7 +163,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_playlist = ctk.CTkButton(
             self, text="PLAYLIST ☰", font=button_font, 
             width=160, height=35, corner_radius=4, 
-            fg_color=btn_bg, text_color=btn_text,
+            fg_color=btn_bg, text_color=self.c_btn,
             command=self.open_playlist_module
         )
         self.btn_playlist.place(x=260, y=190)
@@ -144,7 +171,7 @@ class HandheldPlayerApp(ctk.CTk):
         self.btn_quick_settings = ctk.CTkButton(
             self, text="⚙", font=("Arial", 14, "bold"), 
             width=35, height=35, corner_radius=4, 
-            fg_color="#1A1A1A", text_color="#DDDDDD", 
+            fg_color="#1A1A1A", text_color=self.c_btn, 
             hover_color="#252525",
             command=self.toggle_settings_menu
         )
@@ -163,7 +190,8 @@ class HandheldPlayerApp(ctk.CTk):
         self.progress_container.place(relx=0.5, y=252, anchor="center") 
         self.progress_container.pack_propagate(False)
 
-        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color="#00A8FF", height=8, width=0, corner_radius=2)
+        # Uses the custom c_play accent parameter
+        self.progress_bar = ctk.CTkFrame(self.progress_container, fg_color=self.c_play, height=8, width=0, corner_radius=2)
         self.progress_bar.pack(side="left")
 
         self.controls_dock = ctk.CTkFrame(self, fg_color="#1A1A1A", height=36, width=170, corner_radius=4)
@@ -174,7 +202,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.btn_prev = ctk.CTkButton(
             self.controls_dock, text="❬❬", font=control_font, 
-            width=35, height=24, fg_color="transparent", text_color=btn_text,
+            width=35, height=24, fg_color="transparent", text_color=self.c_btn,
             hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.prev_track()]
         )
@@ -182,7 +210,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.btn_play = ctk.CTkButton(
             self.controls_dock, text="▶", font=control_font, 
-            width=40, height=24, fg_color="transparent", text_color=btn_text,
+            width=40, height=24, fg_color="transparent", text_color=self.c_btn,
             hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.toggle_play()]
         )
@@ -190,7 +218,7 @@ class HandheldPlayerApp(ctk.CTk):
 
         self.btn_next = ctk.CTkButton(
             self.controls_dock, text="❭❭", font=control_font, 
-            width=35, height=24, fg_color="transparent", text_color=btn_text,
+            width=35, height=24, fg_color="transparent", text_color=self.c_btn,
             hover_color="#252525", corner_radius=2,
             command=lambda: [self.play_ui_sound("click"), self.next_track()]
         )
@@ -199,28 +227,24 @@ class HandheldPlayerApp(ctk.CTk):
         self.playback_frame = PlaybackLifecycleController(self, self)
         self.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
 
-        self._setup_hover_glow(self.btn_access, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_add, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_playlist, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_quick_settings, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_access, self.c_btn, btn_hover)
+        self._setup_hover_glow(self.btn_add, self.c_btn, btn_hover)
+        self._setup_hover_glow(self.btn_playlist, self.c_btn, btn_hover)
+        self._setup_hover_glow(self.btn_quick_settings, self.c_btn, btn_hover)
         self._setup_hover_glow(self.btn_off, "#FFAAAA", "#FF5555")
-        self._setup_hover_glow(self.btn_prev, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
-        self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
+        self._setup_hover_glow(self.btn_prev, self.c_btn, btn_hover)
+        self._setup_hover_glow(self.btn_play, self.c_btn, btn_hover)
+        self._setup_hover_glow(self.btn_next, self.c_btn, btn_hover)
 
-        # Base tracking configuration variables
-        self.all_local_tracks = []       # Keeps a master record of all physical MP3 files
-        self.custom_playlists = {}       # Dictionary: {"Chill": ["song1.mp3", "song2.mp3"]}
-        self.active_playlist_name = "Main" # Tracks which list is active ("Main" or custom name)
+        self.all_local_tracks = []       
+        self.custom_playlists = {}       
+        self.active_playlist_name = "Main" 
 
-        # Clones loaded directory file listings straight into master pool state tracking
         if hasattr(self, 'track_list'):
             self.all_local_tracks = list(self.track_list)
 
         self.track_scroller = scroller2.TrackScroller(self)
         self.settings_menu = settings.SettingsMenu(self)  
-        
-        # Initialize Playlist engine last so it can load playlists on top of the established master track list
         self.playlist_module = playlist.PlaylistManager(self) 
         loader2.SongLoader(self)
 
@@ -281,14 +305,18 @@ class HandheldPlayerApp(ctk.CTk):
                 pass 
             else:
                 track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-                self.update_status_text(f"{track_name}", color="#888888")
+                self.update_status_text(f"{track_name}", color=self.c_sub)
         else:
             self.shuffle_queue.clear()
             self.btn_shuffle.configure(text="SHUFFLE: OFF", text_color="#888888")
-            self.update_status_text("▪ LINEAR TRACKING ▪", color="#888888")
+            self.update_status_text("▪ LINEAR TRACKING ▪", color=self.c_sub)
 
     def setup_background_canvas(self):
-        png_path = os.path.join(self.dir_path, "background.png")
+        # Scan inside /wallpapers using saved data references
+        png_path = os.path.join(self.dir_path, "wallpapers", self.saved_wp)
+        if not os.path.exists(png_path):
+            png_path = os.path.join(self.dir_path, "background.png")
+            
         if os.path.exists(png_path):
             try:
                 pil_image = Image.open(png_path)
@@ -305,7 +333,7 @@ class HandheldPlayerApp(ctk.CTk):
         
         self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 85, text="▪ ONLINE ▪",
-            font=("Arial", 11), fill="#888888", anchor="center", tags="status_sub"
+            font=("Arial", 11), fill=self.c_sub, anchor="center", tags="status_sub"
         )
 
         self.bg_canvas.create_text(
@@ -322,9 +350,11 @@ class HandheldPlayerApp(ctk.CTk):
             self.SCREEN_WIDTH // 2, 215, text="",
             font=("Arial", 9, "bold"), fill="#FF5555", anchor="center", tags="sleep_timer_display"
         )
-        self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw", tags="bg_layer")
         
-    def update_status_text(self, text, color="#888888"):
+    def update_status_text(self, text, color=None):
+        if color is None:
+            color = self.c_sub
+            
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)
             self.marquee_job = None
@@ -407,7 +437,7 @@ class HandheldPlayerApp(ctk.CTk):
             pygame.mixer.music.pause()
             self.is_playing = False
             self.btn_play.configure(text="▶")
-            self.update_status_text("▪ SYSTEM WAITING ▪", color="#888888")
+            self.update_status_text("▪ SYSTEM WAITING ▪", color=self.c_sub)
 
     def next_track(self):
         if not self.track_list: return
@@ -424,7 +454,7 @@ class HandheldPlayerApp(ctk.CTk):
             self.play_current_track()
         else:
             track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-            self.update_status_text(f"{track_name}", color="#888888")
+            self.update_status_text(f"{track_name}", color=self.c_sub)
 
     def prev_track(self):
         if not self.track_list: return
@@ -441,7 +471,7 @@ class HandheldPlayerApp(ctk.CTk):
             self.play_current_track()
         else:
             track_name = self.track_list[self.current_track_index].replace(".mp3", "")
-            self.update_status_text(f"{track_name}", color="#888888")
+            self.update_status_text(f"{track_name}", color=self.c_sub)
 
     def _update_playback_loop(self):
         if not self.running:
@@ -607,10 +637,8 @@ class HandheldPlayerApp(ctk.CTk):
 if __name__ == "__main__":
     app = HandheldPlayerApp()
     
-    # --- INJECT CUSTOM TEXTBOX PATCH HERE ---
     import custom_textbox_ui
     custom_textbox_ui.popup_engine.inject_hardware_patch(app)
-    # ----------------------------------------
 
     import hardware_bridge
     bridge_instance = hardware_bridge.HardwareBridge(app)

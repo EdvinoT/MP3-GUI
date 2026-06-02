@@ -1,4 +1,5 @@
 import os
+import json
 import pygame
 from PIL import Image, ImageTk
 
@@ -46,22 +47,15 @@ class SettingsMenu:
             "#E066FF", "#00FFFF", "#FF66B2", "#888888", "#555566"
         ]
 
-        # Inject Default Variable Architecture directly into Master App Reference state
-        # This allows all external files to read these colors instantly
-        defaults = {
-            'c_box': "#121215",      # Default Dark Frame Background Box
-            'c_btn': "#FFFFFF",      # Default Button Typography
-            'c_scroll': "#FFFFFF",   # Default Scroller List Item text
-            'c_sub': "#888888",      # Default Subheadings / Tickers
-            'c_play': "#00A8FF"      # Default Playlist Utility Highlights
-        }
-        for var, hex_val in defaults.items():
-            if not hasattr(self.app, var):
-                setattr(self.app, var, hex_val)
-
         # Background index mapping setup
         self.available_wallpapers = self._scan_for_pngs("wallpapers", fallback="background.png")
+        
+        # Sync the wallpaper index pointer with whatever image was loaded from persistent disk memory
         self.wp_idx = 0
+        if hasattr(self.app, 'saved_wp'):
+            matching_wp = os.path.join("wallpapers", self.app.saved_wp)
+            if matching_wp in self.available_wallpapers:
+                self.wp_idx = self.available_wallpapers.index(matching_wp)
 
         # Premium sleek typography configurations
         self.FONT_TITLE = ("Helvetica Neue", 11, "normal")
@@ -159,11 +153,11 @@ class SettingsMenu:
                 elif option == "LOAD DEFAULTS": fill_color = "#FF5555"
             else:
                 # Theme customizer value mappings
-                if option == "BOX CARDS": fill_color = self.app.c_box = getattr(self.app, 'c_box', "#121215"); status = "COLOR"
-                elif option == "MENU BUTTONS": fill_color = self.app.c_btn = getattr(self.app, 'c_btn', "#FFFFFF"); status = "COLOR"
-                elif option == "SCROLL TEXT": fill_color = self.app.c_scroll = getattr(self.app, 'c_scroll', "#FFFFFF"); status = "COLOR"
-                elif option == "SUB HEADINGS": fill_color = self.app.c_sub = getattr(self.app, 'c_sub', "#888888"); status = "COLOR"
-                elif option == "PLAYLIST UTILS": fill_color = self.app.c_play = getattr(self.app, 'c_play', "#00A8FF"); status = "COLOR"
+                if option == "BOX CARDS": fill_color = self.app.c_box; status = "COLOR"
+                elif option == "MENU BUTTONS": fill_color = self.app.c_btn; status = "COLOR"
+                elif option == "SCROLL TEXT": fill_color = self.app.c_scroll; status = "COLOR"
+                elif option == "SUB HEADINGS": fill_color = self.app.c_sub; status = "COLOR"
+                elif option == "PLAYLIST UTILS": fill_color = self.app.c_play; status = "COLOR"
                 elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
 
             display_text = f"{option}\n[{status}]" if status else option
@@ -214,6 +208,23 @@ class SettingsMenu:
             elif selected_option == "SAVE CONFIG":
                 self.app.CROSSFADE_ENABLED = self.staged_crossfade
                 self.app.SLEEP_MINUTES_LEFT = self.staged_sleep
+                
+                # --- SAVES PERSISTENT DATA DIRECTLY TO HARDWARE DRIVE VIA JSON ---
+                config_data = {
+                    "c_box": self.app.c_box,
+                    "c_btn": self.app.c_btn,
+                    "c_scroll": self.app.c_scroll,
+                    "c_sub": self.app.c_sub,
+                    "c_play": self.app.c_play,
+                    "current_wallpaper": os.path.basename(self.available_wallpapers[self.wp_idx])
+                }
+                try:
+                    with open(self.app.config_file, "w") as f:
+                        json.dump(config_data, f)
+                except Exception as e:
+                    print(f"Failed writing hardware settings to SD card: {e}")
+                # -----------------------------------------------------------------
+
                 if self.app.AUDIO_FREQ != self.staged_freq:
                     self.app.AUDIO_FREQ = self.staged_freq
                     try:
@@ -221,9 +232,10 @@ class SettingsMenu:
                         pygame.mixer.pre_init(self.app.AUDIO_FREQ, -16, 2, 2048)
                         pygame.mixer.init()
                     except Exception: pass
-                # Globally synchronize native button text colors immediately on click
+                
                 self._update_app_button_colors()
                 self.app.update_status_text("▪ CONFIGURATION SAVED ▪", color="#00FF00")
+                
             elif selected_option == "LOAD DEFAULTS":
                 self.staged_crossfade = False
                 self.staged_freq = 44100
@@ -234,6 +246,13 @@ class SettingsMenu:
                 self.app.c_box, self.app.c_btn, self.app.c_scroll, self.app.c_sub, self.app.c_play = "#121215", "#FFFFFF", "#FFFFFF", "#888888", "#00A8FF"
                 self._apply_live_wallpaper("background.png")
                 self._update_app_button_colors()
+                
+                # Overwrite save file with defaults
+                try:
+                    if os.path.exists(self.app.config_file):
+                        os.remove(self.app.config_file)
+                except Exception: pass
+                
                 self.app.update_status_text("▪ DEFAULTS LOADED ▪", color="#FFFFFF")
 
         # PAGE 2 Theme Actions Execution Path
@@ -292,6 +311,12 @@ class SettingsMenu:
         self.app.btn_playlist.place(x=260, y=190)
         self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
+        
+        # --- FIXES THE DISAPPEARING TITLE PHENOMENON BY LAYERING TEXT ON TOP ---
+        self.app.bg_canvas.tag_raise("main_title")
+        self.app.bg_canvas.tag_raise("status_sub")
+        self.app.bg_canvas.tag_raise("battery_sub")
+        # ----------------------------------------------------------------------
         
         self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
         self._update_app_button_colors()
