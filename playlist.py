@@ -12,15 +12,15 @@ class PlaylistManager:
         # Permanent hardware storage tracking file
         self.DATA_FILE = "playlists.json"
         
-        # Automatically pull saved playlists from the MicroSD card on boot
+        # Automatically pull saved playlists from storage on boot
         self.load_playlists_from_disk()
         
-        # Scroller navigation tracking variables for the song selection menu
+        # Scroller navigation variables
         self.selection_mode = False
         self.editing_playlist_name = None
-        self.selected_songs_pool = set() # Tracks checked songs
+        self.selected_songs_pool = set() 
         self.scroll_offset = 0
-        self.visible_count = 6 # Fits screen real estate perfectly with header buttons
+        self.visible_count = 6 
         self.LINE_HEIGHT = 28
         self.ROW_START_Y = 130
         self.LANE_X1 = 85
@@ -33,7 +33,7 @@ class PlaylistManager:
             with open(self.DATA_FILE, "w") as f:
                 json.dump(playlists_dict, f, indent=4)
         except Exception as e:
-            print(f"Error saving playlists to hardware storage: {e}")
+            print(f"Error saving playlists to storage: {e}")
 
     def load_playlists_from_disk(self):
         """Reads permanent playlists from storage back into application memory."""
@@ -65,9 +65,7 @@ class PlaylistManager:
             self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
         self.app.btn_playlist.place_forget()
-        
-        if hasattr(self.app, 'btn_quick_settings'):
-            self.app.btn_quick_settings.place_forget()
+        self.app.btn_quick_settings.place_forget()
         self.app.btn_off.place_forget()
 
         if hasattr(self.app, 'playback_frame'):
@@ -84,7 +82,7 @@ class PlaylistManager:
     def render_playlist_screen(self):
         self.clear_playlist_canvas()
 
-        # Input event intercept shield
+        # Touchscreen click shield
         shield_id = self.app.bg_canvas.create_rectangle(
             0, 0, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT,
             fill="", outline="", tags="playlist_click_shield"
@@ -114,44 +112,40 @@ class PlaylistManager:
         current_list_name = getattr(self.app, 'active_playlist_name', 'Main')
         status_str = f"ACTIVE LIST: {current_list_name.upper()}  ({len(self.app.track_list)} Tracks)"
         info_id = self.app.bg_canvas.create_text(
-            85, 155, text=status_str, font=("Arial", 10, "bold"), fill="#000000", anchor="w"
+            85, 155, text=status_str, font=("Arial", 10, "bold"), fill="#FFFFFF", anchor="w"
         )
         self.canvas_playlist_ids.append(info_id)
 
         div_id = self.app.bg_canvas.create_line(85, 180, 465, 180, fill="#202025", width=1)
         self.canvas_playlist_ids.append(div_id)
 
-        # Default Option: Load Master System Inventory
         main_box_id = self.app.bg_canvas.create_text(
             85, 205, text="▶ PLAY ALL SONGS (MAIN CATALOG)",
-            font=("Arial", 11, "bold"), fill="#000000", anchor="w", tags="play_all_trigger"
+            font=("Arial", 11, "bold"), fill="#FFFFFF", anchor="w", tags="play_all_trigger"
         )
         self.canvas_playlist_ids.append(main_box_id)
         self.app.bg_canvas.tag_bind(main_box_id, "<Button-1>", lambda e: self.action_activate_main_list())
 
-        # Custom Playlists Area
         y_offset = 235
         playlists_dict = getattr(self.app, 'custom_playlists', {})
         
         if not playlists_dict:
             no_lists_id = self.app.bg_canvas.create_text(
                 85, y_offset, text="(No custom playlists created yet)",
-                font=("Arial", 10, "italic"), fill="#555555", anchor="w"
+                font=("Arial", 10, "italic"), fill="#888888", anchor="w"
             )
             self.canvas_playlist_ids.append(no_lists_id)
         else:
             for p_name in list(playlists_dict.keys()):
                 if y_offset > 300: break
                 
-                # Selection trigger text
                 list_item_id = self.app.bg_canvas.create_text(
                     85, y_offset, text=f"▶ {p_name.upper()} ({len(playlists_dict[p_name])})",
-                    font=("Arial", 11), fill="#212124", anchor="w"
+                    font=("Arial", 11), fill="#DDDDDD", anchor="w"
                 )
                 self.canvas_playlist_ids.append(list_item_id)
                 self.app.bg_canvas.tag_bind(list_item_id, "<Button-1>", lambda e, name=p_name: self.action_activate_custom_list(name))
 
-                # [EDIT] Action Text Trigger
                 edit_btn_id = self.app.bg_canvas.create_text(
                     420, y_offset, text="[EDIT]",
                     font=("Arial", 10, "bold"), fill="#FFB300", anchor="e"
@@ -163,24 +157,20 @@ class PlaylistManager:
 
     # ---- SCROLLER INTERACTIVE SELECTION MENU ENGINE ----
     def render_song_selection_scroller(self):
-        """Builds the custom interactive track checklist scroller UI environment."""
         self.app.unbind("<MouseWheel>")
         self.app.unbind("<Up>")
         self.app.unbind("<Down>")
 
-        # Assign navigation listeners
         self.app.bind("<MouseWheel>", self.on_selection_scroll)
         self.app.bind("<Up>", lambda e: self.scroll_selection_list(-1))
         self.app.bind("<Down>", lambda e: self.scroll_selection_list(1))
 
-        # Header Title
         title_text = f"EDITING: {self.editing_playlist_name.upper()}" if self.editing_playlist_name else "NEW PLAYLIST SELECTION"
         title_id = self.app.bg_canvas.create_text(
-            85, 55, text=title_text, font=("Arial", 11, "bold"), fill="#000000", anchor="w"
+            85, 55, text=title_text, font=("Arial", 11, "bold"), fill="#FFFFFF", anchor="w"
         )
         self.canvas_playlist_ids.append(title_id)
 
-        # Left Action Hook: [X] CANCEL
         cancel_id = self.app.bg_canvas.create_text(
             15, 90, text="[X] CANCEL", 
             font=("Futura", 10, "bold"), fill="#FF5555", anchor="w", tags="sel_cancel"
@@ -188,7 +178,6 @@ class PlaylistManager:
         self.canvas_playlist_ids.append(cancel_id)
         self.app.bg_canvas.tag_bind(cancel_id, "<Button-1>", lambda e: self.exit_selection_scroller(save=False))
 
-        # Right Action Hook: [S] SAVE & EXIT
         save_id = self.app.bg_canvas.create_text(
             465, 90, text="[S] SAVE & EXIT", 
             font=("Futura", 10, "bold"), fill="#00A8FF", anchor="e", tags="sel_save"
@@ -196,9 +185,8 @@ class PlaylistManager:
         self.canvas_playlist_ids.append(save_id)
         self.app.bg_canvas.tag_bind(save_id, "<Button-1>", lambda e: self.exit_selection_scroller(save=True))
 
-        # Nav Arrows
-        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill="#555555", anchor="center")
-        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill="#555555", anchor="center")
+        up_arrow = self.app.bg_canvas.create_text(395, 55, text="▲", font=("Arial", 10), fill="#888888", anchor="center")
+        down_arrow = self.app.bg_canvas.create_text(435, 55, text="▼", font=("Arial", 10), fill="#888888", anchor="center")
         self.canvas_playlist_ids.extend([up_arrow, down_arrow])
         self.app.bg_canvas.tag_bind(up_arrow, "<Button-1>", lambda e: self.scroll_selection_list(-1))
         self.app.bg_canvas.tag_bind(down_arrow, "<Button-1>", lambda e: self.scroll_selection_list(1))
@@ -206,7 +194,6 @@ class PlaylistManager:
         available_tracks = getattr(self.app, 'all_local_tracks', [])
         if not available_tracks: return
 
-        # Render list selection frames loop
         for index in range(self.visible_count):
             actual_track_idx = index + self.scroll_offset
             if actual_track_idx >= len(available_tracks): break
@@ -221,10 +208,9 @@ class PlaylistManager:
             is_checked = track_filename in self.selected_songs_pool
             check_box_char = "[X] " if is_checked else "[  ] "
 
-            # Render Checkbox Text (Starts at x=85)
             row_id = self.app.bg_canvas.create_text(
                 85, y_pos, text=f"{check_box_char}{clean_title}",
-                font=("Arial", 11), fill="#000000", anchor="w"
+                font=("Arial", 11), fill="#DDDDDD", anchor="w"
             )
             self.canvas_playlist_ids.append(row_id)
 
@@ -233,7 +219,6 @@ class PlaylistManager:
                 lambda e, filename=track_filename: self.toggle_song_selection(filename)
             )
 
-            # Row accent line
             line_y = y_pos + 13
             div_id = self.app.bg_canvas.create_line(self.LANE_X1, line_y, self.LANE_X2, line_y, fill="#202025", width=1)
             self.canvas_playlist_ids.append(div_id)
@@ -303,7 +288,7 @@ class PlaylistManager:
                 
             self.app.custom_playlists[self.editing_playlist_name] = list(self.selected_songs_pool)
             
-            # Commit the dictionary context permanently to the hardware MicroSD card
+            # Commit the playlists to storage
             self.save_playlists_to_disk()
             
             messagebox.showinfo("Saved", f"Playlist '{self.editing_playlist_name}' updated successfully.")
@@ -314,7 +299,6 @@ class PlaylistManager:
         self.scroll_offset = 0
         self.render_playlist_screen()
 
-    # ---- PLAYBACK MANIPULATION CONTROLS ----
     def action_activate_main_list(self):
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
@@ -336,9 +320,6 @@ class PlaylistManager:
             
         playlists_dict = getattr(self.app, 'custom_playlists', {})
         if name in playlists_dict:
-            if not hasattr(self.app, 'all_local_tracks') or not self.app.all_local_tracks:
-                self.app.all_local_tracks = list(self.app.track_list)
-                
             self.app.track_list = list(playlists_dict[name])
             self.app.active_playlist_name = name
             self.app.current_track_index = 0
@@ -362,8 +343,7 @@ class PlaylistManager:
             self.app.btn_shuffle.place(x=60, y=190)
         self.app.btn_add.place(x=260, y=140)
         self.app.btn_playlist.place(x=260, y=190)
-        if hasattr(self.app, 'btn_quick_settings'):
-            self.app.btn_quick_settings.place(x=15, y=266)
+        self.app.btn_quick_settings.place(x=15, y=266)
         self.app.btn_off.place(x=430, y=266)
         
         if hasattr(self.app, 'playback_frame'):

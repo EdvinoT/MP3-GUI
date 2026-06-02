@@ -133,7 +133,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_add.place(x=260, y=140)
 
-        # CHANGED: The old settings option has been redefined to point to your new PLAYLIST layout profile.
         self.btn_playlist = ctk.CTkButton(
             self, text="PLAYLIST ☰", font=button_font, 
             width=160, height=35, corner_radius=4, 
@@ -142,7 +141,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_playlist.place(x=260, y=190)
 
-        # CHANGED: The bottom-left location now houses a dedicated settings toggle icon link layer button instead.
         self.btn_quick_settings = ctk.CTkButton(
             self, text="⚙", font=("Arial", 14, "bold"), 
             width=35, height=35, corner_radius=4, 
@@ -152,7 +150,6 @@ class HandheldPlayerApp(ctk.CTk):
         )
         self.btn_quick_settings.place(x=15, y=266)
 
-        # CHANGED: Shutdown has been shifted to the right side where settings used to sit.
         self.btn_off = ctk.CTkButton(
             self, text="⏻", font=("Arial", 14, "bold"), 
             width=35, height=35, corner_radius=4, 
@@ -211,9 +208,20 @@ class HandheldPlayerApp(ctk.CTk):
         self._setup_hover_glow(self.btn_play, btn_text, btn_hover)
         self._setup_hover_glow(self.btn_next, btn_text, btn_hover)
 
+        # Base tracking configuration variables
+        self.all_local_tracks = []       # Keeps a master record of all physical MP3 files
+        self.custom_playlists = {}       # Dictionary: {"Chill": ["song1.mp3", "song2.mp3"]}
+        self.active_playlist_name = "Main" # Tracks which list is active ("Main" or custom name)
+
+        # Clones loaded directory file listings straight into master pool state tracking
+        if hasattr(self, 'track_list'):
+            self.all_local_tracks = list(self.track_list)
+
         self.track_scroller = scroller2.TrackScroller(self)
         self.settings_menu = settings.SettingsMenu(self)  
-        self.playlist_module = playlist.PlaylistManager(self) # Instantiating playlist core segment
+        
+        # Initialize Playlist engine last so it can load playlists on top of the established master track list
+        self.playlist_module = playlist.PlaylistManager(self) 
         loader2.SongLoader(self)
 
         self.battery_monitor = battery2.BatteryTelemetry(self)
@@ -221,11 +229,6 @@ class HandheldPlayerApp(ctk.CTk):
 
         self._update_playback_loop()
         self._start_sleep_countdown_timer()
-
-        # Add these to your main app class __init__ if they aren't there already:
-        self.all_local_tracks = []       # Keeps a master record of all physical MP3 files
-        self.custom_playlists = {}       # Dictionary: {"Chill": ["song1.mp3", "song2.mp3"]}
-        self.active_playlist_name = "Main" # Tracks which list is active ("Main" or custom name)
 
     def load_ui_sounds(self):
         try:
@@ -310,7 +313,6 @@ class HandheldPlayerApp(ctk.CTk):
             font=("Arial", 9, "bold"), fill="#666666", anchor="center", tags="battery_sub"
         )
 
-        # CHANGED: Text timer profile setup shifted fill color argument to pure black (#000000)
         self.timer_text_id = self.bg_canvas.create_text(
             self.SCREEN_WIDTH // 2, 232, text="0:00",
             font=("Courier New", 12, "bold"), fill="#000000", anchor="center", tags="playback_timer"
