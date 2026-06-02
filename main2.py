@@ -322,7 +322,8 @@ class HandheldPlayerApp(ctk.CTk):
             self.SCREEN_WIDTH // 2, 215, text="",
             font=("Arial", 9, "bold"), fill="#FF5555", anchor="center", tags="sleep_timer_display"
         )
-
+        self.bg_canvas.create_image(0, 0, image=self.bg_photo, anchor="nw", tags="bg_layer")
+        
     def update_status_text(self, text, color="#888888"):
         if self.marquee_job is not None:
             self.after_cancel(self.marquee_job)

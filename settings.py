@@ -5,39 +5,61 @@ from PIL import Image, ImageTk
 class SettingsMenu:
     def __init__(self, main_app_instance):
         self.app = main_app_instance
+        self.current_page = "MAIN" # Tracks navigation states: "MAIN" or "THEME"
         self.active_settings_idx = 0
         
-        # Clean menu structure with clear thematic grouping controls
-        self.settings_options = [
+        # Page 1: Main System Performance Configurations
+        self.main_options = [
             "CROSSFADE", 
             "AUDIO FREQ", 
             "SLEEP TIMER", 
             "LED BACKLIGHT", 
             "EQ PRESET",
-            "WALLPAPER",      # Cycles images inside your /wallpapers folder
-            "THEME: ACCENTS", # Group 1: Changes active menus, underlines, highlights
-            "THEME: METRICS", # Group 2: Changes track listings, titles, status logs
+            "WALLPAPER",        # Cycles files inside /wallpapers/ folder
+            "▶ CUSTOMIZE THEME", # Navigates to Page 2
             "SAVE CONFIG",
             "LOAD DEFAULTS"
         ]
+        
+        # Page 2: Granular Hardware Canvas Theme Builder
+        self.theme_options = [
+            "BOX CARDS",        # Background frames / popup shapes
+            "MENU BUTTONS",     # Main navigation button texts
+            "SCROLL TEXT",      # Item text inside the list browser
+            "SUB HEADINGS",     # Status headers / tickers / subtitles
+            "PLAYLIST UTILS",   # Track editor utility text elements
+            "◀ BACK TO CONFIG"   # Navigates back to Page 1
+        ]
+        
         self.canvas_settings_ids = []
         
-        # Core configuration properties
+        # Local staging cache references
         self.staged_crossfade = self.app.CROSSFADE_ENABLED
         self.staged_freq = self.app.AUDIO_FREQ
         self.staged_sleep = self.app.SLEEP_MINUTES_LEFT
         self.backlight_level = 80
         self.eq_preset = "FLAT"
 
-        # Expanded Color Palettes for complete UI customization
-        self.accent_palette = ["#00A8FF", "#00FF00", "#FFB300", "#FF5555", "#FFFFFF", "#E066FF"]
-        self.metric_palette = ["#888888", "#666666", "#A0A0A5", "#555566", "#999999", "#CCCCCC"]
-        
-        # Set up default configuration indexes if they don't exist yet on main app
-        if not hasattr(self.app, 'theme_accent'): self.app.theme_accent = self.accent_palette[0]
-        if not hasattr(self.app, 'theme_metric'): self.app.theme_metric = self.metric_palette[0]
+        # Complete Hardware Color Spectrum Matrix
+        self.color_spectrum = [
+            "#00A8FF", "#00FF00", "#FFB300", "#FF5555", "#FFFFFF", 
+            "#E066FF", "#00FFFF", "#FF66B2", "#888888", "#555566"
+        ]
 
-        # Scan and index custom wallpapers inside local workspace directory
+        # Inject Default Variable Architecture directly into Master App Reference state
+        # This allows all external files to read these colors instantly
+        defaults = {
+            'c_box': "#121215",      # Default Dark Frame Background Box
+            'c_btn': "#FFFFFF",      # Default Button Typography
+            'c_scroll': "#FFFFFF",   # Default Scroller List Item text
+            'c_sub': "#888888",      # Default Subheadings / Tickers
+            'c_play': "#00A8FF"      # Default Playlist Utility Highlights
+        }
+        for var, hex_val in defaults.items():
+            if not hasattr(self.app, var):
+                setattr(self.app, var, hex_val)
+
+        # Background index mapping setup
         self.available_wallpapers = self._scan_for_pngs("wallpapers", fallback="background.png")
         self.wp_idx = 0
 
@@ -46,8 +68,12 @@ class SettingsMenu:
         self.FONT_ITEM = ("Helvetica Neue", 10, "normal")
         self.FONT_HIGHLIGHT = ("Helvetica Neue", 10, "underline")
 
+    @property
+    def active_options(self):
+        """Swaps target tracking indexes dynamically based on our active page."""
+        return self.main_options if self.current_page == "MAIN" else self.theme_options
+
     def _scan_for_pngs(self, folder_name, fallback):
-        """Scans the local directory for custom background options."""
         target_dir = os.path.join(self.app.dir_path, folder_name)
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
@@ -57,12 +83,14 @@ class SettingsMenu:
     def open_settings_scroller(self):
         if self.app.settings_open: return
         self.app.settings_open = True
+        self.current_page = "MAIN"
+        self.active_settings_idx = 0
         
         self.staged_crossfade = self.app.CROSSFADE_ENABLED
         self.staged_freq = self.app.AUDIO_FREQ
         self.staged_sleep = self.app.SLEEP_MINUTES_LEFT
         
-        # Hide main app buttons cleanly
+        # Unplace interface controls
         self.app.btn_access.place_forget()
         self.app.btn_shuffle.place_forget()
         self.app.btn_add.place_forget()
@@ -77,7 +105,7 @@ class SettingsMenu:
         if self.app.timer_text_id: self.app.bg_canvas.itemconfig(self.app.timer_text_id, state="hidden")
         if self.app.sleep_text_id: self.app.bg_canvas.itemconfig(self.app.sleep_text_id, state="hidden")
         
-        self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color=self.app.theme_accent)
+        self.app.update_status_text("▪ CONFIGURATION SETTINGS ▪", color=self.app.c_play)
         self.refresh_settings_view()
 
         self.app.bind("<Key-u>", lambda e: self._handle_settings_scroll(-1))
@@ -91,41 +119,54 @@ class SettingsMenu:
 
         canvas = self.app.bg_canvas
 
-        # Frame mask block
-        mask = canvas.create_rectangle(15, 60, 465, 255, fill="#121215", outline="#222228", width=1)
+        # Background card frame boundary box using our customizable color variables
+        mask = canvas.create_rectangle(15, 60, 465, 255, fill=self.app.c_box, outline="#222228", width=1)
         self.canvas_settings_ids.append(mask)
 
-        # Back / Exit handle
-        back_id = canvas.create_text(30, 80, text="◀  EXIT CONFIGURATION", font=self.FONT_TITLE, fill="#FF5555", anchor="w")
+        # Navigation Header String Line
+        hdr_text = "◀  EXIT CONFIGURATION" if self.current_page == "MAIN" else "◀  BACK TO SYSTEM CONFIG"
+        hdr_fill = "#FF5555" if self.current_page == "MAIN" else self.app.c_play
+        
+        back_id = canvas.create_text(30, 80, text=hdr_text, font=self.FONT_TITLE, fill=hdr_fill, anchor="w")
         self.canvas_settings_ids.append(back_id)
-        canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
+        
+        if self.current_page == "MAIN":
+            canvas.tag_bind(back_id, "<Button-1>", lambda e: self.close_settings_scroller())
+        else:
+            canvas.tag_bind(back_id, "<Button-1>", lambda e: [setattr(self, 'current_page', "MAIN"), setattr(self, 'active_settings_idx', 6), self.refresh_settings_view()])
 
-        # Clean 3-Column matrix parsing
-        for idx, option in enumerate(self.settings_options):
+        # Build Layout Column Grid Structure Layout
+        for idx, option in enumerate(self.active_options):
             column = idx // 4  
             row = idx % 4     
             
             x_pos = 30 + (column * 145)
             y_pos = 115 + (row * 34)
             
-            if option == "CROSSFADE": status = "ON" if self.staged_crossfade else "OFF"
-            elif option == "AUDIO FREQ": status = f"{self.staged_freq//1000}k"
-            elif option == "SLEEP TIMER": status = f"{int(self.staged_sleep)}m" if self.staged_sleep > 0 else "OFF"
-            elif option == "LED BACKLIGHT": status = f"{self.backlight_level}%"
-            elif option == "EQ PRESET": status = self.eq_preset
-            elif option == "WALLPAPER": status = os.path.basename(self.available_wallpapers[self.wp_idx])[:8]
-            elif option == "THEME: ACCENTS": status = "SWAP"
-            elif option == "THEME: METRICS": status = "SWAP"
-            elif option in ["SAVE CONFIG", "LOAD DEFAULTS"]: status = "EXEC"
-                
-            display_text = f"{option}\n[{status}]"
+            status = ""
+            fill_color = "#FFFFFF"
             
-            # Apply color highlights depending on what category the configuration option belongs to
-            if option == "SAVE CONFIG": fill_color = "#00FF00"
-            elif option == "LOAD DEFAULTS": fill_color = "#FF5555"
-            elif "THEME" in option or option == "WALLPAPER": fill_color = self.app.theme_accent
-            else: fill_color = "#FFFFFF"
-            
+            # Context state translation engine logic
+            if self.current_page == "MAIN":
+                if option == "CROSSFADE": status = "ON" if self.staged_crossfade else "OFF"
+                elif option == "AUDIO FREQ": status = f"{self.staged_freq//1000}k"
+                elif option == "SLEEP TIMER": status = f"{int(self.staged_sleep)}m" if self.staged_sleep > 0 else "OFF"
+                elif option == "LED BACKLIGHT": status = f"{self.backlight_level}%"
+                elif option == "EQ PRESET": status = self.eq_preset
+                elif option == "WALLPAPER": status = os.path.basename(self.available_wallpapers[self.wp_idx])[:8]
+                elif option == "▶ CUSTOMIZE THEME": fill_color = self.app.c_play
+                elif option == "SAVE CONFIG": fill_color = "#00FF00"
+                elif option == "LOAD DEFAULTS": fill_color = "#FF5555"
+            else:
+                # Theme customizer value mappings
+                if option == "BOX CARDS": fill_color = self.app.c_box = getattr(self.app, 'c_box', "#121215"); status = "COLOR"
+                elif option == "MENU BUTTONS": fill_color = self.app.c_btn = getattr(self.app, 'c_btn', "#FFFFFF"); status = "COLOR"
+                elif option == "SCROLL TEXT": fill_color = self.app.c_scroll = getattr(self.app, 'c_scroll', "#FFFFFF"); status = "COLOR"
+                elif option == "SUB HEADINGS": fill_color = self.app.c_sub = getattr(self.app, 'c_sub', "#888888"); status = "COLOR"
+                elif option == "PLAYLIST UTILS": fill_color = self.app.c_play = getattr(self.app, 'c_play', "#00A8FF"); status = "COLOR"
+                elif option == "◀ BACK TO CONFIG": fill_color = "#FF5555"
+
+            display_text = f"{option}\n[{status}]" if status else option
             text_font = self.FONT_HIGHLIGHT if idx == self.active_settings_idx else self.FONT_ITEM
             
             opt_id = canvas.create_text(x_pos, y_pos, text=display_text, font=text_font, fill=fill_color, anchor="nw")
@@ -139,69 +180,90 @@ class SettingsMenu:
 
     def _handle_settings_scroll(self, direction):
         if hasattr(self.app, 'play_ui_sound'): self.app.play_ui_sound("scroll")
-        self.active_settings_idx = (self.active_settings_idx + direction) % len(self.settings_options)
+        self.active_settings_idx = (self.active_settings_idx + direction) % len(self.active_options)
         self.refresh_settings_view()
+
+    def _cycle_element_color(self, attribute_name):
+        """Cycles a selected color profile variable through our spectrum array."""
+        current_color = getattr(self.app, attribute_name)
+        if current_color in self.color_spectrum:
+            next_idx = (self.color_spectrum.index(current_color) + 1) % len(self.color_spectrum)
+        else:
+            next_idx = 0
+        setattr(self.app, attribute_name, self.color_spectrum[next_idx])
 
     def _execute_settings_action(self):
         if hasattr(self.app, 'play_ui_sound'): self.app.play_ui_sound("click")
-        selected_option = self.settings_options[self.active_settings_idx]
+        selected_option = self.active_options[self.active_settings_idx]
 
-        if selected_option == "CROSSFADE":
-            self.staged_crossfade = not self.staged_crossfade
-            
-        elif selected_option == "AUDIO FREQ":
-            self.staged_freq = 22050 if self.staged_freq == 44100 else 44100
+        # PAGE 1 Actions Execution Path
+        if self.current_page == "MAIN":
+            if selected_option == "CROSSFADE": self.staged_crossfade = not self.staged_crossfade
+            elif selected_option == "AUDIO FREQ": self.staged_freq = 22050 if self.staged_freq == 44100 else 44100
+            elif selected_option == "SLEEP TIMER": self.staged_sleep = 0 if self.staged_sleep >= 60 else self.staged_sleep + 15
+            elif selected_option == "LED BACKLIGHT": self.backlight_level = 20 if self.backlight_level == 100 else self.backlight_level + 20
+            elif selected_option == "EQ PRESET":
+                presets = ["FLAT", "ROCK", "BASS++", "VOCAL"]
+                self.eq_preset = presets[(presets.index(self.eq_preset) + 1) % len(presets)]
+            elif selected_option == "WALLPAPER":
+                self.wp_idx = (self.wp_idx + 1) % len(self.available_wallpapers)
+                self._apply_live_wallpaper(self.available_wallpapers[self.wp_idx])
+            elif selected_option == "▶ CUSTOMIZE THEME":
+                self.current_page = "THEME"
+                self.active_settings_idx = 0
+            elif selected_option == "SAVE CONFIG":
+                self.app.CROSSFADE_ENABLED = self.staged_crossfade
+                self.app.SLEEP_MINUTES_LEFT = self.staged_sleep
+                if self.app.AUDIO_FREQ != self.staged_freq:
+                    self.app.AUDIO_FREQ = self.staged_freq
+                    try:
+                        pygame.mixer.quit()
+                        pygame.mixer.pre_init(self.app.AUDIO_FREQ, -16, 2, 2048)
+                        pygame.mixer.init()
+                    except Exception: pass
+                # Globally synchronize native button text colors immediately on click
+                self._update_app_button_colors()
+                self.app.update_status_text("▪ CONFIGURATION SAVED ▪", color="#00FF00")
+            elif selected_option == "LOAD DEFAULTS":
+                self.staged_crossfade = False
+                self.staged_freq = 44100
+                self.staged_sleep = 0
+                self.backlight_level = 80
+                self.eq_preset = "FLAT"
+                self.wp_idx = 0
+                self.app.c_box, self.app.c_btn, self.app.c_scroll, self.app.c_sub, self.app.c_play = "#121215", "#FFFFFF", "#FFFFFF", "#888888", "#00A8FF"
+                self._apply_live_wallpaper("background.png")
+                self._update_app_button_colors()
+                self.app.update_status_text("▪ DEFAULTS LOADED ▪", color="#FFFFFF")
+
+        # PAGE 2 Theme Actions Execution Path
+        else:
+            if selected_option == "BOX CARDS": self._cycle_element_color('c_box')
+            elif selected_option == "MENU BUTTONS": self._cycle_element_color('c_btn')
+            elif selected_option == "SCROLL TEXT": self._cycle_element_color('c_scroll')
+            elif selected_option == "SUB HEADINGS": self._cycle_element_color('c_sub')
+            elif selected_option == "PLAYLIST UTILS": self._cycle_element_color('c_play')
+            elif selected_option == "◀ BACK TO CONFIG":
+                self.current_page = "MAIN"
+                self.active_settings_idx = 6
                 
-        elif selected_option == "SLEEP TIMER":
-            self.staged_sleep = 0 if self.staged_sleep >= 60 else self.staged_sleep + 15
-
-        elif selected_option == "LED BACKLIGHT":
-            self.backlight_level = 20 if self.backlight_level == 100 else self.backlight_level + 20
-            
-        elif selected_option == "EQ PRESET":
-            presets = ["FLAT", "ROCK", "BASS++", "VOCAL"]
-            self.eq_preset = presets[(presets.index(self.eq_preset) + 1) % len(presets)]
-            
-        elif selected_option == "WALLPAPER":
-            self.wp_idx = (self.wp_idx + 1) % len(self.available_wallpapers)
-            self._apply_live_wallpaper(self.available_wallpapers[self.wp_idx])
-
-        elif selected_option == "THEME: ACCENTS":
-            # Shifts color strings down the accent group array globally
-            cur_idx = self.accent_palette.index(self.app.theme_accent)
-            self.app.theme_accent = self.accent_palette[(cur_idx + 1) % len(self.accent_palette)]
-            self.app.btn_shuffle.configure(text_color=self.app.theme_accent)
-
-        elif selected_option == "THEME: METRICS":
-            # Shifts color strings down the metrics group array globally
-            cur_idx = self.metric_palette.index(self.app.theme_metric)
-            self.app.theme_metric = self.metric_palette[(cur_idx + 1) % len(self.metric_palette)]
-
-        elif selected_option == "SAVE CONFIG":
-            self.app.CROSSFADE_ENABLED = self.staged_crossfade
-            self.app.SLEEP_MINUTES_LEFT = self.staged_sleep
-            if self.app.AUDIO_FREQ != self.staged_freq:
-                self.app.AUDIO_FREQ = self.staged_freq
-                try:
-                    pygame.mixer.quit()
-                    pygame.mixer.pre_init(self.app.AUDIO_FREQ, -16, 2, 2048)
-                    pygame.mixer.init()
-                except Exception: pass
-            self.app.update_status_text("▪ CONFIGURATION SAVED ▪", color="#00FF00")
-
-        elif selected_option == "LOAD DEFAULTS":
-            self.staged_crossfade = False
-            self.staged_freq = 44100
-            self.staged_sleep = 0
-            self.backlight_level = 80
-            self.eq_preset = "FLAT"
-            self.wp_idx = 0
-            self.app.theme_accent = self.accent_palette[0]
-            self.app.theme_metric = self.metric_palette[0]
-            self._apply_live_wallpaper("background.png")
-            self.app.update_status_text("▪ DEFAULTS LOADED ▪", color="#FFFFFF")
-            
         self.refresh_settings_view()
+
+    def _update_app_button_colors(self):
+        """Forces custom tkinter native button objects to paint themselves to your matching theme color."""
+        try:
+            self.app.btn_access.configure(text_color=self.app.c_btn)
+            self.app.btn_shuffle.configure(text_color=self.app.c_btn if not self.app.shuffle_enabled else "#FFB300")
+            self.app.btn_add.configure(text_color=self.app.c_btn)
+            self.app.btn_playlist.configure(text_color=self.app.c_btn)
+            self.app.btn_quick_settings.configure(text_color=self.app.c_btn)
+            
+            # Sync playback frame button components
+            self.app.btn_prev.configure(text_color=self.app.c_btn)
+            self.app.btn_play.configure(text_color=self.app.c_btn)
+            self.app.btn_next.configure(text_color=self.app.c_btn)
+            self.app.progress_bar.configure(fg_color=self.app.c_play)
+        except Exception: pass
 
     def _apply_live_wallpaper(self, image_path):
         if not os.path.exists(image_path): return
@@ -232,4 +294,5 @@ class SettingsMenu:
         self.app.btn_off.place(x=430, y=266)
         
         self.app.playback_frame.place(relx=0.5, rely=0.82, anchor="center")
-        self.app.update_status_text("▪ ONLINE ▪", color=self.app.theme_metric)
+        self._update_app_button_colors()
+        self.app.update_status_text("▪ ONLINE ▪", color=self.app.c_sub)
