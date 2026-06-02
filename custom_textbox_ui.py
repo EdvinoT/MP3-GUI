@@ -7,131 +7,168 @@ class GlobalHardwarePopupEngine:
         self.app = None
         self.input_buffer = ""
         self.input_submitted = False
+        self.canvas_ids = []
         
+        # Sleeker, clean hardware font configuration profiles
         self.FONT_HEADER = ("Helvetica Neue", 11, "normal")
         self.FONT_BODY = ("Helvetica Neue", 12, "normal")
         self.FONT_BUTTON = ("Helvetica Neue", 11, "normal")
-        self.FONT_INPUT = ("Courier New", 13, "bold")
+        self.FONT_INPUT = ("Courier New", 13, "bold") # Preserved monospace clarity for typing
 
     def inject_hardware_patch(self, main_app_instance):
+        """Hooks into the standard library calls and routes them to the canvas."""
         self.app = main_app_instance
+        
+        # Override the standard library references globally
         old_msg.askyesno = self.mock_askyesno
         old_msg.showinfo = self.mock_showinfo
         old_msg.showwarning = self.mock_showinfo  
         old_dialog.askstring = self.mock_askstring
 
-    def _create_popup_window(self, title_text):
-        """Creates a truly modal, borderless window over the app center"""
-        popup = ctk.CTkToplevel(self.app)
-        popup.overrideredirect(True) # Removes window borders and top bar
-        
-        # Center the popup window over your fixed hardware dimensions
-        w, h = 380, 200
-        x = self.app.winfo_x() + (self.app.winfo_width() // 2) - (w // 2)
-        y = self.app.winfo_y() + (self.app.winfo_height() // 2) - (h // 2)
-        popup.geometry(f"{w}x{h}+{x}+{y}")
-        
-        # Styling matching your dark hardware theme
-        popup.configure(fg_color="#131316")
-        
-        # Border emulation
-        border_frame = ctk.CTkFrame(popup, fg_color="#131316", border_color="#00A8FF", border_width=1)
-        border_frame.pack(fill="both", expand=True, padx=2, pady=2)
-        
-        # Header Label
-        hdr = ctk.CTkLabel(border_frame, text=str(title_text).upper(), font=self.FONT_HEADER, text_color="#888888")
-        hdr.pack(pady=(15, 5))
-        
-        # Set focus and freeze main app interaction until closed
-        popup.grab_set()
-        return popup, border_frame
+    def _clear_popup_layers(self):
+        for cid in self.canvas_ids:
+            if self.app and hasattr(self.app, 'bg_canvas'):
+                self.app.bg_canvas.delete(cid)
+        self.canvas_ids.clear()
 
-    # ---- MOCK: SHOW INFO / WARNING ----
-    def mock_showinfo(self, title, message, **kwargs):
-        if hasattr(self.app, 'play_ui_sound'):
-            self.app.play_ui_sound("click")
-            
-        popup, frame = self._create_popup_window(title)
-        loop_flag = ctk.BooleanVar(value=False)
-
-        # Message Text
-        msg_txt = ctk.CTkLabel(frame, text=str(message), font=self.FONT_BODY, text_color="#DDDDDD", wraplength=320)
-        msg_txt.pack(pady=(10, 20))
-
-        # OK button configured to match your custom dimensions
-        b_ok = ctk.CTkButton(
-            frame, width=150, height=45, text="OK", font=self.FONT_BUTTON,
-            fg_color="#1C1C22", text_color="#FFFFFF", border_color="#00A8FF", border_width=1,
-            hover_color="#25252D", command=lambda: loop_flag.set(True)
-        )
-        b_ok.pack(pady=(0, 15))
-
-        self.app.wait_variable(loop_flag)
-        popup.destroy()
-        return "ok"
+    def _draw_base_backdrop(self, title_text):
+        self._clear_popup_layers()
+        canvas = self.app.bg_canvas
+        
+        # Dimming backdrop shield
+        shade = canvas.create_rectangle(0, 0, self.app.SCREEN_WIDTH, self.app.SCREEN_HEIGHT, fill="#0A0A0C", outline="", tags="global_popup")
+        # Main dialog physical card block 
+        card = canvas.create_rectangle(50, 60, 430, 260, fill="#131316", outline="#00A8FF", width=1, tags="global_popup")
+        # Header block text string
+        hdr = canvas.create_text(240, 88, text=str(title_text).upper(), font=self.FONT_HEADER, fill="#888888", tags="global_popup")
+        
+        self.canvas_ids.extend([shade, card, hdr])
+        canvas.tag_bind(shade, "<Button-1>", lambda e: "break")
+        
+        # FIX: Push the backdrop elements to the front layer
+        canvas.tag_raise("global_popup")
 
     # ---- MOCK: ASK YES / NO ----
     def mock_askyesno(self, title, message, **kwargs):
         if hasattr(self.app, 'play_ui_sound'):
             self.app.play_ui_sound("click")
             
-        popup, frame = self._create_popup_window(title)
+        self._draw_base_backdrop(title)
+        canvas = self.app.bg_canvas
+        
+        msg_txt = canvas.create_text(240, 135, text=str(message), font=self.FONT_BODY, fill="#DDDDDD", justify="center", width=340, tags="global_popup")
+        self.canvas_ids.append(msg_txt)
+
         user_choice = [False]
         loop_flag = ctk.BooleanVar(value=False)
-
-        msg_txt = ctk.CTkLabel(frame, text=str(message), font=self.FONT_BODY, text_color="#DDDDDD", wraplength=320)
-        msg_txt.pack(pady=(10, 20))
-
-        btn_container = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_container.pack(fill="x", padx=30)
 
         def click_action(response):
             user_choice[0] = response
             loop_flag.set(True)
 
-        b_yes = ctk.CTkButton(btn_container, width=140, height=45, text="YES", font=self.FONT_BUTTON, fg_color="#2A1414", text_color="#FFAAAA", border_color="#FF5555", border_width=1, command=lambda: click_action(True))
-        b_yes.pack(side="left", expand=True, padx=5)
+        # Clean finger-target YES box
+        b_yes = canvas.create_rectangle(80, 195, 230, 240, fill="#2A1414", outline="#FF5555", width=1, tags="global_popup")
+        t_yes = canvas.create_text(155, 217, text="YES", font=self.FONT_BUTTON, fill="#FFAAAA", tags="global_popup")
+        
+        # Clean finger-target NO box
+        b_no = canvas.create_rectangle(250, 195, 400, 240, fill="#1C1C22", outline="#555566", width=1, tags="global_popup")
+        t_no = canvas.create_text(325, 217, text="NO", font=self.FONT_BUTTON, fill="#BBBBBB", tags="global_popup")
 
-        b_no = ctk.CTkButton(btn_container, width=140, height=45, text="NO", font=self.FONT_BUTTON, fg_color="#1C1C22", text_color="#BBBBBB", border_color="#555566", border_width=1, command=lambda: click_action(False))
-        b_no.pack(side="right", expand=True, padx=5)
+        self.canvas_ids.extend([b_yes, t_yes, b_no, t_no])
+
+        for item in (b_yes, t_yes): canvas.tag_bind(item, "<Button-1>", lambda e: click_action(True))
+        for item in (b_no, t_no): canvas.tag_bind(item, "<Button-1>", lambda e: click_action(False))
+
+        # FIX: Ensure newly drawn buttons/text sit on top before freezing the loop
+        canvas.tag_raise("global_popup")
 
         self.app.wait_variable(loop_flag)
-        popup.destroy()
+        self._clear_popup_layers()
         return user_choice[0]
+
+    # ---- MOCK: SHOW INFO / WARNING ----
+    def mock_showinfo(self, title, message, **kwargs):
+        if hasattr(self.app, 'play_ui_sound'):
+            self.app.play_ui_sound("click")
+            
+        self._draw_base_backdrop(title)
+        canvas = self.app.bg_canvas
+
+        msg_txt = canvas.create_text(240, 135, text=str(message), font=self.FONT_BODY, fill="#DDDDDD", justify="center", width=340, tags="global_popup")
+        self.canvas_ids.append(msg_txt)
+
+        loop_flag = ctk.BooleanVar(value=False)
+
+        # Large "OK" confirmation touch area
+        b_ok = canvas.create_rectangle(165, 195, 315, 240, fill="#1C1C22", outline="#00A8FF", width=1, tags="global_popup")
+        t_ok = canvas.create_text(240, 217, text="OK", font=self.FONT_BUTTON, fill="#FFFFFF", tags="global_popup")
+        self.canvas_ids.extend([b_ok, t_ok])
+
+        for item in (b_ok, t_ok): canvas.tag_bind(item, "<Button-1>", lambda e: loop_flag.set(True))
+
+        # FIX: Ensure newly drawn buttons/text sit on top before freezing the loop
+        canvas.tag_raise("global_popup")
+
+        self.app.wait_variable(loop_flag)
+        self._clear_popup_layers()
+        return "ok"
 
     # ---- MOCK: ASK STRING INPUT ----
     def mock_askstring(self, title, prompt, **kwargs):
-        popup, frame = self._create_popup_window(title)
+        self._draw_base_backdrop(title)
+        canvas = self.app.bg_canvas
+
+        prompt_txt = canvas.create_text(240, 115, text=str(prompt), font=self.FONT_BODY, fill="#AAAAAA", tags="global_popup")
+        
+        # Variable display box field
+        field = canvas.create_rectangle(80, 140, 400, 180, fill="#1C1C22", outline="#333344", width=1, tags="global_popup")
+        
+        self.input_buffer = ""
+        text_render_id = canvas.create_text(240, 160, text="_", font=self.FONT_INPUT, fill="#00A8FF", tags="global_popup")
+        
+        self.canvas_ids.extend([prompt_txt, field, text_render_id])
+
         loop_flag = ctk.BooleanVar(value=False)
         self.input_submitted = False
 
-        prompt_txt = ctk.CTkLabel(frame, text=str(prompt), font=self.FONT_BODY, text_color="#AAAAAA")
-        prompt_txt.pack(pady=(5, 5))
+        def stroke_listener(event):
+            if event.keysym == "Return":
+                self.input_submitted = True
+                loop_flag.set(True)
+            elif event.keysym == "Escape":
+                self.input_submitted = False
+                loop_flag.set(True)
+            elif event.keysym == "BackSpace":
+                self.input_buffer = self.input_buffer[:-1]
+                canvas.itemconfig(text_render_id, text=self.input_buffer + "_")
+            elif event.char and len(event.char) == 1 and (event.char.isalnum() or event.char in " _-"):
+                if len(self.input_buffer) < 16:
+                    self.input_buffer += event.char
+                    canvas.itemconfig(text_render_id, text=self.input_buffer + "_")
+            return "break"
 
-        # Replaces custom key hooks with a clean CustomTkinter Entry widget
-        entry = ctk.CTkEntry(frame, width=320, height=40, font=self.FONT_INPUT, fg_color="#1C1C22", text_color="#00A8FF", border_color="#333344", justify="center")
-        entry.pack(pady=(0, 15))
-        entry.focus_set()
+        self.app.bind("<Key>", stroke_listener)
 
-        btn_container = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_container.pack(fill="x", padx=30)
-
-        def submit(status):
-            self.input_submitted = status
-            self.input_buffer = entry.get()
-            loop_flag.set(True)
-
-        popup.bind("<Return>", lambda e: submit(True))
-        popup.bind("<Escape>", lambda e: submit(False))
-
-        b_ent = ctk.CTkButton(btn_container, width=140, height=43, text="ENTER", font=self.FONT_BUTTON, fg_color="#122412", text_color="#99FF99", border_color="#00FF00", border_width=1, command=lambda: submit(True))
-        b_ent.pack(side="left", expand=True, padx=5)
+        # Confirm / Cancel buttons
+        b_ent = canvas.create_rectangle(80, 205, 230, 248, fill="#122412", outline="#00FF00", width=1, tags="global_popup")
+        t_ent = canvas.create_text(155, 226, text="ENTER", font=self.FONT_BUTTON, fill="#99FF99", tags="global_popup")
         
-        b_cc = ctk.CTkButton(btn_container, width=140, height=43, text="CANCEL", font=self.FONT_BUTTON, fg_color="#241212", text_color="#FFAAAA", border_color="#FF5555", border_width=1, command=lambda: submit(False))
-        b_cc.pack(side="right", expand=True, padx=5)
+        b_cc = canvas.create_rectangle(250, 205, 400, 248, fill="#241212", outline="#FF5555", width=1, tags="global_popup")
+        t_cc = canvas.create_text(325, 226, text="CANCEL", font=self.FONT_BUTTON, fill="#FFAAAA", tags="global_popup")
+        
+        self.canvas_ids.extend([b_ent, t_ent, b_cc, t_cc])
+
+        for item in (b_ent, t_ent): canvas.tag_bind(item, "<Button-1>", lambda e: [setattr(self, 'input_submitted', True), loop_flag.set(True)])
+        for item in (b_cc, t_cc): canvas.tag_bind(item, "<Button-1>", lambda e: [setattr(self, 'input_submitted', False), loop_flag.set(True)])
+
+        # FIX: Ensure newly drawn input box elements sit on top before freezing the loop
+        canvas.tag_raise("global_popup")
 
         self.app.wait_variable(loop_flag)
-        popup.destroy()
+        self.app.unbind("<Key>")
+        self._clear_popup_layers()
+
         return self.input_buffer.strip() if self.input_submitted else None
 
+# Singleton configuration access instance hook
 popup_engine = GlobalHardwarePopupEngine()
